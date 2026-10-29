@@ -166,6 +166,7 @@ test('left-only Base64 control is beside Edit and leaves full Markdown for previ
   api.toggleBase64();
   assert.equal(api.getMarkdown(), raw);
   api.toggleBase64();
-  assert.equal(editor.value, hidden);
+  assert.match(editor.value, /⟦Base64图片#\d+已折叠⟧/);
+  assert.equal(editor.value.length, hidden.length);
   assert.equal(api.getMarkdown(), raw);
 });
