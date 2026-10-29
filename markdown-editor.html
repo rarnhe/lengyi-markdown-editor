@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Markdown编辑器_沃垠AI_冷逸开发</title>
+  <title>Markdown编辑器</title>
   <style>
     :root {
       /* 色彩系统：低饱和靛蓝紫 + 中性灰 */
@@ -107,17 +107,9 @@
       flex-wrap: wrap;
       z-index: 10;
     }
-    .top-bar .brand {
-      font-weight: 700;
-      font-size: 16px;
-      letter-spacing: -0.01em;
-      margin-right: 10px;
-      color: var(--text);
-      white-space: nowrap;
-    }
     .top-bar input[type="text"] {
-      flex: 0 1 220px;
-      min-width: 120px;
+      flex: 1 1 260px;
+      min-width: 0;
       padding: 6px 12px;
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
@@ -132,13 +124,13 @@
       border-color: var(--accent);
       box-shadow: 0 0 0 3px var(--accent-soft);
     }
-    .top-bar .spacer { flex: 1; }
     .top-actions {
       display: flex;
       align-items: center;
       gap: 6px;
       flex-wrap: wrap;
       justify-content: flex-end;
+      flex: 0 0 auto;
     }
     .top-bar button, .top-bar label,
     .editor-toolbar button, .editor-toolbar label {
@@ -323,6 +315,24 @@
     .pane-title {
       font-weight: 600;
     }
+    .editor-pane .pane-header { position: relative; justify-content: center; }
+    .editor-heading { display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .editor-pane .pane-header > .collapse-btn { position: absolute; right: 12px; }
+    #base64-toggle {
+      padding: 3px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text-secondary);
+      font-size: 12px;
+      text-transform: none;
+      letter-spacing: normal;
+      cursor: pointer;
+    }
+    #base64-toggle:hover { background: var(--accent-soft); color: var(--accent); }
+    .editor-pane.collapsed .pane-header > .collapse-btn { position: static; }
+    .editor-pane.collapsed .editor-heading { flex-direction: column; }
+    .editor-pane.collapsed #base64-toggle { display: none; }
     .collapse-btn {
       display: inline-flex;
       align-items: center;
@@ -361,7 +371,7 @@
       white-space: nowrap;
       margin: 4px 0;
     }
-    .pane.collapsed .pane-header > *:not(.pane-title):not(.collapse-btn) {
+    .pane.collapsed .pane-header > *:not(.pane-title):not(.editor-heading):not(.collapse-btn) {
       display: none;
     }
     .resizer {
@@ -439,52 +449,6 @@
       max-width: 800px;
       margin: 0 auto;
       padding: 32px 40px;
-    }
-    /* 预览区源码编辑 */
-    .preview-source {
-      flex: 1;
-      width: 100%;
-      padding: 28px 32px;
-      border: none;
-      outline: none;
-      resize: none;
-      display: none;
-      font-family: var(--font-mono);
-      font-size: 15px;
-      line-height: 1.7;
-      background: var(--panel-bg);
-      color: var(--text);
-      caret-color: var(--accent);
-      tab-size: 4;
-      white-space: pre-wrap;
-      word-break: break-all;
-    }
-    .preview-toggle {
-      display: flex;
-      gap: 4px;
-      padding: 3px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-    }
-    .toggle-btn {
-      padding: 3px 12px;
-      border: none;
-      border-radius: 5px;
-      background: transparent;
-      color: var(--text-muted);
-      font-size: 12px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all .15s ease;
-    }
-    .toggle-btn.active {
-      background: var(--panel-bg);
-      color: var(--accent);
-      box-shadow: var(--shadow-sm);
-    }
-    .toggle-btn:hover:not(.active) {
-      color: var(--accent);
     }
     /* Markdown 预览样式 */
     .preview-content h1, .preview-content h2, .preview-content h3,
@@ -706,8 +670,7 @@
     /* 移动端 */
     @media (max-width: 768px) {
       .top-bar { padding: 8px; gap: 6px; }
-      .top-bar .brand { display: none; }
-      .top-bar input[type="text"] { flex: 1 1 120px; }
+      .top-bar input[type="text"] { flex: 1 1 120px; min-width: 0; }
       .editor-toolbar { padding: 6px; gap: 8px; }
       .editor-toolbar .format-group, .editor-toolbar .editor-actions { gap: 3px; padding: 3px; }
       .top-bar button span, .editor-toolbar button span { display: none; }
@@ -968,7 +931,7 @@
     /* 打印 / 导出 PDF */
     @media print {
       .top-bar, .editor-toolbar, .statusbar, .editor-pane, .resizer, .preview-pane .pane-header,
-      .preview-source, .modal-overlay, .toast, .icon-sprite {
+      .modal-overlay, .toast, .icon-sprite {
         display: none !important;
       }
       .preview-pane {
@@ -1049,9 +1012,7 @@
   </svg>
   <div class="app">
     <div class="top-bar">
-      <span class="brand" data-i18n="brand">Markdown编辑器</span>
-      <input type="text" id="filename" value="未命名文档.md" data-i18n-title="filenameTitle" title="文件名">
-      <div class="spacer"></div>
+      <input type="text" id="filename" value="未命名文档.md" data-i18n-title="filenameTitle" title="文件名" aria-label="文件名">
       <div class="top-actions">
         <button onclick="saveToLocal()" class="primary" data-i18n-title="save"><svg class="icon"><use href="#icon-save"></use></svg> <span data-i18n="save">保存</span></button>
         <label for="importFile"><svg class="icon"><use href="#icon-upload"></use></svg> <span data-i18n="importBtn">导入</span></label>
@@ -1131,7 +1092,6 @@
         <button onclick="openMermaidModal()" data-i18n-title="mermaid" title="插入 Mermaid 图表"><svg class="icon"><use href="#icon-mermaid"></use></svg> <span data-i18n="mermaid">Mermaid</span></button>
       </div>
       <div class="editor-actions">
-        <button type="button" id="base64-toggle" onclick="toggleBase64()" aria-pressed="false" data-i18n-title="showBase64" title="显示 Base64">显示 Base64</button>
         <div class="dropdown" id="view-dropdown">
           <button onclick="toggleViewMenu()" data-i18n-title="view" title="视图布局"><svg class="icon"><use href="#icon-layout"></use></svg> <span data-i18n="view">视图</span> <svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></button>
           <div class="dropdown-menu" id="view-menu">
@@ -1149,8 +1109,10 @@
     <div class="main">
       <div class="pane editor-pane">
         <div class="pane-header">
-          <span class="pane-title" data-i18n="editorPaneTitle">编辑</span>
-          <span data-i18n="editorPaneHint">支持 Markdown 语法</span>
+          <div class="editor-heading">
+            <span class="pane-title" data-i18n="editorPaneTitle">编辑</span>
+            <button type="button" id="base64-toggle" onclick="toggleBase64()" aria-pressed="false" data-i18n-title="showBase64" title="显示 Base64">显示 Base64</button>
+          </div>
           <button class="collapse-btn" id="editor-collapse-btn" onclick="togglePane('editor')" title="收起编辑区"><svg class="icon icon-sm"><use href="#icon-chevron-left"></use></svg></button>
         </div>
         <textarea id="editor" data-i18n-placeholder="editorPlaceholder" placeholder="开始输入 Markdown..." spellcheck="false"></textarea>
@@ -1160,14 +1122,9 @@
         <div class="pane-header">
           <button class="collapse-btn" id="preview-collapse-btn" onclick="togglePane('preview')" title="收起预览区"><svg class="icon icon-sm"><use href="#icon-chevron-right"></use></svg></button>
           <span class="pane-title" data-i18n="previewPaneTitle">实时预览</span>
-          <div class="preview-toggle">
-            <button class="toggle-btn active" data-mode="preview" onclick="setPreviewMode('preview')" data-i18n="previewTab">预览</button>
-            <button class="toggle-btn" data-mode="source" onclick="setPreviewMode('source')" data-i18n="sourceTab">源码</button>
-          </div>
           <span id="word-count">0 字</span>
         </div>
         <div class="preview-content" id="preview"></div>
-        <textarea id="preview-source" class="preview-source" data-i18n-placeholder="previewSourcePlaceholder" placeholder="在此编辑 Markdown 源码..." spellcheck="false"></textarea>
       </div>
     </div>
 
@@ -1206,7 +1163,6 @@
         <ul>
           <li>拖动中间分隔线调整左右宽度；点击标题栏的折叠按钮收起或展开区域。</li>
           <li>工具栏「视图」可切换“编辑 + 预览 / 仅编辑 / 仅预览”。</li>
-          <li>右侧顶部的「源码」标签可直接改源码，切回「预览」看效果。</li>
         </ul>
 
         <p><b>保存、导入与导出</b></p>
@@ -1395,8 +1351,10 @@
   <script>
     const editor = document.getElementById('editor');
     const preview = document.getElementById('preview');
-    const previewSource = document.getElementById('preview-source');
     const filenameInput = document.getElementById('filename');
+    function syncDocumentTitle() {
+      document.title = filenameInput.value.trim() || t('filenameDefault');
+    }
     const wordCount = document.getElementById('word-count');
     const saveHint = document.getElementById('save-hint');
     const toast = document.getElementById('toast');
@@ -1408,7 +1366,6 @@
     const RATIO_KEY = 'md_editor_ratio';
     const EDITOR_COLLAPSED_KEY = 'md_editor_editor_collapsed';
     const PREVIEW_COLLAPSED_KEY = 'md_editor_preview_collapsed';
-    const PREVIEW_MODE_KEY = 'md_editor_preview_mode';
     const LANG_KEY = 'md_editor_language';
 
     // Base64 folding BEGIN
@@ -1467,7 +1424,6 @@
       imageDataMap.clear();
       const displayed = collapseImageData(markdown).text;
       editor.value = displayed;
-      previewSource.value = displayed;
     }
 
     function collapseTextareaData(el) {
@@ -1488,7 +1444,7 @@
     }
 
     function toggleBase64() {
-      const active = getActiveEditor();
+      const active = editor;
       const start = active.selectionStart, end = active.selectionEnd;
       const previous = active.value;
       const markdown = getMarkdown();
@@ -1496,7 +1452,6 @@
       imageDataCollapsed = !imageDataCollapsed;
       const folded = collapseImageData(markdown);
       editor.value = folded.text;
-      previewSource.value = folded.text;
       const startPos = opening ? expandedPosition(previous, start) : folded.position(start);
       const endPos = opening ? expandedPosition(previous, end) : folded.position(end);
       active.setSelectionRange(startPos, endPos);
@@ -1537,7 +1492,6 @@
     }
     // Base64 folding END
 
-    let previewMode = 'preview';
     let currentLang = 'zh-CN';
 
     function t(key, ...args) {
@@ -1583,6 +1537,7 @@
       updateStatusBar();
       updateCount();
       updateBase64Button();
+      syncDocumentTitle();
     }
 
     function updateCollapseBtnLabels() {
@@ -1764,15 +1719,9 @@
       }
       editorCollapsed = localStorage.getItem(EDITOR_COLLAPSED_KEY) === 'true';
       previewCollapsed = localStorage.getItem(PREVIEW_COLLAPSED_KEY) === 'true';
-      const savedPreviewMode = localStorage.getItem(PREVIEW_MODE_KEY);
-      if (savedPreviewMode === 'preview' || savedPreviewMode === 'source') {
-        previewMode = savedPreviewMode;
-      }
-
       updatePreview();
       updateCount();
       applyPaneStates();
-      setPreviewMode(previewMode);
 
       // 初始化历史记录
       historyStack = [getMarkdown()];
@@ -1889,29 +1838,6 @@
       const text = getMarkdown();
       const count = text.replace(/\s/g, '').length;
       wordCount.textContent = t('wordCount', count);
-    }
-
-    // 切换预览/源码模式
-    function setPreviewMode(mode) {
-      const wasSource = previewMode === 'source';
-      previewMode = mode;
-      localStorage.setItem(PREVIEW_MODE_KEY, previewMode);
-      document.querySelectorAll('.preview-toggle .toggle-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.mode === mode);
-      });
-      if (mode === 'preview') {
-        if (wasSource) editor.value = previewSource.value;
-        preview.style.display = '';
-        previewSource.style.display = 'none';
-        updatePreview();
-        updateCount();
-        autoSave();
-      } else {
-        previewSource.value = editor.value;
-        preview.style.display = 'none';
-        previewSource.style.display = 'block';
-        previewSource.focus();
-      }
     }
 
     // 自动保存
@@ -2095,15 +2021,8 @@ ${'</scr' + 'ipt>'}
     }
 
     function exportPDF() {
-      const wasSource = previewMode === 'source';
-      if (wasSource) {
-        setPreviewMode('preview');
-      }
       showToast(t('toastChoosePdf'));
-      setTimeout(() => {
-        window.print();
-        if (wasSource) setPreviewMode('source');
-      }, 500);
+      setTimeout(() => window.print(), 500);
     }
 
     function toggleExportMenu() {
@@ -2134,9 +2053,6 @@ ${'</scr' + 'ipt>'}
     );
 
     function openExportImageModal() {
-      if (previewMode !== 'preview') {
-        setPreviewMode('preview');
-      }
       const el = document.getElementById('export-image-modal');
       el.style.display = 'flex';
       void el.offsetWidth;
@@ -2292,6 +2208,7 @@ ${'</scr' + 'ipt>'}
           name += '.md';
         }
         filenameInput.value = name;
+        syncDocumentTitle();
         updatePreview();
         updateCount();
         saveToLocal();
@@ -2356,7 +2273,7 @@ ${'</scr' + 'ipt>'}
       updatePreview();
       updateCount();
       autoSave();
-      getActiveEditor().focus();
+      editor.focus();
       showToast(t('toastUndone'));
     }
 
@@ -2368,7 +2285,7 @@ ${'</scr' + 'ipt>'}
       updatePreview();
       updateCount();
       autoSave();
-      getActiveEditor().focus();
+      editor.focus();
       showToast(t('toastRedone'));
     }
 
@@ -2403,27 +2320,25 @@ ${'</scr' + 'ipt>'}
     }
     function insertCode() {
       pushHistory();
-      const el = getActiveEditor();
+      const el = editor;
       const start = el.selectionStart;
       const end = el.selectionEnd;
       const text = el.value;
       const selected = text.slice(start, end);
       const insert = selected.includes('\n') ? '```\n' + selected + '\n```' : '`' + selected + '`';
       el.setRangeText(insert, start, end, 'select');
-      syncEditorFromActive();
       updatePreview();
       updateCount();
       autoSave();
       el.focus();
     }
     function wrapSelection(before, after) {
-      const el = getActiveEditor();
+      const el = editor;
       const start = el.selectionStart;
       const end = el.selectionEnd;
       const text = el.value;
       const selected = text.slice(start, end);
       el.setRangeText(before + selected + after, start, end, 'select');
-      syncEditorFromActive();
       updatePreview();
       updateCount();
       autoSave();
@@ -2432,13 +2347,12 @@ ${'</scr' + 'ipt>'}
 
     function formatQuote() {
       pushHistory();
-      const el = getActiveEditor();
+      const el = editor;
       const start = el.selectionStart;
       const end = el.selectionEnd;
       const selected = el.value.slice(start, end) || t('quote');
       const quoted = '> ' + selected.replace(/\n/g, '\n> ');
       el.setRangeText(quoted, start, end, 'select');
-      syncEditorFromActive();
       updatePreview();
       updateCount();
       autoSave();
@@ -2457,7 +2371,7 @@ ${'</scr' + 'ipt>'}
 
     function prefixLines(prefix) {
       pushHistory();
-      const el = getActiveEditor();
+      const el = editor;
       const start = el.selectionStart;
       const end = el.selectionEnd;
       const before = el.value.slice(0, start);
@@ -2467,7 +2381,6 @@ ${'</scr' + 'ipt>'}
       const lines = selected.split('\n');
       const prefixed = lines.map(line => (line ? prefix + line : line)).join('\n');
       el.setRangeText(prefixed, firstLineStart, end, 'end');
-      syncEditorFromActive();
       updatePreview();
       updateCount();
       autoSave();
@@ -2476,7 +2389,7 @@ ${'</scr' + 'ipt>'}
 
     function insertHeading(level) {
       pushHistory();
-      const el = getActiveEditor();
+      const el = editor;
       const start = el.selectionStart;
       const before = el.value.slice(0, start);
       const lineStart = before.lastIndexOf('\n') + 1;
@@ -2485,7 +2398,6 @@ ${'</scr' + 'ipt>'}
       const currentLine = el.value.slice(lineStart, end);
       const newLine = '#'.repeat(level) + ' ' + currentLine.replace(/^#{0,6}\s*/, '');
       el.setRangeText(newLine, lineStart, end, 'end');
-      syncEditorFromActive();
       updatePreview();
       updateCount();
       autoSave();
@@ -2499,32 +2411,15 @@ ${'</scr' + 'ipt>'}
       document.getElementById('heading-menu').classList.remove('show');
     }
 
-    function getActiveEditor() {
-      if (previewMode === 'source' && document.activeElement === previewSource) {
-        return previewSource;
-      }
-      return editor;
-    }
-
-    function syncEditorFromActive() {
-      const el = getActiveEditor();
-      if (el === previewSource) {
-        editor.value = previewSource.value;
-      } else if (previewMode === 'source') {
-        previewSource.value = editor.value;
-      }
-    }
-
     function insertLink() {
       pushHistory();
-      const el = getActiveEditor();
+      const el = editor;
       const start = el.selectionStart;
       const end = el.selectionEnd;
       const selected = el.value.slice(start, end) || t('link');
       const url = prompt(t('promptLinkUrl'), t('promptLinkDefault'));
       if (!url) return;
       el.setRangeText('[' + selected + '](' + url + ')', start, end, 'end');
-      syncEditorFromActive();
       updatePreview();
       updateCount();
       autoSave();
@@ -2534,11 +2429,10 @@ ${'</scr' + 'ipt>'}
     function insertImageMarkdown(alt, url) {
       pushHistory();
       const safeAlt = String(alt).replace(/\]/g, '\\]');
-      const el = getActiveEditor();
+      const el = editor;
       const start = el.selectionStart;
       const end = el.selectionEnd;
       el.setRangeText('![' + (safeAlt || t('image')) + '](' + collapseImageData(url).text + ')', start, end, 'end');
-      syncEditorFromActive();
       updatePreview();
       updateCount();
       autoSave();
@@ -2608,11 +2502,10 @@ ${'</scr' + 'ipt>'}
         table += '\n' + dataCols;
       }
       table += '\n';
-      const el = getActiveEditor();
+      const el = editor;
       const start = el.selectionStart;
       const end = el.selectionEnd;
       el.setRangeText(table, start, end, 'end');
-      syncEditorFromActive();
       updatePreview();
       updateCount();
       autoSave();
@@ -2736,12 +2629,11 @@ ${'</scr' + 'ipt>'}
         return;
       }
       pushHistory();
-      const el = getActiveEditor();
+      const el = editor;
       const start = el.selectionStart;
       const end = el.selectionEnd;
       const fenced = '\n```mermaid\n' + code + '\n```\n\n';
       el.setRangeText(fenced, start, end, 'end');
-      syncEditorFromActive();
       updatePreview();
       updateCount();
       autoSave();
@@ -2777,7 +2669,6 @@ ${'</scr' + 'ipt>'}
       } else if (mode === 'preview') {
         editorCollapsed = true;
         previewCollapsed = false;
-        if (previewMode !== 'preview') setPreviewMode('preview');
       } else {
         editorCollapsed = false;
         previewCollapsed = false;
@@ -2874,7 +2765,7 @@ ${'</scr' + 'ipt>'}
       void el.offsetWidth;
       el.classList.add('show');
       const findInput = document.getElementById('find-input');
-      const ed = getActiveEditor();
+      const ed = editor;
       if (ed.selectionStart !== ed.selectionEnd) {
         findInput.value = ed.value.slice(ed.selectionStart, ed.selectionEnd);
       }
@@ -2893,7 +2784,7 @@ ${'</scr' + 'ipt>'}
     function findNext() {
       const query = document.getElementById('find-input').value;
       const status = document.getElementById('find-status');
-      const el = getActiveEditor();
+      const el = editor;
       if (!query) {
         status.textContent = '';
         return;
@@ -2917,7 +2808,7 @@ ${'</scr' + 'ipt>'}
       const query = document.getElementById('find-input').value;
       const replacement = document.getElementById('replace-input').value;
       const status = document.getElementById('find-status');
-      const el = getActiveEditor();
+      const el = editor;
       if (!query) {
         status.textContent = '';
         return;
@@ -2930,7 +2821,6 @@ ${'</scr' + 'ipt>'}
         return;
       }
       el.setRangeText(replacement, start, end, 'end');
-      syncEditorFromActive();
       findIndex = start + replacement.length;
       updatePreview();
       updateCount();
@@ -2942,7 +2832,7 @@ ${'</scr' + 'ipt>'}
       const query = document.getElementById('find-input').value;
       const replacement = document.getElementById('replace-input').value;
       const status = document.getElementById('find-status');
-      const el = getActiveEditor();
+      const el = editor;
       if (!query) {
         status.textContent = '';
         return;
@@ -2957,7 +2847,6 @@ ${'</scr' + 'ipt>'}
       }
       if (count > 0) {
         el.value = text;
-        syncEditorFromActive();
         findIndex = 0;
         updatePreview();
         updateCount();
@@ -3214,26 +3103,18 @@ ${'</scr' + 'ipt>'}
     // 事件监听
     editor.addEventListener('input', () => {
       collapseTextareaData(editor);
-      if (previewMode === 'source') previewSource.value = editor.value;
       clearTimeout(historyTimer);
       historyTimer = setTimeout(recordHistory, 400);
       updatePreview();
       updateCount();
       autoSave();
     });
-    previewSource.addEventListener('input', () => {
-      collapseTextareaData(previewSource);
-      editor.value = previewSource.value;
-      clearTimeout(historyTimer);
-      historyTimer = setTimeout(recordHistory, 400);
-      updateCount();
+    filenameInput.addEventListener('input', () => {
+      syncDocumentTitle();
       autoSave();
     });
-    filenameInput.addEventListener('input', autoSave);
-    for (const el of [editor, previewSource]) {
-      el.addEventListener('beforeinput', protectBase64Marker);
-      el.addEventListener('copy', copyExpandedBase64);
-    }
+    editor.addEventListener('beforeinput', protectBase64Marker);
+    editor.addEventListener('copy', copyExpandedBase64);
 
     // 拖放文件打开
     const dropOverlay = document.getElementById('drop-overlay');
@@ -3363,17 +3244,15 @@ ${'</scr' + 'ipt>'}
       // Tab 缩进
       if (e.key === 'Tab') {
         e.preventDefault();
-        const el = getActiveEditor();
+        const el = editor;
         const start = el.selectionStart;
         const end = el.selectionEnd;
         el.setRangeText('    ', start, end, 'end');
-        syncEditorFromActive();
         updatePreview();
         updateCount();
       }
     }
     editor.addEventListener('keydown', handleEditorKeydown);
-    previewSource.addEventListener('keydown', handleEditorKeydown);
 
     // 启动
     init();
