@@ -13,9 +13,6 @@
 
 </div>
 
-<p align="center">
-  <img src="public/产品海报.png" width="100%" alt="Markdown 编辑器主界面" />
-</p>
 
 ---
 
@@ -145,10 +142,6 @@ AI 时代，Markdown 这件事，本该足够简单。
 ├── markdown-editor.html    # 主编辑器（单文件应用）
 ├── i18n.js                 # 多语言字典（10 种语言）
 ├── web-to-md-proxy.py      # 本地代理脚本（可选）
-├── public/                 # 静态资源
-│   ├── 关于作者.md
-│   ├── 产品海报.png
-│   ├── 产品界面.png
 └── README.md               # 本文件
 ```
 
@@ -196,20 +189,6 @@ python web-to-md-proxy.py
 
 ---
 
-## 🖼️ 界面预览
-
-<p align="center">
-  <img src="public/产品界面2.png" width="48%" />
-  <img src="public/产品界面3-主题切换.png" width="48%" />
-</p>
-
-<p align="center">
-  <img src="public/产品界面-多格式导出.png" width="48%" />
-  <img src="public/产品界面-多语言支持.png" width="48%" />
-</p>
-
----
-
 ## 🤝 参与贡献
 
 这个项目诞生于「自己用着顺手」的需求，但我相信它还能更好。
@@ -238,10 +217,6 @@ python web-to-md-proxy.py
 - **全平台统一账户**：沃垠AI
 - **内容矩阵**：公众号、小红书、知乎、GitHub、B站、X 等
 
-欢迎关注公众号「沃垠AI」，获取更多 AI 干货：
-<p align="center">
-  <img src="public/公众号二维码.png" width="90%" alt="沃垠AI 公众号二维码" />
-</p>
 
 ---
 <div align="center">

@@ -13,9 +13,6 @@ A Markdown writing tool that works right out of the box in your browser.
 
 </div>
 
-<p align="center">
-  <img src="public/产品海报.png" width="100%" alt="Markdown Editor Main Interface" />
-</p>
 
 ---
 
@@ -146,10 +143,6 @@ Language preference is persisted to `localStorage`.
 ├── markdown-editor.html    # Main editor (single-file app)
 ├── i18n.js                 # i18n dictionary (10 languages)
 ├── web-to-md-proxy.py      # Optional local proxy script
-├── public/                 # Static assets
-│   ├── 关于作者.md
-│   ├── 产品海报.png
-│   └── 产品界面.png
 └── README.md               # This file
 ```
 
@@ -197,20 +190,6 @@ python web-to-md-proxy.py
 
 ---
 
-## 🖼️ Screenshots
-
-<p align="center">
-  <img src="public/产品界面2.png" width="48%" />
-  <img src="public/产品界面3-主题切换.png" width="48%" />
-</p>
-
-<p align="center">
-  <img src="public/产品界面-多格式导出.png" width="48%" />
-  <img src="public/产品界面-多语言支持.png" width="48%" />
-</p>
-
----
-
 ## 🤝 Contributing
 
 This project started from my own need for a simple writing tool, but I believe it can be better.
@@ -240,10 +219,6 @@ You are free to use, modify, and distribute. For commercial use, please obtain a
 - **Unified account across platforms**: 沃垠AI
 - **Content matrix**: WeChat Official Account, Xiaohongshu, Zhihu, GitHub, Bilibili, X, etc.
 
-Welcome to follow the WeChat Official Account "沃垠AI" for more AI insights:
-<p align="center">
-  <img src="public/公众号二维码.png" width="90%" alt="WeChat QR Code" />
-</p>
 
 ---
 

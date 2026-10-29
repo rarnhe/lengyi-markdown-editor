@@ -1831,10 +1831,14 @@
       return div.innerHTML;
     }
 
-    // 统计字数
+    // 统计渲染后的可见文字（图片及其 Base64 URL 不包含文本节点）。
     function updateCount() {
-      const text = getMarkdown();
-      const count = text.replace(/\s/g, '').length;
+      let text = preview.innerText;
+      // marked 未加载时预览退化为源码文本，仍需忽略图片 Markdown。
+      if (typeof marked === 'undefined') {
+        text = text.replace(/!\[[^\]]*\]\([^\n)]*\)/g, '');
+      }
+      const count = Array.from(text.replace(/\s/g, '')).length;
       wordCount.textContent = t('wordCount', count);
     }
 

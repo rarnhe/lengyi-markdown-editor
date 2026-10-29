@@ -173,3 +173,36 @@ test('left-only Base64 control is beside Edit and leaves full Markdown for previ
   assert.equal(editor.value.length, hidden.length);
   assert.equal(api.getMarkdown(), raw);
 });
+
+test('counter counts rendered text, not Markdown syntax, image alt text or Base64', () => {
+  const body = html.match(/function updateCount\(\) \{[\s\S]*?\n    \}/);
+  assert.ok(body, 'counter function must exist');
+  const count = (renderedText, markedLoaded = true) => {
+    const context = {
+      preview: { innerText: renderedText },
+      wordCount: { textContent: '' },
+      t: (_, count) => String(count),
+      ...(markedLoaded ? { marked: {} } : {})
+    };
+    vm.runInNewContext(body[0] + '\nupdateCount();', context);
+    return Number(context.wordCount.textContent);
+  };
+  assert.equal(count(''), 0);
+  assert.equal(count('Hello **world**'.replace(/\*\*/g, '')), 10);
+  assert.equal(count('一级标题\n加粗链接'), 8);
+  assert.equal(count('你好 🌟'), 3);
+  assert.equal(count('正文'), 2); // an image adds no text nodes
+  assert.equal(count('正文图片后的文字'), 8);
+  const image = 'A'.repeat(500000);
+  assert.equal(count('正文 ![图片替代文本](data:image/png;base64,' + image + ')', false), 2);
+  assert.equal(count('![external](https://example.com/pic.png)', false), 0);
+});
+
+test('public directory and image references are completely removed from both READMEs', () => {
+  assert.equal(existsSync('public'), false);
+  for (const filename of ['README.md', 'README.zh.md']) {
+    const readme = readFileSync(filename, 'utf8');
+    assert.doesNotMatch(readme, /public\//, filename);
+    assert.doesNotMatch(readme, /<img\b/i, filename);
+  }
+});
