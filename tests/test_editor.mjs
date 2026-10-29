@@ -219,10 +219,10 @@ test('outline extracts headings from Markdown without preview-source mode', () =
   assert.doesNotMatch(html, /previewSource|setPreviewMode|PREVIEW_MODE_KEY/);
 });
 test('outline panel persists visibility and width with ten-language labels', () => {
-  for (const key of ['outline-pane', 'outline-resizer', 'outline-menu-item', 'OUTLINE_VISIBLE_KEY', 'OUTLINE_WIDTH_KEY', 'jumpToHeading', 'scrollTextareaToCaret']) {
+  for (const key of ['outline-pane', 'outline-resizer', 'outline-collapse-btn', 'OUTLINE_VISIBLE_KEY', 'OUTLINE_WIDTH_KEY', 'jumpToHeading', 'scrollTextareaToCaret']) {
     assert.ok(html.includes(key), key);
   }
-  for (const key of ['outlineTitle', 'viewOutline', 'outlineEmpty', 'collapseOutline']) {
+  for (const key of ['outlineTitle', 'viewStandard', 'outlineEmpty', 'collapseOutline', 'expandOutline']) {
     assert.equal((i18n.match(new RegExp('^    '+key+':', 'gm')) || []).length, 10, key);
   }
 });
@@ -235,4 +235,107 @@ test('Mermaid SVG labels are counted and the count refreshes after render promis
   vm.runInNewContext(block[0] + '\nupdateCount();', ctx);
   assert.equal(ctx.wordCount.textContent, '6');
   assert.match(html, /Promise\.resolve\(mermaid\.run\(/);
+});
+
+test('code-block toolbar always inserts a fenced block, with an editable body', () => {
+  const block = html.match(/function insertCode\(\) \{[\s\S]*?\n    \}/);
+  assert.ok(block);
+  function insert(text, from, to) {
+    const editor = {
+      value:text, selectionStart:from, selectionEnd:to,
+      setRangeText(value,start,end){this.value=this.value.slice(0,start)+value+this.value.slice(end);},
+      setSelectionRange(start,end){this.selectionStart=start;this.selectionEnd=end;},
+      focus(){}
+    };
+    vm.runInNewContext(block[0]+'\ninsertCode();', {
+      editor, pushHistory(){}, updatePreview(){}, updateCount(){}, autoSave(){}
+    });
+    return editor;
+  }
+  const fence = String.fromCharCode(96).repeat(3);
+  const blank = insert('',0,0);
+  assert.equal(blank.value,fence+'code\n\n'+fence);
+  assert.equal(blank.selectionStart,8);
+  const single = insert('abc',0,3);
+  assert.equal(single.value,fence+'code\nabc\n'+fence);
+  assert.equal(single.value.slice(single.selectionStart,single.selectionEnd),'abc');
+  const multi = insert('one\ntwo',0,7);
+  assert.equal(multi.value,fence+'code\none\ntwo\n'+fence);
+  const inline = insert('hello world',6,11);
+  assert.equal(inline.value,'hello \n'+fence+'code\nworld\n'+fence);
+  const middle = insert('ABCDEF',3,3);
+  assert.equal(middle.value,'ABC\n'+fence+'code\n\n'+fence+'\nDEF');
+  assert.match(html,/onclick="insertCode\(\)"[^>]*>[\s\S]*?data-i18n="codeBlock">代码块<\/span>/);
+});
+
+test('Standard layout shows editor, preview and outline, preserving their separate fold controls', () => {
+  const menu=html.match(/<div class="dropdown-menu" id="view-menu">([\s\S]*?)<\/div>/);
+  assert.ok(menu);
+  assert.match(menu[1],/setLayoutMode\('standard'\)/);
+  assert.doesNotMatch(menu[1],/setLayoutMode\('both'|'edit'|'preview'\)|toggleOutline\(\)/);
+  assert.doesNotMatch(html,/preview-collapse-btn|previewCollapsed|PREVIEW_COLLAPSED_KEY|LAYOUT_MODE_KEY/);
+  const block=html.match(/function setLayoutMode\(mode\) \{[\s\S]*?\n    \}/);
+  assert.ok(block);
+  const stored={};
+  let paneUpdates=0, outlineUpdates=0, outlineRenders=0;
+  const ctx={
+    editorCollapsed:true, outlineVisible:false,
+    EDITOR_COLLAPSED_KEY:'editor',OUTLINE_VISIBLE_KEY:'outline',
+    localStorage:{setItem(k,v){stored[k]=v;}},
+    applyPaneStates(){paneUpdates++;},
+    applyOutlineState(){outlineUpdates++;},
+    renderOutline(){outlineRenders++;}
+  };
+  vm.runInNewContext(block[0]+"\nsetLayoutMode('standard');",ctx);
+  assert.equal(ctx.editorCollapsed,false);
+  assert.equal(ctx.outlineVisible,true);
+  assert.deepEqual(stored,{editor:'false',outline:'true'});
+  assert.equal(paneUpdates,1);
+  assert.equal(outlineUpdates,1);
+  assert.equal(outlineRenders,1);
+  assert.match(html,/outlineVisible = localStorage\.getItem\(OUTLINE_VISIBLE_KEY\) !== 'false'/);
+});
+
+test('outline collapse arrow moves to the left, switches direction and preserves width', () => {
+  const paneHeader=html.match(/<div class="pane outline-pane" id="outline-pane">([\s\S]*?)<div class="outline-list"/);
+  assert.ok(paneHeader);
+  assert.match(paneHeader[1],/id="outline-collapse-btn"[\s\S]*?icon-chevron-left/);
+  assert.match(html,/\.outline-pane\.collapsed \.outline-list \{ display: none; \}/);
+  assert.match(html,/\.outline-pane \.pane-header > \.collapse-btn \{ position: absolute; left: 12px; \}/);
+  const block=html.match(/function applyOutlineState\(\) \{[\s\S]*?\n    \}/);
+  assert.ok(block);
+  const classList=()=>({states:{},toggle(key,on){this.states[key]=on;}});
+  const pane={classList:classList(),style:{}};
+  const resizer={classList:classList()};
+  const button={attributes:{},setAttribute(k,v){this.attributes[k]=v;}};
+  const elements={'outline-pane':pane,'outline-resizer':resizer,'outline-collapse-btn':button};
+  const ctx={
+    outlineVisible:true,outlineWidth:320,
+    document:{getElementById(id){return elements[id];}},
+    t:key=>key,applySplit(){}
+  };
+  vm.runInNewContext(block[0]+'\nthis.syncOutline = applyOutlineState;',ctx);
+  ctx.syncOutline();
+  assert.equal(pane.style.flex,'0 0 320px');
+  assert.equal(pane.classList.states.collapsed,false);
+  assert.match(button.innerHTML,/icon-chevron-left/);
+  assert.equal(button.attributes['aria-expanded'],'true');
+  ctx.outlineVisible=false;
+  ctx.syncOutline();
+  assert.equal(pane.style.flex,'');
+  assert.equal(pane.classList.states.collapsed,true);
+  assert.equal(resizer.classList.states.hidden,true);
+  assert.match(button.innerHTML,/icon-chevron-right/);
+  assert.equal(button.attributes['aria-expanded'],'false');
+  assert.match(html,/localStorage\.setItem\(OUTLINE_WIDTH_KEY, outlineWidth\)/);
+});
+
+test('ten languages use Standard and expanded outline titles without obsolete view options', () => {
+  for(const key of ['viewStandard','expandOutline','collapseOutline']) {
+    assert.equal((i18n.match(new RegExp('^    '+key+':','gm'))||[]).length,10,key);
+  }
+  for(const old of ['viewBoth','viewEdit','viewPreview','viewOutline','collapsePreview','expandPreview']) {
+    assert.doesNotMatch(i18n,new RegExp('^    '+old+':','m'),old);
+  }
+  assert.match(html,/\.editor-toolbar button span\[data-i18n="codeBlock"\] \{ display: inline; \}/);
 });
