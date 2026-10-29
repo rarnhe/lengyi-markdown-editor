@@ -1456,8 +1456,6 @@
       const endPos = opening ? expandedPosition(previous, end) : folded.position(end);
       active.setSelectionRange(startPos, endPos);
       updateBase64Button();
-      updatePreview();
-      updateCount();
     }
 
     function protectBase64Marker(e) {
