@@ -159,6 +159,9 @@ test('left-only Base64 control is beside Edit and leaves full Markdown for previ
   assert.match(left[1], /data-i18n="editorPaneTitle"[\s\S]*?id="base64-toggle"/);
   assert.doesNotMatch(right[1], /base64-toggle|<textarea/);
   assert.match(html, /function updatePreview\(\) \{\s*let text = getMarkdown\(\);/);
+  const toggle = html.match(/function toggleBase64\(\) \{([\s\S]*?)\n    \}/);
+  assert.ok(toggle);
+  assert.doesNotMatch(toggle[1], /updatePreview\(|updateCount\(|preview\./);
   const {api,editor} = foldingHarness();
   const raw = '![photo](data:image/png;base64,' + 'Q'.repeat(500) + ')';
   api.setMarkdown(raw);
