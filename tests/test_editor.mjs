@@ -206,3 +206,33 @@ test('public directory and image references are completely removed from both REA
     assert.doesNotMatch(readme, /<img\b/i, filename);
   }
 });
+
+test('outline extracts headings from Markdown without preview-source mode', () => {
+  const block = html.match(/function extractHeadings\(text\) \{[\s\S]*?\n    \}/);
+  assert.ok(block);
+  const ctx = vm.createContext({});
+  vm.runInContext(block[0] + '\nthis.extract = extractHeadings;', ctx);
+  const fence = String.fromCharCode(96).repeat(3);
+  const result = ctx.extract('# First\n' + fence + '\n## Hidden\n' + fence + '\n## Second\n~~~\n# Hidden2\n~~~');
+  assert.deepEqual(Array.from(result, h => [h.level, h.text, h.line]), [[1,'First',0],[2,'Second',4]]);
+  assert.match(html, /extractHeadings\(getMarkdown\(\)\)/);
+  assert.doesNotMatch(html, /previewSource|setPreviewMode|PREVIEW_MODE_KEY/);
+});
+test('outline panel persists visibility and width with ten-language labels', () => {
+  for (const key of ['outline-pane', 'outline-resizer', 'outline-menu-item', 'OUTLINE_VISIBLE_KEY', 'OUTLINE_WIDTH_KEY', 'jumpToHeading', 'scrollTextareaToCaret']) {
+    assert.ok(html.includes(key), key);
+  }
+  for (const key of ['outlineTitle', 'viewOutline', 'outlineEmpty', 'collapseOutline']) {
+    assert.equal((i18n.match(new RegExp('^    '+key+':', 'gm')) || []).length, 10, key);
+  }
+});
+test('Mermaid SVG labels are counted and the count refreshes after render promise', () => {
+  const block = html.match(/function updateCount\(\) \{[\s\S]*?\n    \}/);
+  assert.ok(block);
+  const svg = { querySelectorAll() { return [{textContent:'开始'}, {textContent:'结束'}]; } };
+  const preview = {innerText:'正文 graph TD', querySelectorAll() {return [{innerText:'graph TD',querySelector(){return svg;}}];}};
+  const ctx = {preview,marked:{},wordCount:{textContent:''},t:(_,c)=>String(c)};
+  vm.runInNewContext(block[0] + '\nupdateCount();', ctx);
+  assert.equal(ctx.wordCount.textContent, '6');
+  assert.match(html, /Promise\.resolve\(mermaid\.run\(/);
+});
