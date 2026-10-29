@@ -341,7 +341,7 @@ test('ten languages use Standard and expanded outline titles without obsolete vi
 });
 
 test('Reading mode hides editing chrome and replaces Page Fullscreen', () => {
-  const menu=html.match(/<div class="dropdown-menu" id="view-menu">([\s\S]*?)<\/div>/);
+  const menu=html.match(/<div class="dropdown-menu" id="view-menu">([\s\S]*?)<\/div>\s*<\/div>/);
   assert.ok(menu);
   assert.match(menu[1],/setReadingMode\(true\)/);
   assert.match(menu[1],/data-i18n="readingMode"/);
