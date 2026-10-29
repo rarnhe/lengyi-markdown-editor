@@ -11,7 +11,6 @@ const i18n = {
 <ul>
   <li>拖动中间分隔线调整左右宽度；点击标题栏的折叠按钮收起或展开区域。</li>
   <li>工具栏「视图」可切换“编辑 + 预览 / 仅编辑 / 仅预览”。</li>
-  <li>右侧顶部的「源码」标签可直接改源码，切回「预览」看效果。</li>
 </ul>
 <p><b>保存、导入与导出</b></p>
 <ul>
@@ -32,8 +31,7 @@ const i18n = {
 </ul>
 <p><b>常用快捷键</b>：<code>Ctrl+S</code> 保存，<code>Ctrl+Z</code> 撤销，<code>Ctrl+Y / Ctrl+Shift+Z</code> 重做，<code>Ctrl+B</code> 加粗，<code>Ctrl+I</code> 斜体，<code>Ctrl+U</code> 下划线，<code>Ctrl+K</code> 链接，<code>Ctrl+Shift+K</code> 图片，<code>Ctrl+F</code> 查找，<code>Ctrl+H</code> 替换，<code>Tab</code> 插入 4 空格缩进。</p>
 <p style="color:var(--text-muted);font-size:12px;">本编辑器由「沃垠AI」主理人冷逸开发，功能建议请联系微信：lengcp2013</p>`,
-    welcomeDoc: '# 欢迎使用 Markdown 编辑器\n\n在左侧输入 Markdown，右侧即可**实时预览**。\n\n## 功能\n\n- 自动保存到浏览器本地\n- 支持导入 / 导出 `.md` 文件\n- 右侧「源码」模式可直接编辑\n- 可将网页链接转换为 Markdown\n- 快捷键：Ctrl+S 保存\n\n```js\nconsole.log("Hello Markdown!");\n```',
-    brand: 'Markdown编辑器',
+    welcomeDoc: '# 欢迎使用 Markdown 编辑器\n\n在左侧输入 Markdown，右侧即可**实时预览**。\n\n## 功能\n\n- 自动保存到浏览器本地\n- 支持导入 / 导出 `.md` 文件\n- 可将网页链接转换为 Markdown\n- 快捷键：Ctrl+S 保存\n\n```js\nconsole.log("Hello Markdown!");\n```',
     filenameTitle: '文件名',
     filenameDefault: '未命名文档.md',
     save: '保存',
@@ -81,18 +79,14 @@ const i18n = {
     theme: '主题',
     langLabel: '语言',
     editorPaneTitle: '编辑',
-    editorPaneHint: '支持 Markdown 语法',
     editorPlaceholder: '开始输入 Markdown...',
     collapseEditor: '收起编辑区',
     expandEditor: '展开编辑区',
     previewPaneTitle: '实时预览',
     collapsePreview: '收起预览区',
     expandPreview: '展开预览区',
-    previewTab: '预览',
-    sourceTab: '源码',
     showBase64: '显示 Base64',
     hideBase64: '隐藏 Base64',
-    previewSourcePlaceholder: '在此编辑 Markdown 源码...',
     wordCount: '{0} 字',
     autosaveEnabled: '自动保存已启用',
     saved: '已保存',
@@ -205,7 +199,6 @@ const i18n = {
 <ul>
   <li>拖曳中間分隔線調整左右寬度；點擊標題列的折疊按鈕收起或展開區域。</li>
   <li>工具列「檢視」可切換「編輯 + 預覽 / 僅編輯 / 僅預覽」。</li>
-  <li>右側頂部的「原始碼」標籤可直接修改原始碼，切回「預覽」看效果。</li>
 </ul>
 <p><b>儲存、匯入與匯出</b></p>
 <ul>
@@ -226,8 +219,7 @@ const i18n = {
 </ul>
 <p><b>常用快捷鍵</b>：<code>Ctrl+S</code> 儲存，<code>Ctrl+Z</code> 復原，<code>Ctrl+Y / Ctrl+Shift+Z</code> 重做，<code>Ctrl+B</code> 粗體，<code>Ctrl+I</code> 斜體，<code>Ctrl+U</code> 底線，<code>Ctrl+K</code> 連結，<code>Ctrl+Shift+K</code> 圖片，<code>Ctrl+F</code> 尋找，<code>Ctrl+H</code> 取代，<code>Tab</code> 插入 4 空格縮排。</p>
 <p style="color:var(--text-muted);font-size:12px;">本編輯器由「沃垠AI」主理人冷逸開發，功能建議請聯繫微信：lengcp2013</p>`,
-    welcomeDoc: '# 歡迎使用 Markdown 編輯器\n\n在左側輸入 Markdown，右側即可**即時預覽**。\n\n## 功能\n\n- 自動儲存到瀏覽器本地\n- 支援匯入 / 匯出 `.md` 檔案\n- 右側「原始碼」模式可直接編輯\n- 可將網頁連結轉換為 Markdown\n- 快捷鍵：Ctrl+S 儲存\n\n```js\nconsole.log("Hello Markdown!");\n```',
-    brand: 'Markdown編輯器',
+    welcomeDoc: '# 歡迎使用 Markdown 編輯器\n\n在左側輸入 Markdown，右側即可**即時預覽**。\n\n## 功能\n\n- 自動儲存到瀏覽器本地\n- 支援匯入 / 匯出 `.md` 檔案\n- 可將網頁連結轉換為 Markdown\n- 快捷鍵：Ctrl+S 儲存\n\n```js\nconsole.log("Hello Markdown!");\n```',
     filenameTitle: '檔案名稱',
     filenameDefault: '未命名文件.md',
     save: '儲存',
@@ -275,18 +267,14 @@ const i18n = {
     theme: '主題',
     langLabel: '語言',
     editorPaneTitle: '編輯',
-    editorPaneHint: '支援 Markdown 語法',
     editorPlaceholder: '開始輸入 Markdown...',
     collapseEditor: '收起編輯區',
     expandEditor: '展開編輯區',
     previewPaneTitle: '即時預覽',
     collapsePreview: '收起預覽區',
     expandPreview: '展開預覽區',
-    previewTab: '預覽',
-    sourceTab: '原始碼',
     showBase64: '顯示 Base64',
     hideBase64: '隱藏 Base64',
-    previewSourcePlaceholder: '在此編輯 Markdown 原始碼...',
     wordCount: '{0} 字',
     autosaveEnabled: '自動儲存已啟用',
     saved: '已儲存',
@@ -399,7 +387,6 @@ const i18n = {
 <ul>
   <li>Drag the divider to resize panes; click the collapse buttons on the headers to collapse or expand a pane.</li>
   <li>The toolbar “View” menu switches between Edit + Preview / Edit only / Preview only.</li>
-  <li>The “Source” tab on the right lets you edit Markdown source directly; switch back to “Preview” to see the result.</li>
 </ul>
 <p><b>Save, import & export</b></p>
 <ul>
@@ -420,8 +407,7 @@ const i18n = {
 </ul>
 <p><b>Common shortcuts</b>: <code>Ctrl+S</code> Save, <code>Ctrl+Z</code> Undo, <code>Ctrl+Y / Ctrl+Shift+Z</code> Redo, <code>Ctrl+B</code> Bold, <code>Ctrl+I</code> Italic, <code>Ctrl+U</code> Underline, <code>Ctrl+K</code> Link, <code>Ctrl+Shift+K</code> Image, <code>Ctrl+F</code> Find, <code>Ctrl+H</code> Replace, <code>Tab</code> insert 4-space indent.</p>
 <p style="color:var(--text-muted);font-size:12px;">Developed by Leng Yi of Woyin AI. Feedback via WeChat: lengcp2013</p>`,
-    welcomeDoc: '# Welcome to the Markdown Editor\n\nType Markdown on the left and see the **live preview** on the right.\n\n## Features\n\n- Auto-saved to browser local storage\n- Import / export `.md` files\n- "Source" mode on the right for direct editing\n- Convert web links to Markdown\n- Shortcut: Ctrl+S to save\n\n```js\nconsole.log("Hello Markdown!");\n```',
-    brand: 'Markdown Editor',
+    welcomeDoc: '# Welcome to the Markdown Editor\n\nType Markdown on the left and see the **live preview** on the right.\n\n## Features\n\n- Auto-saved to browser local storage\n- Import / export `.md` files\n- Convert web links to Markdown\n- Shortcut: Ctrl+S to save\n\n```js\nconsole.log("Hello Markdown!");\n```',
     filenameTitle: 'Filename',
     filenameDefault: 'Untitled.md',
     save: 'Save',
@@ -469,18 +455,14 @@ const i18n = {
     theme: 'Theme',
     langLabel: 'Language',
     editorPaneTitle: 'Edit',
-    editorPaneHint: 'Supports Markdown syntax',
     editorPlaceholder: 'Start typing Markdown...',
     collapseEditor: 'Collapse Editor',
     expandEditor: 'Expand Editor',
     previewPaneTitle: 'Live Preview',
     collapsePreview: 'Collapse Preview',
     expandPreview: 'Expand Preview',
-    previewTab: 'Preview',
-    sourceTab: 'Source',
     showBase64: 'Show Base64',
     hideBase64: 'Hide Base64',
-    previewSourcePlaceholder: 'Edit Markdown source here...',
     wordCount: '{0} chars',
     autosaveEnabled: 'Auto-save enabled',
     saved: 'Saved',
@@ -593,7 +575,6 @@ const i18n = {
 <ul>
   <li>中央の区切り線をドラッグして左右の幅を調整；ヘッダーの「⟨」/「⟩」でエリアを折りたたみ/展開。</li>
   <li>ツールバーの「表示」で「編集 + プレビュー / 編集のみ / プレビューのみ」を切り替え。</li>
-  <li>右側上部の「ソース」タブで Markdown ソースを直接編集し、「プレビュー」に戻して確認。</li>
 </ul>
 <p><b>保存、インポート、エクスポート</b></p>
 <ul>
@@ -614,8 +595,7 @@ const i18n = {
 </ul>
 <p><b>よく使うショートカット</b>：<code>Ctrl+S</code> 保存、<code>Ctrl+Z</code> 元に戻す、<code>Ctrl+Y / Ctrl+Shift+Z</code> やり直す、<code>Ctrl+B</code> 太字、<code>Ctrl+I</code> 斜体、<code>Ctrl+U</code> 下線、<code>Ctrl+K</code> リンク、<code>Ctrl+Shift+K</code> 画像、<code>Ctrl+F</code> 検索、<code>Ctrl+H</code> 置換、<code>Tab</code> 4 スペース字下げ。</p>
 <p style="color:var(--text-muted);font-size:12px;">本エディタは「沃垠AI」の主理人である冷逸（Leng Yi）によって開発されました。機能提案は WeChat: lengcp2013 まで</p>`,
-    welcomeDoc: '# Markdown エディタへようこそ\n\n左側に Markdown を入力すると、右側に**リアルタイムプレビュー**が表示されます。\n\n## 機能\n\n- ブラウザのローカルに自動保存\n- `.md` ファイルのインポート / エクスポート\n- 右側の「ソース」モードで直接編集\n- Web リンクを Markdown に変換\n- ショートカット：Ctrl+S で保存\n\n```js\nconsole.log("Hello Markdown!");\n```',
-    brand: 'Markdownエディタ',
+    welcomeDoc: '# Markdown エディタへようこそ\n\n左側に Markdown を入力すると、右側に**リアルタイムプレビュー**が表示されます。\n\n## 機能\n\n- ブラウザのローカルに自動保存\n- `.md` ファイルのインポート / エクスポート\n- Web リンクを Markdown に変換\n- ショートカット：Ctrl+S で保存\n\n```js\nconsole.log("Hello Markdown!");\n```',
     filenameTitle: 'ファイル名',
     filenameDefault: '無題.md',
     save: '保存',
@@ -663,18 +643,14 @@ const i18n = {
     theme: 'テーマ',
     langLabel: '言語',
     editorPaneTitle: '編集',
-    editorPaneHint: 'Markdown 構文に対応',
     editorPlaceholder: 'Markdown を入力...',
     collapseEditor: '編集エリアを折りたたむ',
     expandEditor: '編集エリアを展開',
     previewPaneTitle: 'ライブプレビュー',
     collapsePreview: 'プレビューエリアを折りたたむ',
     expandPreview: 'プレビューエリアを展開',
-    previewTab: 'プレビュー',
-    sourceTab: 'ソース',
     showBase64: 'Base64を表示',
     hideBase64: 'Base64を隠す',
-    previewSourcePlaceholder: 'ここで Markdown ソースを編集...',
     wordCount: '{0} 文字',
     autosaveEnabled: '自動保存が有効',
     saved: '保存しました',
@@ -787,7 +763,6 @@ const i18n = {
 <ul>
   <li>가운데 구분선을 드래그하여 좌우 너비 조절; 헤더의「⟨」/「⟩」버튼으로 영역 접기/펼치기.</li>
   <li>도구 모음「보기」에서「편집 + 미리보기 / 편집만 / 미리보기만」전환.</li>
-  <li>오른쪽 상단의「소스」탭에서 Markdown 소스를 직접 수정하고「미리보기」로 돌아가 확인.</li>
 </ul>
 <p><b>저장, 가져오기 및 내보내기</b></p>
 <ul>
@@ -808,8 +783,7 @@ const i18n = {
 </ul>
 <p><b>자주 사용하는 단축키</b>: <code>Ctrl+S</code> 저장, <code>Ctrl+Z</code> 실행 취소, <code>Ctrl+Y / Ctrl+Shift+Z</code> 다시 실행, <code>Ctrl+B</code> 굵게, <code>Ctrl+I</code> 기울임, <code>Ctrl+U</code> 밑줄, <code>Ctrl+K</code> 링크, <code>Ctrl+Shift+K</code> 이미지, <code>Ctrl+F</code> 찾기, <code>Ctrl+H</code> 바꾸기, <code>Tab</code> 4칸 들여쓰기.</p>
 <p style="color:var(--text-muted);font-size:12px;">본 편집기는 「沃垠AI」대표 랭이(Leng Yi)가 개발했습니다. 기능 제안은 WeChat: lengcp2013</p>`,
-    welcomeDoc: '# Markdown 편집기에 오신 것을 환영합니다\n\n왼쪽에 Markdown을 입력하면 오른쪽에 **실시간 미리보기**가 표시됩니다.\n\n## 기능\n\n- 브라우저 로컬에 자동 저장\n- `.md` 파일 가져오기 / 내보내기\n- 오른쪽「소스」모드에서 직접 편집\n- 웹 링크를 Markdown으로 변환\n- 단축키: Ctrl+S 저장\n\n```js\nconsole.log("Hello Markdown!");\n```',
-    brand: 'Markdown 편집기',
+    welcomeDoc: '# Markdown 편집기에 오신 것을 환영합니다\n\n왼쪽에 Markdown을 입력하면 오른쪽에 **실시간 미리보기**가 표시됩니다.\n\n## 기능\n\n- 브라우저 로컬에 자동 저장\n- `.md` 파일 가져오기 / 내보내기\n- 웹 링크를 Markdown으로 변환\n- 단축키: Ctrl+S 저장\n\n```js\nconsole.log("Hello Markdown!");\n```',
     filenameTitle: '파일 이름',
     filenameDefault: '제목 없음.md',
     save: '저장',
@@ -857,18 +831,14 @@ const i18n = {
     theme: '테마',
     langLabel: '언어',
     editorPaneTitle: '편집',
-    editorPaneHint: 'Markdown 문법 지원',
     editorPlaceholder: 'Markdown을 입력하세요...',
     collapseEditor: '편집 영역 접기',
     expandEditor: '편집 영역 펼치기',
     previewPaneTitle: '실시간 미리보기',
     collapsePreview: '미리보기 영역 접기',
     expandPreview: '미리보기 영역 펼치기',
-    previewTab: '미리보기',
-    sourceTab: '소스',
     showBase64: 'Base64 표시',
     hideBase64: 'Base64 숨기기',
-    previewSourcePlaceholder: '여기서 Markdown 소스를 편집하세요...',
     wordCount: '{0}자',
     autosaveEnabled: '자동 저장 사용 중',
     saved: '저장됨',
@@ -981,7 +951,6 @@ const i18n = {
 <ul>
   <li>Arrastra la barra divisoria para cambiar el tamaño; pulsa los botones “⟨” / “⟩” en los encabezados para contraer o expandir.</li>
   <li>El menú “Vista” de la barra cambia entre Editar + Previsualizar / Solo editar / Solo previsualizar.</li>
-  <li>La pestaña “Fuente” de la derecha permite editar el Markdown directamente; vuelve a “Vista previa” para ver el resultado.</li>
 </ul>
 <p><b>Guardar, importar y exportar</b></p>
 <ul>
@@ -1002,8 +971,7 @@ const i18n = {
 </ul>
 <p><b>Atajos comunes</b>: <code>Ctrl+S</code> Guardar, <code>Ctrl+Z</code> Deshacer, <code>Ctrl+Y / Ctrl+Shift+Z</code> Rehacer, <code>Ctrl+B</code> Negrita, <code>Ctrl+I</code> Cursiva, <code>Ctrl+U</code> Subrayado, <code>Ctrl+K</code> Enlace, <code>Ctrl+Shift+K</code> Imagen, <code>Ctrl+F</code> Buscar, <code>Ctrl+H</code> Reemplazar, <code>Tab</code> insertar sangría de 4 espacios.</p>
 <p style="color:var(--text-muted);font-size:12px;">Desarrollado por Leng Yi de Woyin AI. Sugerencias por WeChat: lengcp2013</p>`,
-    welcomeDoc: '# Bienvenido al Editor Markdown\n\nEscribe Markdown a la izquierda y ve la **vista previa en tiempo real** a la derecha.\n\n## Características\n\n- Guardado automático en el almacenamiento local del navegador\n- Importar / exportar archivos `.md`\n- Modo "Fuente" a la derecha para edición directa\n- Convertir enlaces web a Markdown\n- Atajo: Ctrl+S para guardar\n\n```js\nconsole.log("Hello Markdown!");\n```',
-    brand: 'Editor Markdown',
+    welcomeDoc: '# Bienvenido al Editor Markdown\n\nEscribe Markdown a la izquierda y ve la **vista previa en tiempo real** a la derecha.\n\n## Características\n\n- Guardado automático en el almacenamiento local del navegador\n- Importar / exportar archivos `.md`\n- Convertir enlaces web a Markdown\n- Atajo: Ctrl+S para guardar\n\n```js\nconsole.log("Hello Markdown!");\n```',
     filenameTitle: 'Nombre de archivo',
     filenameDefault: 'Sin título.md',
     save: 'Guardar',
@@ -1051,18 +1019,14 @@ const i18n = {
     theme: 'Tema',
     langLabel: 'Idioma',
     editorPaneTitle: 'Editar',
-    editorPaneHint: 'Soporta sintaxis Markdown',
     editorPlaceholder: 'Escribe Markdown...',
     collapseEditor: 'Contraer editor',
     expandEditor: 'Expandir editor',
     previewPaneTitle: 'Vista previa en vivo',
     collapsePreview: 'Contraer vista previa',
     expandPreview: 'Expandir vista previa',
-    previewTab: 'Vista previa',
-    sourceTab: 'Fuente',
     showBase64: 'Mostrar Base64',
     hideBase64: 'Ocultar Base64',
-    previewSourcePlaceholder: 'Edita el código Markdown aquí...',
     wordCount: '{0} caracteres',
     autosaveEnabled: 'Guardado automático activado',
     saved: 'Guardado',
@@ -1175,7 +1139,6 @@ const i18n = {
 <ul>
   <li>Faites glisser le séparateur pour redimensionner ; cliquez sur les boutons « ⟨ » / « ⟩ » pour réduire ou développer un volet.</li>
   <li>Le menu « Affichage » de la barre permet de passer entre Édition + Aperçu / Édition seule / Aperçu seul.</li>
-  <li>L’onglet « Source » à droite permet d’éditer directement le Markdown ; revenez à « Aperçu » pour voir le résultat.</li>
 </ul>
 <p><b>Enregistrer, importer et exporter</b></p>
 <ul>
@@ -1196,8 +1159,7 @@ const i18n = {
 </ul>
 <p><b>Raccourcis courants</b> : <code>Ctrl+S</code> Enregistrer, <code>Ctrl+Z</code> Annuler, <code>Ctrl+Y / Ctrl+Shift+Z</code> Rétablir, <code>Ctrl+B</code> Gras, <code>Ctrl+I</code> Italique, <code>Ctrl+U</code> Souligné, <code>Ctrl+K</code> Lien, <code>Ctrl+Shift+K</code> Image, <code>Ctrl+F</code> Rechercher, <code>Ctrl+H</code> Remplacer, <code>Tab</code> insérer une indentation de 4 espaces.</p>
 <p style="color:var(--text-muted);font-size:12px;">Développé par Leng Yi de Woyin AI. Suggestions via WeChat : lengcp2013</p>`,
-    welcomeDoc: '# Bienvenue dans l’éditeur Markdown\n\nSaisissez du Markdown à gauche et voyez l’**aperçu en direct** à droite.\n\n## Fonctionnalités\n\n- Sauvegarde automatique dans le stockage local du navigateur\n- Importer / exporter des fichiers `.md`\n- Mode « Source » à droite pour édition directe\n- Convertir des liens Web en Markdown\n- Raccourci : Ctrl+S pour enregistrer\n\n```js\nconsole.log("Hello Markdown!");\n```',
-    brand: 'Éditeur Markdown',
+    welcomeDoc: '# Bienvenue dans l’éditeur Markdown\n\nSaisissez du Markdown à gauche et voyez l’**aperçu en direct** à droite.\n\n## Fonctionnalités\n\n- Sauvegarde automatique dans le stockage local du navigateur\n- Importer / exporter des fichiers `.md`\n- Convertir des liens Web en Markdown\n- Raccourci : Ctrl+S pour enregistrer\n\n```js\nconsole.log("Hello Markdown!");\n```',
     filenameTitle: 'Nom du fichier',
     filenameDefault: 'Sans titre.md',
     save: 'Enregistrer',
@@ -1245,18 +1207,14 @@ const i18n = {
     theme: 'Thème',
     langLabel: 'Langue',
     editorPaneTitle: 'Éditer',
-    editorPaneHint: 'Prend en charge la syntaxe Markdown',
     editorPlaceholder: 'Saisissez du Markdown...',
     collapseEditor: 'Réduire l’éditeur',
     expandEditor: 'Développer l’éditeur',
     previewPaneTitle: 'Aperçu en direct',
     collapsePreview: 'Réduire l’aperçu',
     expandPreview: 'Développer l’aperçu',
-    previewTab: 'Aperçu',
-    sourceTab: 'Source',
     showBase64: 'Afficher Base64',
     hideBase64: 'Masquer Base64',
-    previewSourcePlaceholder: 'Éditez la source Markdown ici...',
     wordCount: '{0} caractères',
     autosaveEnabled: 'Sauvegarde automatique activée',
     saved: 'Enregistré',
@@ -1369,7 +1327,6 @@ const i18n = {
 <ul>
   <li>Ziehe den Trennbalken, um die Bereiche zu skalieren; klicke auf die „⟨“ / „⟩“ Buttons in den Kopfzeilen, um einen Bereich ein- oder auszuklappen.</li>
   <li>Das Menü „Ansicht“ in der Toolbar schaltet zwischen Bearbeiten + Vorschau / Nur bearbeiten / Nur Vorschau um.</li>
-  <li>Der Reiter „Quelle“ rechts ermöglicht die direkte Bearbeitung des Markdown; zurück zu „Vorschau“, um das Ergebnis zu sehen.</li>
 </ul>
 <p><b>Speichern, importieren und exportieren</b></p>
 <ul>
@@ -1390,8 +1347,7 @@ const i18n = {
 </ul>
 <p><b>Häufige Tastenkürzel</b>: <code>Ctrl+S</code> Speichern, <code>Ctrl+Z</code> Rückgängig, <code>Ctrl+Y / Ctrl+Shift+Z</code> Wiederherstellen, <code>Ctrl+B</code> Fett, <code>Ctrl+I</code> Kursiv, <code>Ctrl+U</code> Unterstrichen, <code>Ctrl+K</code> Link, <code>Ctrl+Shift+K</code> Bild, <code>Ctrl+F</code> Suchen, <code>Ctrl+H</code> Ersetzen, <code>Tab</code> 4 Leerzeichen Einzug einfügen.</p>
 <p style="color:var(--text-muted);font-size:12px;">Entwickelt von Leng Yi von Woyin AI. Feedback über WeChat: lengcp2013</p>`,
-    welcomeDoc: '# Willkommen im Markdown-Editor\n\nGeben Sie links Markdown ein und sehen Sie rechts die **Live-Vorschau**.\n\n## Funktionen\n\n- Automatisches Speichern im lokalen Browser-Speicher\n- .md-Dateien importieren / exportieren\n- „Quelle“-Modus rechts für direkte Bearbeitung\n- Weblinks in Markdown umwandeln\n- Tastenkürzel: Ctrl+S zum Speichern\n\n```js\nconsole.log("Hello Markdown!");\n```',
-    brand: 'Markdown-Editor',
+    welcomeDoc: '# Willkommen im Markdown-Editor\n\nGeben Sie links Markdown ein und sehen Sie rechts die **Live-Vorschau**.\n\n## Funktionen\n\n- Automatisches Speichern im lokalen Browser-Speicher\n- .md-Dateien importieren / exportieren\n- Weblinks in Markdown umwandeln\n- Tastenkürzel: Ctrl+S zum Speichern\n\n```js\nconsole.log("Hello Markdown!");\n```',
     filenameTitle: 'Dateiname',
     filenameDefault: 'Unbenannt.md',
     save: 'Speichern',
@@ -1439,18 +1395,14 @@ const i18n = {
     theme: 'Thema',
     langLabel: 'Sprache',
     editorPaneTitle: 'Bearbeiten',
-    editorPaneHint: 'Unterstützt Markdown-Syntax',
     editorPlaceholder: 'Markdown eingeben...',
     collapseEditor: 'Editor einklappen',
     expandEditor: 'Editor ausklappen',
     previewPaneTitle: 'Live-Vorschau',
     collapsePreview: 'Vorschau einklappen',
     expandPreview: 'Vorschau ausklappen',
-    previewTab: 'Vorschau',
-    sourceTab: 'Quelle',
     showBase64: 'Base64 anzeigen',
     hideBase64: 'Base64 ausblenden',
-    previewSourcePlaceholder: 'Markdown-Quelle hier bearbeiten...',
     wordCount: '{0} Zeichen',
     autosaveEnabled: 'Automatisches Speichern aktiv',
     saved: 'Gespeichert',
@@ -1563,7 +1515,6 @@ const i18n = {
 <ul>
   <li>Перетаскивайте разделитель для изменения размеров; нажимайте кнопки «⟨» / «⟩» в заголовках, чтобы свернуть или развернуть область.</li>
   <li>Меню «Вид» на панели переключает между Редактирование + Предпросмотр / Только редактирование / Только предпросмотр.</li>
-  <li>Вкладка «Исходный код» справа позволяет редактировать Markdown напрямую; вернитесь на «Предпросмотр», чтобы увидеть результат.</li>
 </ul>
 <p><b>Сохранение, импорт и экспорт</b></p>
 <ul>
@@ -1584,8 +1535,7 @@ const i18n = {
 </ul>
 <p><b>Частые горячие клавиши</b>: <code>Ctrl+S</code> Сохранить, <code>Ctrl+Z</code> Отменить, <code>Ctrl+Y / Ctrl+Shift+Z</code> Повторить, <code>Ctrl+B</code> Жирный, <code>Ctrl+I</code> Курсив, <code>Ctrl+U</code> Подчеркнутый, <code>Ctrl+K</code> Ссылка, <code>Ctrl+Shift+K</code> Изображение, <code>Ctrl+F</code> Найти, <code>Ctrl+H</code> Заменить, <code>Tab</code> вставить отступ в 4 пробела.</p>
 <p style="color:var(--text-muted);font-size:12px;">Разработано Лэн И (Leng Yi) из Woyin AI. Предложения по WeChat: lengcp2013</p>`,
-    welcomeDoc: '# Добро пожаловать в редактор Markdown\n\nВведите Markdown слева и увидите **предпросмотр в реальном времени** справа.\n\n## Возможности\n\n- Автоматическое сохранение в локальное хранилище браузера\n- Импорт / экспорт файлов `.md`\n- Режим «Исходный код» справа для прямого редактирования\n- Преобразование веб-ссылок в Markdown\n- Горячая клавиша: Ctrl+S для сохранения\n\n```js\nconsole.log("Hello Markdown!");\n```',
-    brand: 'Редактор Markdown',
+    welcomeDoc: '# Добро пожаловать в редактор Markdown\n\nВведите Markdown слева и увидите **предпросмотр в реальном времени** справа.\n\n## Возможности\n\n- Автоматическое сохранение в локальное хранилище браузера\n- Импорт / экспорт файлов `.md`\n- Преобразование веб-ссылок в Markdown\n- Горячая клавиша: Ctrl+S для сохранения\n\n```js\nconsole.log("Hello Markdown!");\n```',
     filenameTitle: 'Имя файла',
     filenameDefault: 'Без названия.md',
     save: 'Сохранить',
@@ -1633,18 +1583,14 @@ const i18n = {
     theme: 'Тема',
     langLabel: 'Язык',
     editorPaneTitle: 'Редактирование',
-    editorPaneHint: 'Поддерживает синтаксис Markdown',
     editorPlaceholder: 'Введите Markdown...',
     collapseEditor: 'Свернуть редактор',
     expandEditor: 'Развернуть редактор',
     previewPaneTitle: 'Предпросмотр в реальном времени',
     collapsePreview: 'Свернуть предпросмотр',
     expandPreview: 'Развернуть предпросмотр',
-    previewTab: 'Предпросмотр',
-    sourceTab: 'Исходный код',
     showBase64: 'Показать Base64',
     hideBase64: 'Скрыть Base64',
-    previewSourcePlaceholder: 'Редактируйте исходный код Markdown здесь...',
     wordCount: '{0} символов',
     autosaveEnabled: 'Автосохранение включено',
     saved: 'Сохранено',
@@ -1757,7 +1703,6 @@ const i18n = {
 <ul>
   <li>Arraste o divisor para redimensionar; clique nos botões “⟨” / “⟩” nos cabeçalhos para recolher ou expandir.</li>
   <li>O menu “Visualização” da barra alterna entre Editar + Visualizar / Somente editar / Somente visualizar.</li>
-  <li>A aba “Fonte” à direita permite editar o Markdown diretamente; volte para “Pré-visualização” para ver o resultado.</li>
 </ul>
 <p><b>Salvar, importar e exportar</b></p>
 <ul>
@@ -1778,8 +1723,7 @@ const i18n = {
 </ul>
 <p><b>Atalhos comuns</b>: <code>Ctrl+S</code> Salvar, <code>Ctrl+Z</code> Desfazer, <code>Ctrl+Y / Ctrl+Shift+Z</code> Refazer, <code>Ctrl+B</code> Negrito, <code>Ctrl+I</code> Itálico, <code>Ctrl+U</code> Sublinhado, <code>Ctrl+K</code> Link, <code>Ctrl+Shift+K</code> Imagem, <code>Ctrl+F</code> Localizar, <code>Ctrl+H</code> Substituir, <code>Tab</code> inserir recuo de 4 espaços.</p>
 <p style="color:var(--text-muted);font-size:12px;">Desenvolvido por Leng Yi da Woyin AI. Sugestões pelo WeChat: lengcp2013</p>`,
-    welcomeDoc: '# Bem-vindo ao Editor Markdown\n\nDigite Markdown à esquerda e veja a **pré-visualização em tempo real** à direita.\n\n## Recursos\n\n- Salvamento automático no armazenamento local do navegador\n- Importar / exportar arquivos `.md`\n- Modo "Fonte" à direita para edição direta\n- Converter links da web para Markdown\n- Atalho: Ctrl+S para salvar\n\n```js\nconsole.log("Hello Markdown!");\n```',
-    brand: 'Editor Markdown',
+    welcomeDoc: '# Bem-vindo ao Editor Markdown\n\nDigite Markdown à esquerda e veja a **pré-visualização em tempo real** à direita.\n\n## Recursos\n\n- Salvamento automático no armazenamento local do navegador\n- Importar / exportar arquivos `.md`\n- Converter links da web para Markdown\n- Atalho: Ctrl+S para salvar\n\n```js\nconsole.log("Hello Markdown!");\n```',
     filenameTitle: 'Nome do arquivo',
     filenameDefault: 'Sem título.md',
     save: 'Salvar',
@@ -1827,18 +1771,14 @@ const i18n = {
     theme: 'Tema',
     langLabel: 'Idioma',
     editorPaneTitle: 'Editar',
-    editorPaneHint: 'Suporta sintaxe Markdown',
     editorPlaceholder: 'Digite Markdown...',
     collapseEditor: 'Recolher editor',
     expandEditor: 'Expandir editor',
     previewPaneTitle: 'Pré-visualização em tempo real',
     collapsePreview: 'Recolher pré-visualização',
     expandPreview: 'Expandir pré-visualização',
-    previewTab: 'Pré-visualização',
-    sourceTab: 'Fonte',
     showBase64: 'Mostrar Base64',
     hideBase64: 'Ocultar Base64',
-    previewSourcePlaceholder: 'Edite o código Markdown aqui...',
     wordCount: '{0} caracteres',
     autosaveEnabled: 'Auto-salvamento ativado',
     saved: 'Salvo',
