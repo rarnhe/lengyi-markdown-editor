@@ -45,7 +45,8 @@ It is **just one HTML file**. Double-click to write. Everything is stored locall
 - **Drag-and-drop import**: drop files directly into the window.
 - **Live preview**: write on the left, preview on the right in real time.
 - **Multiple layouts**: edit + preview, edit only, or preview only.
-- **Source mode**: edit raw Markdown directly on the right side.
+- **File title sync**: editable filename fills the top bar and matches the browser tab.
+- **Base64 folding**: hide or show embedded image data on the left without affecting the preview.
 - **Draggable split**: adjust the editor/preview ratio; position is remembered.
 
 ### 🛠️ Rich Editing Tools
