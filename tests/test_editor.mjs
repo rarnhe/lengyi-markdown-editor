@@ -7,7 +7,7 @@ const i18n = readFileSync('i18n.js', 'utf8');
 
 test('standalone HTML editor and companion i18n.js exist', () => {
   assert.match(html, /<textarea id="editor"/);
-  assert.match(html, /<textarea id="preview-source"/);
+  assert.doesNotMatch(html, /<textarea id="preview-source"/);
   assert.match(html, /<script src="i18n\.js"><\/script>/);
 });
 
@@ -44,16 +44,16 @@ function foldingHarness() {
     value: '', selectionStart: 0, selectionEnd: 0,
     setSelectionRange(start, end) { this.selectionStart = start; this.selectionEnd = end; }
   });
-  const editor = makeTextarea(), previewSource = makeTextarea();
+  const editor = makeTextarea();
   const button = { textContent: '', title: '', setAttribute() {} };
   const context = vm.createContext({
-    editor, previewSource, previewMode: 'preview',
+    editor,
     document: { getElementById() { return button; } },
     getActiveEditor() { return editor; },
     updatePreview() {}, updateCount() {}, showToast() {}, t: key => key
   });
   vm.runInContext(block[1] + '\nthis.api = {collapseImageData, expandImageData, getMarkdown, setMarkdown, toggleBase64, collapseTextareaData, copyExpandedBase64};', context);
-  return { api: context.api, editor, previewSource };
+  return { api: context.api, editor };
 }
 
 test('Base64 images fold to markers, expand to exact original data, and keep external links', () => {
@@ -69,16 +69,14 @@ test('Base64 images fold to markers, expand to exact original data, and keep ext
 });
 
 test('save and editing use full Markdown even while Base64 is hidden; toggling is lossless', () => {
-  const {api, editor, previewSource} = foldingHarness();
+  const {api, editor} = foldingHarness();
   const raw = 'hello\n![photo](data:image/webp;base64,' + 'Z'.repeat(700) + ')\nworld';
   api.setMarkdown(raw);
   assert.equal(api.getMarkdown(), raw);
-  assert.equal(editor.value, previewSource.value);
   assert.ok(editor.value.length < raw.length);
   editor.selectionStart = editor.selectionEnd = editor.value.length;
   api.toggleBase64();
   assert.equal(editor.value, raw);
-  assert.equal(previewSource.value, raw);
   assert.equal(editor.selectionStart, raw.length);
   api.toggleBase64();
   assert.equal(api.getMarkdown(), raw);
@@ -102,9 +100,14 @@ test('small data and ordinary Markdown remain unchanged', () => {
   assert.equal(api.collapseImageData(raw).text, raw);
 });
 
-test('switching preview tabs never overwrites initial content with empty source', () => {
-  assert.match(html, /const wasSource = previewMode === 'source'/);
-  assert.match(html, /if \(wasSource\) editor\.value = previewSource\.value;/);
+test('right pane is preview-only with no source-mode runtime', () => {
+  for (const dead of ['previewMode', 'previewSource', 'PREVIEW_MODE_KEY', 'setPreviewMode', 'getActiveEditor', 'syncEditorFromActive']) {
+    assert.equal(html.includes(dead), false, dead);
+  }
+  assert.doesNotMatch(html, /class="preview-toggle"/);
+  assert.match(html, /<div class="preview-content" id="preview"><\/div>/);
+  assert.match(html, /function exportPDF\(\) \{/);
+  assert.match(html, /function openExportImageModal\(\) \{/);
 });
 
 test('copying hidden Base64 transfers complete Markdown, not a placeholder', () => {
@@ -121,4 +124,48 @@ test('copying hidden Base64 transfers complete Markdown, not a placeholder', () 
   });
   assert.equal(copied, raw);
   assert.ok(prevented);
+});
+
+test('editable filename fills top bar and original brand label is removed', () => {
+  assert.doesNotMatch(html, /class="brand"/);
+  assert.doesNotMatch(html, /class="spacer"/);
+  assert.match(html, /\.top-bar input\[type="text"\] \{[\s\S]*?flex: 1 1 260px/);
+  const header = html.match(/<div class="top-bar">([\s\S]*?)<div class="top-actions">/);
+  assert.ok(header);
+  assert.match(header[1], /id="filename"/);
+});
+
+test('filename edits and imports synchronize browser tab title', () => {
+  const fn = html.match(/function syncDocumentTitle\(\) \{[\s\S]*?\n    \}/);
+  assert.ok(fn);
+  const ctx = { filenameInput:{value:'Example.md'}, document:{title:'before'}, t:()=>'Untitled.md' };
+  vm.runInNewContext(fn[0] + '\nsyncDocumentTitle();', ctx);
+  assert.equal(ctx.document.title, 'Example.md');
+  ctx.filenameInput.value = 'Updated.md';
+  vm.runInNewContext('syncDocumentTitle();', ctx);
+  assert.equal(ctx.document.title, 'Updated.md');
+  ctx.filenameInput.value = '';
+  vm.runInNewContext('syncDocumentTitle();', ctx);
+  assert.equal(ctx.document.title, 'Untitled.md');
+  assert.match(html, /filenameInput\.addEventListener\('input', \(\) => \{\s*syncDocumentTitle\(\);/);
+  assert.match(html, /filenameInput\.value = name;\s*syncDocumentTitle\(\);/);
+  assert.match(html, /function applyLanguage\(\) \{[\s\S]*?syncDocumentTitle\(\);/);
+});
+
+test('left-only Base64 control is beside Edit and leaves full Markdown for preview', () => {
+  const left = html.match(/<div class="pane editor-pane">([\s\S]*?)<div class="resizer"/);
+  const right = html.match(/<div class="pane preview-pane">([\s\S]*?)<div class="statusbar"/);
+  assert.ok(left && right);
+  assert.match(left[1], /data-i18n="editorPaneTitle"[\s\S]*?id="base64-toggle"/);
+  assert.doesNotMatch(right[1], /base64-toggle|<textarea/);
+  assert.match(html, /function updatePreview\(\) \{\s*let text = getMarkdown\(\);/);
+  const {api,editor} = foldingHarness();
+  const raw = '![photo](data:image/png;base64,' + 'Q'.repeat(500) + ')';
+  api.setMarkdown(raw);
+  const hidden = editor.value;
+  api.toggleBase64();
+  assert.equal(api.getMarkdown(), raw);
+  api.toggleBase64();
+  assert.equal(editor.value, hidden);
+  assert.equal(api.getMarkdown(), raw);
 });
