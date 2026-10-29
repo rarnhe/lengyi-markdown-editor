@@ -409,6 +409,49 @@
     .resizer.hidden {
       display: none;
     }
+    /* 大纲面板 */
+    .outline-pane {
+      min-width: 0;
+      flex: 0 0 230px;
+      border-left: 1px solid var(--border);
+      background: var(--panel-bg);
+    }
+    .outline-pane.hidden-pane {
+      display: none;
+    }
+    .outline-list {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 10px 8px;
+    }
+    .outline-item {
+      padding: 5px 8px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--text-secondary);
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: background .15s ease, color .15s ease;
+    }
+    .outline-item:hover {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+    .outline-item.active {
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .outline-empty {
+      padding: 12px 10px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
     .resizing .pane,
     .resizing .resizer {
       transition: none !important;
@@ -697,6 +740,14 @@
       }
       .resizer { display: none; }
       .preview-content .markdown-body { padding: 20px 24px; }
+      .outline-pane {
+        flex: 0 0 auto !important;
+        max-width: none !important;
+        max-height: 180px;
+        border-left: none;
+        border-top: 1px solid var(--border);
+      }
+
     }
     /* 加载提示 */
     .toast {
@@ -930,7 +981,7 @@
     }
     /* 打印 / 导出 PDF */
     @media print {
-      .top-bar, .editor-toolbar, .statusbar, .editor-pane, .resizer, .preview-pane .pane-header,
+      .top-bar, .editor-toolbar, .statusbar, .editor-pane, .resizer, .outline-pane, .preview-pane .pane-header,
       .modal-overlay, .toast, .icon-sprite {
         display: none !important;
       }
@@ -1098,6 +1149,7 @@
             <div class="dropdown-item" onclick="setLayoutMode('both'); closeViewMenu();" data-i18n="viewBoth">编辑 + 预览</div>
             <div class="dropdown-item" onclick="setLayoutMode('edit'); closeViewMenu();" data-i18n="viewEdit">仅编辑</div>
             <div class="dropdown-item" onclick="setLayoutMode('preview'); closeViewMenu();" data-i18n="viewPreview">仅预览</div>
+            <div class="dropdown-item" id="outline-menu-item" onclick="toggleOutline(); closeViewMenu();" data-i18n="viewOutline">大纲</div>
             <div class="dropdown-item" onclick="togglePageFullscreen(); closeViewMenu();" data-i18n="pageFullscreen">页面全屏</div>
             <div class="dropdown-item" onclick="toggleFullscreen(); closeViewMenu();" data-i18n="systemFullscreen">系统全屏</div>
           </div>
@@ -1125,6 +1177,14 @@
           <span id="word-count">0 字</span>
         </div>
         <div class="preview-content" id="preview"></div>
+      </div>
+      <div class="resizer hidden" id="outline-resizer"></div>
+      <div class="pane outline-pane hidden-pane" id="outline-pane">
+        <div class="pane-header">
+          <span class="pane-title" data-i18n="outlineTitle">大纲</span>
+          <button class="collapse-btn" id="outline-close-btn" onclick="toggleOutline()" data-i18n-title="collapseOutline" title="收起大纲"><svg class="icon icon-sm"><use href="#icon-chevron-right"></use></svg></button>
+        </div>
+        <div class="outline-list" id="outline-list"></div>
       </div>
     </div>
 
@@ -1367,6 +1427,8 @@
     const EDITOR_COLLAPSED_KEY = 'md_editor_editor_collapsed';
     const PREVIEW_COLLAPSED_KEY = 'md_editor_preview_collapsed';
     const LANG_KEY = 'md_editor_language';
+    const OUTLINE_VISIBLE_KEY = 'md_editor_outline_visible';
+    const OUTLINE_WIDTH_KEY = 'md_editor_outline_width';
 
     // Base64 folding BEGIN
     // The textarea is a DISPLAY only; persisted Markdown is always expanded.
@@ -1535,6 +1597,8 @@
       updateStatusBar();
       updateCount();
       updateBase64Button();
+      applyOutlineState();
+      if (outlineVisible) renderOutline();
       syncDocumentTitle();
     }
 
@@ -1688,6 +1752,149 @@
     editor.addEventListener('scroll', () => syncScroll(editor, preview));
     preview.addEventListener('scroll', () => syncScroll(preview, editor));
 
+    // 大纲：从 Markdown 源码提取标题（跳过代码块内的内容）
+    let outlineVisible = false;
+    let outlineHeadings = [];
+    let outlineWidth = 230;
+    let isOutlineResizing = false;
+
+    function extractHeadings(text) {
+      const lines = text.split('\n');
+      const headings = [];
+      let inFence = false;
+      let fenceChar = '';
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const fence = line.match(/^ {0,3}(`{3,}|~{3,})/);
+        if (fence) {
+          const ch = fence[1][0];
+          if (!inFence) { inFence = true; fenceChar = ch; }
+          else if (ch === fenceChar) { inFence = false; fenceChar = ''; }
+          continue;
+        }
+        if (inFence) continue;
+        const m = line.match(/^(#{1,6})\s+(.+?)\s*#*\s*$/);
+        if (m) headings.push({ level: m[1].length, text: m[2].trim(), line: i });
+      }
+      return headings;
+    }
+
+    function renderOutline() {
+      if (!outlineVisible) return;
+      const list = document.getElementById('outline-list');
+      outlineHeadings = extractHeadings(getMarkdown());
+      if (!outlineHeadings.length) {
+        list.innerHTML = '<div class="outline-empty">' + t('outlineEmpty') + '</div>';
+        return;
+      }
+      list.innerHTML = outlineHeadings.map((h, i) =>
+        '<div class="outline-item" style="padding-left:' + (8 + (h.level - 1) * 14) + 'px" title="' + escapeHtml(h.text) + '" onclick="jumpToHeading(' + i + ')">' + escapeHtml(h.text) + '</div>'
+      ).join('');
+    }
+
+    function jumpToHeading(index) {
+      const h = outlineHeadings[index];
+      if (!h) return;
+      document.querySelectorAll('#outline-list .outline-item').forEach((el, i) => {
+        el.classList.toggle('active', i === index);
+      });
+      suppressScrollSync(600);
+      // 定位编辑区（源码模式下定位右侧源码框）
+      const target = editor;
+      const lines = getMarkdown().split('\n');
+      let pos = 0;
+      for (let i = 0; i < h.line && i < lines.length; i++) pos += lines[i].length + 1;
+      target.focus();
+      const raw = getMarkdown();
+      const folded = imageDataCollapsed ? collapseImageData(raw.slice(0, pos)).text.length : pos;
+      target.setSelectionRange(folded, folded);
+      scrollTextareaToCaret(target);
+      // 预览区滚动到对应标题（与渲染出的标题按顺序一一对应）
+      const previewHeadings = preview.querySelectorAll('.markdown-body h1,.markdown-body h2,.markdown-body h3,.markdown-body h4,.markdown-body h5,.markdown-body h6');
+      const el = previewHeadings[index];
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // 用镜像元素精确测量光标位置，兼容自动换行
+    function scrollTextareaToCaret(ta) {
+      const mirror = document.createElement('div');
+      const style = getComputedStyle(ta);
+      ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'padding', 'border',
+       'boxSizing', 'letterSpacing', 'tabSize', 'width'].forEach(p => { mirror.style[p] = style[p]; });
+      mirror.style.position = 'absolute';
+      mirror.style.top = '0';
+      mirror.style.left = '-99999px';
+      mirror.style.visibility = 'hidden';
+      mirror.style.whiteSpace = 'pre-wrap';
+      mirror.style.wordBreak = 'break-all';
+      mirror.style.overflowWrap = 'break-word';
+      mirror.textContent = ta.value.substring(0, ta.selectionStart);
+      const marker = document.createElement('span');
+      marker.textContent = '​';
+      mirror.appendChild(marker);
+      document.body.appendChild(mirror);
+      const caretTop = marker.offsetTop;
+      document.body.removeChild(mirror);
+      ta.scrollTop = Math.max(0, caretTop - ta.clientHeight / 3);
+    }
+
+    function toggleOutline() {
+      outlineVisible = !outlineVisible;
+      localStorage.setItem(OUTLINE_VISIBLE_KEY, outlineVisible);
+      applyOutlineState();
+      if (outlineVisible) renderOutline();
+    }
+
+    function applyOutlineState() {
+      const pane = document.getElementById('outline-pane');
+      if (pane) {
+        pane.classList.toggle('hidden-pane', !outlineVisible);
+        if (outlineVisible) pane.style.flex = '0 0 ' + outlineWidth + 'px';
+      }
+      const outlineResizer = document.getElementById('outline-resizer');
+      if (outlineResizer) outlineResizer.classList.toggle('hidden', !outlineVisible);
+      const menuItem = document.getElementById('outline-menu-item');
+      if (menuItem) menuItem.textContent = (outlineVisible ? '✓ ' : '') + t('viewOutline');
+    }
+
+    // 大纲宽度拖拽
+    const outlineResizer = document.getElementById('outline-resizer');
+
+    function startOutlineResize(e) {
+      isOutlineResizing = true;
+      document.body.classList.add('resizing');
+      outlineResizer.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    }
+
+    function stopOutlineResize() {
+      if (!isOutlineResizing) return;
+      isOutlineResizing = false;
+      document.body.classList.remove('resizing');
+      outlineResizer.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      localStorage.setItem(OUTLINE_WIDTH_KEY, outlineWidth);
+    }
+
+    function onOutlineResizeMove(e) {
+      if (!isOutlineResizing) return;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      outlineWidth = Math.max(160, Math.min(480, window.innerWidth - clientX));
+      const pane = document.getElementById('outline-pane');
+      if (pane) pane.style.flex = '0 0 ' + outlineWidth + 'px';
+    }
+
+    outlineResizer.addEventListener('mousedown', startOutlineResize);
+    outlineResizer.addEventListener('touchstart', startOutlineResize, { passive: false });
+    window.addEventListener('mousemove', onOutlineResizeMove);
+    window.addEventListener('touchmove', onOutlineResizeMove, { passive: false });
+    window.addEventListener('mouseup', stopOutlineResize);
+    window.addEventListener('touchend', stopOutlineResize);
+
+
     // 初始化：恢复内容、文件名、主题
     function init() {
       const savedLang = localStorage.getItem(LANG_KEY);
@@ -1715,11 +1922,16 @@
         const parsed = parseFloat(savedRatio);
         if (!isNaN(parsed)) editorRatio = parsed;
       }
+      outlineVisible = localStorage.getItem(OUTLINE_VISIBLE_KEY) === 'true';
+      const savedOutlineWidth = parseInt(localStorage.getItem(OUTLINE_WIDTH_KEY), 10);
+      if (!isNaN(savedOutlineWidth)) outlineWidth = Math.max(160, Math.min(480, savedOutlineWidth));
       editorCollapsed = localStorage.getItem(EDITOR_COLLAPSED_KEY) === 'true';
       previewCollapsed = localStorage.getItem(PREVIEW_COLLAPSED_KEY) === 'true';
       updatePreview();
       updateCount();
       applyPaneStates();
+      applyOutlineState();
+      renderOutline();
 
       // 初始化历史记录
       historyStack = [getMarkdown()];
@@ -1783,6 +1995,7 @@
       }
 
       renderMermaidBlocks();
+      renderOutline();
     }
 
     function protectMath(text) {
@@ -1831,13 +2044,18 @@
       return div.innerHTML;
     }
 
-    // 统计渲染后的可见文字（图片及其 Base64 URL 不包含文本节点）。
+    // Count rendered HTML plus SVG text labels rendered by Mermaid.
     function updateCount() {
-      let text = preview.innerText;
-      // marked 未加载时预览退化为源码文本，仍需忽略图片 Markdown。
-      if (typeof marked === 'undefined') {
-        text = text.replace(/!\[[^\]]*\]\([^\n)]*\)/g, '');
-      }
+      let text = preview.innerText || '';
+      if (typeof marked === 'undefined') text = text.replace(/!\[[^\]]*\]\([^\n)]*\)/g, '');
+      (preview.querySelectorAll ? preview.querySelectorAll('.mermaid') : []).forEach(container => {
+        const sourceText = container.innerText || '';
+        if (sourceText) text = text.replace(sourceText, '');
+        const svg = container.querySelector('svg');
+        if (svg) svg.querySelectorAll('text, foreignObject').forEach(node => {
+          text += ' ' + (node.textContent || '');
+        });
+      });
       const count = Array.from(text.replace(/\s/g, '')).length;
       wordCount.textContent = t('wordCount', count);
     }
@@ -2657,7 +2875,9 @@ ${'</scr' + 'ipt>'}
         pre.replaceWith(container);
       });
       try {
-        mermaid.run({ querySelector: '.markdown-body .mermaid' });
+        Promise.resolve(mermaid.run({ querySelector: '.markdown-body .mermaid' }))
+          .then(() => updateCount())
+          .catch(err => console.error('Mermaid render error:', err));
       } catch (err) {
         console.error('Mermaid render error:', err);
       }
