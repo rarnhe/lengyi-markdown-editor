@@ -219,10 +219,10 @@ test('outline extracts headings from Markdown without preview-source mode', () =
   assert.doesNotMatch(html, /previewSource|setPreviewMode|PREVIEW_MODE_KEY/);
 });
 test('outline panel persists visibility and width with ten-language labels', () => {
-  for (const key of ['outline-pane', 'outline-resizer', 'outline-menu-item', 'OUTLINE_VISIBLE_KEY', 'OUTLINE_WIDTH_KEY', 'jumpToHeading', 'scrollTextareaToCaret']) {
+  for (const key of ['outline-pane', 'outline-resizer', 'outline-collapse-btn', 'OUTLINE_VISIBLE_KEY', 'OUTLINE_WIDTH_KEY', 'jumpToHeading', 'scrollTextareaToCaret']) {
     assert.ok(html.includes(key), key);
   }
-  for (const key of ['outlineTitle', 'viewOutline', 'outlineEmpty', 'collapseOutline']) {
+  for (const key of ['outlineTitle', 'viewStandard', 'outlineEmpty', 'collapseOutline', 'expandOutline']) {
     assert.equal((i18n.match(new RegExp('^    '+key+':', 'gm')) || []).length, 10, key);
   }
 });

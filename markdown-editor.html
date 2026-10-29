@@ -416,9 +416,10 @@
       border-left: 1px solid var(--border);
       background: var(--panel-bg);
     }
-    .outline-pane.hidden-pane {
-      display: none;
-    }
+    .outline-pane .pane-header { position: relative; justify-content: center; }
+    .outline-pane .pane-header > .collapse-btn { position: absolute; left: 12px; }
+    .outline-pane.collapsed .pane-header > .collapse-btn { position: static; }
+    .outline-pane.collapsed .outline-list { display: none; }
     .outline-list {
       flex: 1;
       overflow-y: auto;
@@ -1129,7 +1130,7 @@
         <button onclick="formatTaskList()" data-i18n-title="task" title="任务列表"><svg class="icon"><use href="#icon-task"></use></svg> <span data-i18n="task">任务</span></button>
         <span class="divider"></span>
         <button onclick="insertCodeRow()" data-i18n-title="inlineCode" title="行内代码"><svg class="icon"><use href="#icon-code"></use></svg> <span data-i18n="inlineCode">行内代码</span></button>
-        <button onclick="insertCode()" data-i18n-title="codeBlock" title="代码块"><svg class="icon"><use href="#icon-braces"></use></svg></button>
+        <button onclick="insertCode()" data-i18n-title="codeBlock" title="代码块"><svg class="icon"><use href="#icon-braces"></use></svg> <span data-i18n="codeBlock">代码块</span></button>
         <button onclick="insertLink()" data-i18n-title="link" title="插入链接 Ctrl+K"><svg class="icon"><use href="#icon-link"></use></svg> <span data-i18n="link">链接</span></button>
         <button onclick="openImageModal()" data-i18n-title="image" title="插入图片 Ctrl+Shift+K"><svg class="icon"><use href="#icon-image"></use></svg> <span data-i18n="image">图片</span></button>
         <div class="dropdown" id="table-dropdown">
@@ -1146,10 +1147,7 @@
         <div class="dropdown" id="view-dropdown">
           <button onclick="toggleViewMenu()" data-i18n-title="view" title="视图布局"><svg class="icon"><use href="#icon-layout"></use></svg> <span data-i18n="view">视图</span> <svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></button>
           <div class="dropdown-menu" id="view-menu">
-            <div class="dropdown-item" onclick="setLayoutMode('both'); closeViewMenu();" data-i18n="viewBoth">编辑 + 预览</div>
-            <div class="dropdown-item" onclick="setLayoutMode('edit'); closeViewMenu();" data-i18n="viewEdit">仅编辑</div>
-            <div class="dropdown-item" onclick="setLayoutMode('preview'); closeViewMenu();" data-i18n="viewPreview">仅预览</div>
-            <div class="dropdown-item" id="outline-menu-item" onclick="toggleOutline(); closeViewMenu();" data-i18n="viewOutline">大纲</div>
+            <div class="dropdown-item" onclick="setLayoutMode('standard'); closeViewMenu();" data-i18n="viewStandard">标准</div>
             <div class="dropdown-item" onclick="togglePageFullscreen(); closeViewMenu();" data-i18n="pageFullscreen">页面全屏</div>
             <div class="dropdown-item" onclick="toggleFullscreen(); closeViewMenu();" data-i18n="systemFullscreen">系统全屏</div>
           </div>
@@ -1172,17 +1170,16 @@
       <div class="resizer" id="resizer"></div>
       <div class="pane preview-pane">
         <div class="pane-header">
-          <button class="collapse-btn" id="preview-collapse-btn" onclick="togglePane('preview')" title="收起预览区"><svg class="icon icon-sm"><use href="#icon-chevron-right"></use></svg></button>
           <span class="pane-title" data-i18n="previewPaneTitle">实时预览</span>
           <span id="word-count">0 字</span>
         </div>
         <div class="preview-content" id="preview"></div>
       </div>
-      <div class="resizer hidden" id="outline-resizer"></div>
-      <div class="pane outline-pane hidden-pane" id="outline-pane">
+      <div class="resizer" id="outline-resizer"></div>
+      <div class="pane outline-pane" id="outline-pane">
         <div class="pane-header">
+          <button class="collapse-btn" id="outline-collapse-btn" onclick="toggleOutline()" data-i18n-title="collapseOutline" title="收起大纲" aria-expanded="true"><svg class="icon icon-sm"><use href="#icon-chevron-left"></use></svg></button>
           <span class="pane-title" data-i18n="outlineTitle">大纲</span>
-          <button class="collapse-btn" id="outline-close-btn" onclick="toggleOutline()" data-i18n-title="collapseOutline" title="收起大纲"><svg class="icon icon-sm"><use href="#icon-chevron-right"></use></svg></button>
         </div>
         <div class="outline-list" id="outline-list"></div>
       </div>
@@ -1425,7 +1422,6 @@
     const HELP_SHOWN_KEY = 'md_editor_help_shown';
     const RATIO_KEY = 'md_editor_ratio';
     const EDITOR_COLLAPSED_KEY = 'md_editor_editor_collapsed';
-    const PREVIEW_COLLAPSED_KEY = 'md_editor_preview_collapsed';
     const LANG_KEY = 'md_editor_language';
     const OUTLINE_VISIBLE_KEY = 'md_editor_outline_visible';
     const OUTLINE_WIDTH_KEY = 'md_editor_outline_width';
@@ -1593,7 +1589,6 @@
       }
 
       updateCollapseBtnLabels();
-      updateViewMenuLabel();
       updateStatusBar();
       updateCount();
       updateBase64Button();
@@ -1604,9 +1599,7 @@
 
     function updateCollapseBtnLabels() {
       const editorBtn = document.getElementById('editor-collapse-btn');
-      const previewBtn = document.getElementById('preview-collapse-btn');
       if (editorBtn) editorBtn.title = editorCollapsed ? t('expandEditor') : t('collapseEditor');
-      if (previewBtn) previewBtn.title = previewCollapsed ? t('expandPreview') : t('collapsePreview');
     }
 
     function updateStatusBar() {
@@ -1627,7 +1620,6 @@
     }
     let fetchedHtml = '';
     let editorCollapsed = false;
-    let previewCollapsed = false;
     let editorRatio = 0.5;
     let isResizing = false;
     let resizeRect = null;
@@ -1641,7 +1633,6 @@
       });
     }
 
-    const LAYOUT_MODE_KEY = 'md_editor_layout_mode';
     const PAGE_FULLSCREEN_KEY = 'md_editor_page_fullscreen';
     const MAX_HISTORY = 100;
     let historyStack = [];
@@ -1650,16 +1641,10 @@
     let historyTimer = null;
 
     function togglePane(pane) {
-      if (pane === 'editor') {
-        if (!editorCollapsed && previewCollapsed) return;
-        editorCollapsed = !editorCollapsed;
-      } else {
-        if (!previewCollapsed && editorCollapsed) return;
-        previewCollapsed = !previewCollapsed;
-      }
+      if (pane !== 'editor') return;
+      editorCollapsed = !editorCollapsed;
       applyPaneStates();
-      localStorage.setItem(EDITOR_COLLAPSED_KEY, editorCollapsed);
-      localStorage.setItem(PREVIEW_COLLAPSED_KEY, previewCollapsed);
+      localStorage.setItem(EDITOR_COLLAPSED_KEY, String(editorCollapsed));
     }
 
     function applyPaneStates() {
@@ -1667,16 +1652,12 @@
       const previewPane = document.querySelector('.preview-pane');
       const resizer = document.getElementById('resizer');
       editorPane.classList.toggle('collapsed', editorCollapsed);
-      previewPane.classList.toggle('collapsed', previewCollapsed);
-      resizer.classList.toggle('hidden', editorCollapsed || previewCollapsed);
+      resizer.classList.toggle('hidden', editorCollapsed);
 
       const editorBtn = editorPane.querySelector('.collapse-btn');
-      const previewBtn = previewPane.querySelector('.collapse-btn');
-
       const chevronLeft = '<svg class="icon icon-sm"><use href="#icon-chevron-left"></use></svg>';
       const chevronRight = '<svg class="icon icon-sm"><use href="#icon-chevron-right"></use></svg>';
       editorBtn.innerHTML = editorCollapsed ? chevronRight : chevronLeft;
-      previewBtn.innerHTML = previewCollapsed ? chevronLeft : chevronRight;
 
       updateCollapseBtnLabels();
 
@@ -1686,12 +1667,13 @@
     function applySplit() {
       const editorPane = document.querySelector('.editor-pane');
       const previewPane = document.querySelector('.preview-pane');
-      if (editorCollapsed || previewCollapsed) {
+      if (editorCollapsed) {
         editorPane.style.flex = '';
-        previewPane.style.flex = '';
-      } else {
-        editorPane.style.flex = `0 0 ${editorRatio * 100}%`;
         previewPane.style.flex = '1 1 0';
+      } else {
+        // Divide the space remaining after the outline's fixed width.
+        editorPane.style.flex = `${editorRatio} ${editorRatio} 0`;
+        previewPane.style.flex = `${1 - editorRatio} ${1 - editorRatio} 0`;
       }
     }
 
@@ -1720,7 +1702,11 @@
     function onResizeMove(e) {
       if (!isResizing || !resizeRect) return;
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      let ratio = (clientX - resizeRect.left) / resizeRect.width;
+      const outlinePane = document.getElementById('outline-pane');
+      const outlineHandle = document.getElementById('outline-resizer');
+      const occupied = outlinePane.getBoundingClientRect().width +
+        outlineHandle.getBoundingClientRect().width + resizer.getBoundingClientRect().width;
+      let ratio = (clientX - resizeRect.left) / Math.max(1, resizeRect.width - occupied);
       ratio = Math.max(0.15, Math.min(0.85, ratio));
       editorRatio = ratio;
       localStorage.setItem(RATIO_KEY, editorRatio);
@@ -1753,7 +1739,7 @@
     preview.addEventListener('scroll', () => syncScroll(preview, editor));
 
     // 大纲：从 Markdown 源码提取标题（跳过代码块内的内容）
-    let outlineVisible = false;
+    let outlineVisible = true;
     let outlineHeadings = [];
     let outlineWidth = 230;
     let isOutlineResizing = false;
@@ -1847,14 +1833,19 @@
 
     function applyOutlineState() {
       const pane = document.getElementById('outline-pane');
-      if (pane) {
-        pane.classList.toggle('hidden-pane', !outlineVisible);
-        if (outlineVisible) pane.style.flex = '0 0 ' + outlineWidth + 'px';
-      }
       const outlineResizer = document.getElementById('outline-resizer');
-      if (outlineResizer) outlineResizer.classList.toggle('hidden', !outlineVisible);
-      const menuItem = document.getElementById('outline-menu-item');
-      if (menuItem) menuItem.textContent = (outlineVisible ? '✓ ' : '') + t('viewOutline');
+      const button = document.getElementById('outline-collapse-btn');
+      pane.classList.toggle('collapsed', !outlineVisible);
+      pane.style.flex = outlineVisible ? '0 0 ' + outlineWidth + 'px' : '';
+      outlineResizer.classList.toggle('hidden', !outlineVisible);
+      button.innerHTML = outlineVisible
+        ? '<svg class="icon icon-sm"><use href="#icon-chevron-left"></use></svg>'
+        : '<svg class="icon icon-sm"><use href="#icon-chevron-right"></use></svg>';
+      const label = t(outlineVisible ? 'collapseOutline' : 'expandOutline');
+      button.title = label;
+      button.setAttribute('aria-label', label);
+      button.setAttribute('aria-expanded', String(outlineVisible));
+      applySplit();
     }
 
     // 大纲宽度拖拽
@@ -1922,11 +1913,10 @@
         const parsed = parseFloat(savedRatio);
         if (!isNaN(parsed)) editorRatio = parsed;
       }
-      outlineVisible = localStorage.getItem(OUTLINE_VISIBLE_KEY) === 'true';
+      outlineVisible = localStorage.getItem(OUTLINE_VISIBLE_KEY) !== 'false';
       const savedOutlineWidth = parseInt(localStorage.getItem(OUTLINE_WIDTH_KEY), 10);
       if (!isNaN(savedOutlineWidth)) outlineWidth = Math.max(160, Math.min(480, savedOutlineWidth));
       editorCollapsed = localStorage.getItem(EDITOR_COLLAPSED_KEY) === 'true';
-      previewCollapsed = localStorage.getItem(PREVIEW_COLLAPSED_KEY) === 'true';
       updatePreview();
       updateCount();
       applyPaneStates();
@@ -1938,14 +1928,8 @@
       historyIndex = 0;
       lastHistoryText = getMarkdown();
 
-      // 默认打开为编辑 + 预览双栏；仅恢复用户明确的“仅编辑”或“双栏”状态
-      const savedLayoutMode = localStorage.getItem(LAYOUT_MODE_KEY);
-      if (savedLayoutMode === 'edit' || savedLayoutMode === 'both') {
-        setLayoutMode(savedLayoutMode);
-      } else {
-        setLayoutMode('both');
-      }
-      updateViewMenuLabel();
+      // Standard is the only layout: the editor and outline restore their fold states.
+      // Selecting Standard explicitly expands all three panes.
 
       // 恢复页面全屏
       if (localStorage.getItem(PAGE_FULLSCREEN_KEY) === 'true') {
@@ -2545,8 +2529,14 @@ ${'</scr' + 'ipt>'}
       const end = el.selectionEnd;
       const text = el.value;
       const selected = text.slice(start, end);
-      const insert = selected.includes('\n') ? '```\n' + selected + '\n```' : '`' + selected + '`';
-      el.setRangeText(insert, start, end, 'select');
+      // A fenced block must start and end on separate lines.
+      const before = start > 0 && text[start - 1] !== '\n' ? '\n' : '';
+      const after = end < text.length && text[end] !== '\n' ? '\n' : '';
+      const opening = '```code\n';
+      const insert = before + opening + selected + (selected.endsWith('\n') ? '' : '\n') + '```' + after;
+      el.setRangeText(insert, start, end, 'end');
+      const bodyStart = start + before.length + opening.length;
+      el.setSelectionRange(bodyStart, bodyStart + selected.length);
       updatePreview();
       updateCount();
       autoSave();
@@ -2885,19 +2875,14 @@ ${'</scr' + 'ipt>'}
 
     // 视图布局与全屏
     function setLayoutMode(mode) {
-      if (mode === 'edit') {
-        editorCollapsed = false;
-        previewCollapsed = true;
-      } else if (mode === 'preview') {
-        editorCollapsed = true;
-        previewCollapsed = false;
-      } else {
-        editorCollapsed = false;
-        previewCollapsed = false;
-      }
+      if (mode !== 'standard') return;
+      editorCollapsed = false;
+      outlineVisible = true;
+      localStorage.setItem(EDITOR_COLLAPSED_KEY, 'false');
+      localStorage.setItem(OUTLINE_VISIBLE_KEY, 'true');
       applyPaneStates();
-      localStorage.setItem(LAYOUT_MODE_KEY, mode);
-      updateViewMenuLabel();
+      applyOutlineState();
+      renderOutline();
     }
 
     function toggleViewMenu() {
@@ -2906,13 +2891,6 @@ ${'</scr' + 'ipt>'}
     function closeViewMenu() {
       document.getElementById('view-menu').classList.remove('show');
     }
-    function updateViewMenuLabel() {
-      const mode = localStorage.getItem(LAYOUT_MODE_KEY) || 'both';
-      const labels = { both: t('view'), edit: t('viewEdit'), preview: t('viewPreview') };
-      const btn = document.querySelector('#view-dropdown > button');
-      if (btn) btn.innerHTML = (labels[mode] || t('view')) + ' ▾';
-    }
-
     function togglePageFullscreen() {
       const app = document.querySelector('.app');
       app.classList.toggle('page-fullscreen');
