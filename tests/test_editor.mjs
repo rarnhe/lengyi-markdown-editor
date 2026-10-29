@@ -310,7 +310,7 @@ test('outline collapse arrow moves to the left, switches direction and preserves
   const button={attributes:{},setAttribute(k,v){this.attributes[k]=v;}};
   const elements={'outline-pane':pane,'outline-resizer':resizer,'outline-collapse-btn':button};
   const ctx={
-    outlineVisible:true,outlineWidth:320,
+    outlineVisible:true,outlineWidth:320,readingMode:false,
     document:{getElementById(id){return elements[id];}},
     t:key=>key,applySplit(){}
   };

@@ -949,16 +949,74 @@
       display: block;
       box-shadow: var(--shadow);
     }
-    /* 页面全屏 */
-    .app.page-fullscreen {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      z-index: 1;
+    /* 阅读模式：预览占满空间，大纲浮动且可拖动，不改标准布局状态。 */
+    .reading-controls { display: none; }
+    .app.reading-mode .top-bar,
+    .app.reading-mode .editor-toolbar,
+    .app.reading-mode .statusbar,
+    .app.reading-mode .editor-pane,
+    .app.reading-mode #resizer,
+    .app.reading-mode #outline-resizer,
+    .app.reading-mode .preview-pane .pane-header { display: none !important; }
+    .app.reading-mode .preview-pane {
+      flex: 1 1 0 !important;
+      border: none;
+      min-height: 0;
+      min-width: 0;
     }
-    body.page-fullscreen-active { overflow: hidden; }
+    .app.reading-mode .main { flex-direction: row; }
+    .app.reading-mode .outline-pane {
+      position: absolute;
+      z-index: 20;
+      flex: none !important;
+      min-width: 0;
+      min-height: 0;
+      width: min(230px, calc(100% - 24px));
+      height: min(60%, 500px);
+      max-height: none !important;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--panel-bg);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+      transition: none;
+    }
+    .app.reading-mode .outline-pane .pane-header {
+      height: 38px;
+      padding: 5px 10px;
+      justify-content: flex-end;
+      cursor: move;
+      touch-action: none;
+      user-select: none;
+      flex-direction: row;
+      border-bottom: 1px solid var(--border);
+    }
+    .app.reading-mode .outline-pane .pane-title,
+    .app.reading-mode #outline-collapse-btn { display: none !important; }
+    .app.reading-mode .reading-controls {
+      display: flex;
+      width: 100%;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      text-transform: none;
+      letter-spacing: normal;
+    }
+    .reading-drag-grip { color: var(--text-muted); font-size: 22px; line-height: 1; }
+    .reading-controls button {
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .reading-controls button:hover { color: var(--accent); background: var(--accent-soft); }
+    .app.reading-mode .outline-list { flex: 1; min-height: 0; }
+    @media print {
+      .app.reading-mode .outline-pane { display: none !important; }
+    }
     /* KaTeX */
     .katex { font-size: 1.1em; }
     .preview-content .katex-display { margin: 16px 0; overflow-x: auto; }
@@ -1149,7 +1207,7 @@
           <button onclick="toggleViewMenu()" data-i18n-title="view" title="视图布局"><svg class="icon"><use href="#icon-layout"></use></svg> <span data-i18n="view">视图</span> <svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></button>
           <div class="dropdown-menu" id="view-menu">
             <div class="dropdown-item" onclick="setLayoutMode('standard'); closeViewMenu();" data-i18n="viewStandard">标准</div>
-            <div class="dropdown-item" onclick="togglePageFullscreen(); closeViewMenu();" data-i18n="pageFullscreen">页面全屏</div>
+            <div class="dropdown-item" onclick="setReadingMode(true); closeViewMenu();" data-i18n="readingMode">阅读模式</div>
             <div class="dropdown-item" onclick="toggleFullscreen(); closeViewMenu();" data-i18n="systemFullscreen">系统全屏</div>
           </div>
         </div>
@@ -1181,6 +1239,10 @@
         <div class="pane-header">
           <button class="collapse-btn" id="outline-collapse-btn" onclick="toggleOutline()" data-i18n-title="collapseOutline" title="收起大纲" aria-expanded="true"><svg class="icon icon-sm"><use href="#icon-chevron-left"></use></svg></button>
           <span class="pane-title" data-i18n="outlineTitle">大纲</span>
+          <div class="reading-controls">
+            <span class="reading-drag-grip" aria-hidden="true">⠿</span>
+            <button type="button" id="reading-exit-btn" onclick="setReadingMode(false)" data-i18n="exitReadingMode" data-i18n-title="exitReadingMode" title="退出阅读模式">退出阅读模式</button>
+          </div>
         </div>
         <div class="outline-list" id="outline-list"></div>
       </div>
@@ -1634,7 +1696,11 @@
       });
     }
 
-    const PAGE_FULLSCREEN_KEY = 'md_editor_page_fullscreen';
+    const READING_MODE_KEY = 'md_editor_reading_mode';
+    const READING_OUTLINE_POS_KEY = 'md_editor_reading_outline_position';
+    let readingMode = false;
+    let readingOutlinePosition = null;
+    let readingDrag = null;
     const MAX_HISTORY = 100;
     let historyStack = [];
     let historyIndex = -1;
@@ -1767,7 +1833,7 @@
     }
 
     function renderOutline() {
-      if (!outlineVisible) return;
+      if (!outlineVisible && !readingMode) return;
       const list = document.getElementById('outline-list');
       outlineHeadings = extractHeadings(getMarkdown());
       if (!outlineHeadings.length) {
@@ -1791,11 +1857,11 @@
       const lines = getMarkdown().split('\n');
       let pos = 0;
       for (let i = 0; i < h.line && i < lines.length; i++) pos += lines[i].length + 1;
-      target.focus();
+      if (!readingMode) target.focus();
       const raw = getMarkdown();
       const folded = imageDataCollapsed ? collapseImageData(raw.slice(0, pos)).text.length : pos;
       target.setSelectionRange(folded, folded);
-      scrollTextareaToCaret(target);
+      if (!readingMode) scrollTextareaToCaret(target);
       // 预览区滚动到对应标题（与渲染出的标题按顺序一一对应）
       const previewHeadings = preview.querySelectorAll('.markdown-body h1,.markdown-body h2,.markdown-body h3,.markdown-body h4,.markdown-body h5,.markdown-body h6');
       const el = previewHeadings[index];
@@ -1836,16 +1902,17 @@
       const pane = document.getElementById('outline-pane');
       const outlineResizer = document.getElementById('outline-resizer');
       const button = document.getElementById('outline-collapse-btn');
-      pane.classList.toggle('collapsed', !outlineVisible);
-      pane.style.flex = outlineVisible ? '0 0 ' + outlineWidth + 'px' : '';
-      outlineResizer.classList.toggle('hidden', !outlineVisible);
-      button.innerHTML = outlineVisible
+      const expanded = readingMode || outlineVisible;
+      pane.classList.toggle('collapsed', !expanded);
+      pane.style.flex = expanded ? '0 0 ' + outlineWidth + 'px' : '';
+      outlineResizer.classList.toggle('hidden', !outlineVisible || readingMode);
+      button.innerHTML = expanded
         ? '<svg class="icon icon-sm"><use href="#icon-chevron-left"></use></svg>'
         : '<svg class="icon icon-sm"><use href="#icon-chevron-right"></use></svg>';
-      const label = t(outlineVisible ? 'collapseOutline' : 'expandOutline');
+      const label = t(expanded ? 'collapseOutline' : 'expandOutline');
       button.title = label;
       button.setAttribute('aria-label', label);
-      button.setAttribute('aria-expanded', String(outlineVisible));
+      button.setAttribute('aria-expanded', String(expanded));
       applySplit();
     }
 
@@ -1887,6 +1954,107 @@
     window.addEventListener('touchend', stopOutlineResize);
 
 
+    // 阅读模式的目录浮窗坐标以 .main 为基准，并始终限制在其范围内。
+    function clampReadingOutlinePosition(left, top, paneWidth, paneHeight, areaWidth, areaHeight) {
+      const maxLeft = Math.max(0, areaWidth - paneWidth);
+      const maxTop = Math.max(0, areaHeight - paneHeight);
+      return {
+        left: Math.max(0, Math.min(Math.round(left), maxLeft)),
+        top: Math.max(0, Math.min(Math.round(top), maxTop))
+      };
+    }
+
+    function positionReadingOutline() {
+      if (!readingMode) return;
+      const main = document.querySelector('.main');
+      const pane = document.getElementById('outline-pane');
+      // Reading layout may be narrower than the saved standard outline width.
+      pane.style.width = Math.max(0, Math.min(outlineWidth, main.clientWidth - 24)) + 'px';
+      const left = readingOutlinePosition ? readingOutlinePosition.left
+        : main.clientWidth - pane.offsetWidth - 16;
+      const top = readingOutlinePosition ? readingOutlinePosition.top : 16;
+      readingOutlinePosition = clampReadingOutlinePosition(
+        left, top, pane.offsetWidth, pane.offsetHeight, main.clientWidth, main.clientHeight
+      );
+      pane.style.left = readingOutlinePosition.left + 'px';
+      pane.style.top = readingOutlinePosition.top + 'px';
+    }
+
+    function applyReadingMode() {
+      const app = document.querySelector('.app');
+      const pane = document.getElementById('outline-pane');
+      app.classList.toggle('reading-mode', readingMode);
+      // Standard editor and outline collapse states are never overwritten.
+      applyOutlineState();
+      if (readingMode) {
+        positionReadingOutline();
+      } else {
+        pane.style.left = '';
+        pane.style.top = '';
+        pane.style.width = '';
+      }
+    }
+
+    function setReadingMode(enabled) {
+      if (readingMode === enabled) return;
+      if (!enabled) endReadingOutlineDrag();
+      readingMode = enabled;
+      localStorage.setItem(READING_MODE_KEY, String(enabled));
+      applyReadingMode();
+      if (readingMode) renderOutline();
+    }
+
+    function beginReadingOutlineDrag(event) {
+      if (!readingMode || event.button !== 0 || event.target.closest('button')) return;
+      const pane = document.getElementById('outline-pane');
+      readingDrag = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        left: pane.offsetLeft,
+        top: pane.offsetTop
+      };
+      const header = document.querySelector('#outline-pane .pane-header');
+      if (header.setPointerCapture) header.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    }
+
+    function moveReadingOutlineDrag(event) {
+      if (!readingDrag || event.pointerId !== readingDrag.pointerId) return;
+      const pane = document.getElementById('outline-pane');
+      const main = document.querySelector('.main');
+      readingOutlinePosition = clampReadingOutlinePosition(
+        readingDrag.left + event.clientX - readingDrag.startX,
+        readingDrag.top + event.clientY - readingDrag.startY,
+        pane.offsetWidth, pane.offsetHeight, main.clientWidth, main.clientHeight
+      );
+      pane.style.left = readingOutlinePosition.left + 'px';
+      pane.style.top = readingOutlinePosition.top + 'px';
+      event.preventDefault();
+    }
+
+    function endReadingOutlineDrag(event) {
+      if (!readingDrag || (event && event.pointerId !== readingDrag.pointerId)) return;
+      const header = document.querySelector('#outline-pane .pane-header');
+      if (header.hasPointerCapture && header.hasPointerCapture(readingDrag.pointerId)) {
+        header.releasePointerCapture(readingDrag.pointerId);
+      }
+      readingDrag = null;
+      if (readingOutlinePosition) {
+        localStorage.setItem(READING_OUTLINE_POS_KEY, JSON.stringify(readingOutlinePosition));
+      }
+    }
+
+    document.querySelector('#outline-pane .pane-header')
+      .addEventListener('pointerdown', beginReadingOutlineDrag);
+    window.addEventListener('pointermove', moveReadingOutlineDrag);
+    window.addEventListener('pointerup', endReadingOutlineDrag);
+    window.addEventListener('pointercancel', endReadingOutlineDrag);
+    window.addEventListener('resize', () => { if (readingMode) positionReadingOutline(); });
+    document.addEventListener('keydown', event => {
+      if (readingMode && event.key === 'Escape') setReadingMode(false);
+    });
+
     // 初始化：恢复内容、文件名、主题
     function init() {
       const savedLang = localStorage.getItem(LANG_KEY);
@@ -1918,10 +2086,17 @@
       const savedOutlineWidth = parseInt(localStorage.getItem(OUTLINE_WIDTH_KEY), 10);
       if (!isNaN(savedOutlineWidth)) outlineWidth = Math.max(160, Math.min(480, savedOutlineWidth));
       editorCollapsed = localStorage.getItem(EDITOR_COLLAPSED_KEY) === 'true';
+      readingMode = localStorage.getItem(READING_MODE_KEY) === 'true';
+      try {
+        const savedPosition = JSON.parse(localStorage.getItem(READING_OUTLINE_POS_KEY));
+        if (savedPosition && Number.isFinite(savedPosition.left) && Number.isFinite(savedPosition.top)) {
+          readingOutlinePosition = savedPosition;
+        }
+      } catch (_) { readingOutlinePosition = null; }
       updatePreview();
       updateCount();
       applyPaneStates();
-      applyOutlineState();
+      applyReadingMode();
       renderOutline();
 
       // 初始化历史记录
@@ -1931,12 +2106,6 @@
 
       // Standard is the only layout: the editor and outline restore their fold states.
       // Selecting Standard explicitly expands all three panes.
-
-      // 恢复页面全屏
-      if (localStorage.getItem(PAGE_FULLSCREEN_KEY) === 'true') {
-        document.querySelector('.app').classList.add('page-fullscreen');
-        document.body.classList.add('page-fullscreen-active');
-      }
 
       if (!localStorage.getItem(HELP_SHOWN_KEY)) {
         openHelp();
@@ -2877,6 +3046,7 @@ ${'</scr' + 'ipt>'}
     // 视图布局与全屏
     function setLayoutMode(mode) {
       if (mode !== 'standard') return;
+      if (readingMode) setReadingMode(false);
       editorCollapsed = false;
       outlineVisible = true;
       localStorage.setItem(EDITOR_COLLAPSED_KEY, 'false');
@@ -2892,15 +3062,6 @@ ${'</scr' + 'ipt>'}
     function closeViewMenu() {
       document.getElementById('view-menu').classList.remove('show');
     }
-    function togglePageFullscreen() {
-      const app = document.querySelector('.app');
-      app.classList.toggle('page-fullscreen');
-      const isActive = app.classList.contains('page-fullscreen');
-      document.body.classList.toggle('page-fullscreen-active', isActive);
-      localStorage.setItem(PAGE_FULLSCREEN_KEY, isActive);
-      showToast(isActive ? t('toastPageFullscreenOn') : t('toastPageFullscreenOff'));
-    }
-
     function toggleFullscreen() {
       if (!document.fullscreenEnabled && !document.webkitFullscreenEnabled) {
         showToast(t('toastNoFullscreenApi'));
