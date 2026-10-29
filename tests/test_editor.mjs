@@ -269,7 +269,7 @@ test('code-block toolbar always inserts a fenced block, with an editable body', 
 });
 
 test('Standard layout shows editor, preview and outline, preserving their separate fold controls', () => {
-  const menu=html.match(/<div class="dropdown-menu" id="view-menu">([\s\S]*?)<\/div>/);
+  const menu=html.match(/<div class="dropdown-menu" id="view-menu">([\s\S]*?)<\/div>\s*<\/div>/);
   assert.ok(menu);
   assert.match(menu[1],/setLayoutMode\('standard'\)/);
   assert.doesNotMatch(menu[1],/setLayoutMode\('both'|'edit'|'preview'\)|toggleOutline\(\)/);
