@@ -52,7 +52,7 @@ function foldingHarness() {
     getActiveEditor() { return editor; },
     updatePreview() {}, updateCount() {}, showToast() {}, t: key => key
   });
-  vm.runInContext(block[1] + '\nthis.api = {collapseImageData, expandImageData, getMarkdown, setMarkdown, toggleBase64, collapseTextareaData};', context);
+  vm.runInContext(block[1] + '\nthis.api = {collapseImageData, expandImageData, getMarkdown, setMarkdown, toggleBase64, collapseTextareaData, copyExpandedBase64};', context);
   return { api: context.api, editor, previewSource };
 }
 
@@ -100,4 +100,25 @@ test('small data and ordinary Markdown remain unchanged', () => {
   const {api} = foldingHarness();
   const raw = '![tiny](data:image/png;base64,AAAA)\n![url](https://example.com)';
   assert.equal(api.collapseImageData(raw).text, raw);
+});
+
+test('switching preview tabs never overwrites initial content with empty source', () => {
+  assert.match(html, /const wasSource = previewMode === 'source'/);
+  assert.match(html, /if \(wasSource\) editor\.value = previewSource\.value;/);
+});
+
+test('copying hidden Base64 transfers complete Markdown, not a placeholder', () => {
+  const {api, editor} = foldingHarness();
+  const raw = '![photo](data:image/png;base64,' + 'T'.repeat(256) + ')';
+  api.setMarkdown(raw);
+  editor.selectionStart = 0;
+  editor.selectionEnd = editor.value.length;
+  let copied = '', prevented = false;
+  api.copyExpandedBase64({
+    currentTarget: editor,
+    clipboardData: { setData(type, data) { assert.equal(type, 'text/plain'); copied = data; } },
+    preventDefault() { prevented = true; }
+  });
+  assert.equal(copied, raw);
+  assert.ok(prevented);
 });

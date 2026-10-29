@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 const html = readFileSync('markdown-editor.html', 'utf8');
-const blocks = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+const blocks = [...html.matchAll(/<script(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]);
 const tmp = mkdtempSync(join(tmpdir(), 'md-editor-js-'));
 const checks = [];
 function check(name, args) {
