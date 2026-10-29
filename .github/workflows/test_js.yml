@@ -1,0 +1,40 @@
+name: JavaScript checks
+
+on:
+  push:
+    branches: [main, "codex/**"]
+    paths-ignore:
+      - test_report.md
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Check JavaScript and run tests (also writes test_report.md)
+        run: node tests/run_tests.mjs
+      - name: Upload report even if checks fail
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: js-test-report
+          path: test_report.md
+      - name: Commit latest report to main
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          if ! git diff --quiet -- test_report.md; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add test_report.md
+            git commit -m "docs: refresh JavaScript test report [skip ci]"
+            git push
+          fi
