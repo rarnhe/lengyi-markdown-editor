@@ -2048,7 +2048,7 @@
     function updateCount() {
       let text = preview.innerText || '';
       if (typeof marked === 'undefined') text = text.replace(/!\[[^\]]*\]\([^\n)]*\)/g, '');
-      preview.querySelectorAll('.mermaid').forEach(container => {
+      (preview.querySelectorAll ? preview.querySelectorAll('.mermaid') : []).forEach(container => {
         const sourceText = container.innerText || '';
         if (sourceText) text = text.replace(sourceText, '');
         const svg = container.querySelector('svg');
