@@ -1131,6 +1131,7 @@
         <button onclick="openMermaidModal()" data-i18n-title="mermaid" title="插入 Mermaid 图表"><svg class="icon"><use href="#icon-mermaid"></use></svg> <span data-i18n="mermaid">Mermaid</span></button>
       </div>
       <div class="editor-actions">
+        <button type="button" id="base64-toggle" onclick="toggleBase64()" aria-pressed="false" data-i18n-title="showBase64" title="显示 Base64">显示 Base64</button>
         <div class="dropdown" id="view-dropdown">
           <button onclick="toggleViewMenu()" data-i18n-title="view" title="视图布局"><svg class="icon"><use href="#icon-layout"></use></svg> <span data-i18n="view">视图</span> <svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></button>
           <div class="dropdown-menu" id="view-menu">
@@ -1410,6 +1411,132 @@
     const PREVIEW_MODE_KEY = 'md_editor_preview_mode';
     const LANG_KEY = 'md_editor_language';
 
+    // Base64 folding BEGIN
+    // The textarea is a DISPLAY only; persisted Markdown is always expanded.
+    const IMAGE_DATA_RE = /data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+/gi;
+    const IMAGE_MARKER_RE = /⟦Base64图片#\d+已折叠⟧/g;
+    const imageDataMap = new Map();
+    let imageDataCollapsed = true;
+    let imageMarkerNumber = 0;
+
+    function expandImageData(text) {
+      return text.replace(IMAGE_MARKER_RE, marker => imageDataMap.get(marker) || marker);
+    }
+
+    function expandedPosition(text, pos) {
+      let delta = 0;
+      for (const match of text.matchAll(IMAGE_MARKER_RE)) {
+        const full = imageDataMap.get(match[0]);
+        if (!full) continue;
+        if (match.index >= pos) break;
+        if (pos < match.index + match[0].length) return match.index + delta + full.length;
+        delta += full.length - match[0].length;
+      }
+      return pos + delta;
+    }
+
+    function collapseImageData(text) {
+      if (!imageDataCollapsed) return { text, position: pos => pos };
+      const changes = [];
+      const folded = text.replace(IMAGE_DATA_RE, (value, offset) => {
+        if (value.length < 128) return value;
+        const marker = '⟦Base64图片#' + (++imageMarkerNumber) + '已折叠⟧';
+        imageDataMap.set(marker, value);
+        changes.push({ start: offset, end: offset + value.length, size: marker.length });
+        return marker;
+      });
+      return {
+        text: folded,
+        position(pos) {
+          let delta = 0;
+          for (const change of changes) {
+            if (pos >= change.end) delta += change.size - (change.end - change.start);
+            else if (pos > change.start) return change.start + delta + change.size;
+            else break;
+          }
+          return pos + delta;
+        }
+      };
+    }
+
+    function getMarkdown() {
+      return expandImageData(editor.value);
+    }
+
+    function setMarkdown(markdown) {
+      imageDataMap.clear();
+      const displayed = collapseImageData(markdown).text;
+      editor.value = displayed;
+      previewSource.value = displayed;
+    }
+
+    function collapseTextareaData(el) {
+      const start = el.selectionStart, end = el.selectionEnd;
+      const folded = collapseImageData(el.value);
+      if (folded.text === el.value) return;
+      el.value = folded.text;
+      el.setSelectionRange(folded.position(start), folded.position(end));
+    }
+
+    function updateBase64Button() {
+      const button = document.getElementById('base64-toggle');
+      if (!button) return;
+      const key = imageDataCollapsed ? 'showBase64' : 'hideBase64';
+      button.textContent = t(key);
+      button.title = t(key);
+      button.setAttribute('aria-pressed', String(!imageDataCollapsed));
+    }
+
+    function toggleBase64() {
+      const active = getActiveEditor();
+      const start = active.selectionStart, end = active.selectionEnd;
+      const previous = active.value;
+      const markdown = getMarkdown();
+      const opening = imageDataCollapsed;
+      imageDataCollapsed = !imageDataCollapsed;
+      const folded = collapseImageData(markdown);
+      editor.value = folded.text;
+      previewSource.value = folded.text;
+      const startPos = opening ? expandedPosition(previous, start) : folded.position(start);
+      const endPos = opening ? expandedPosition(previous, end) : folded.position(end);
+      active.setSelectionRange(startPos, endPos);
+      updateBase64Button();
+      updatePreview();
+      updateCount();
+    }
+
+    function protectBase64Marker(e) {
+      if (!imageDataCollapsed || !e.inputType) return;
+      const el = e.currentTarget, start = el.selectionStart, end = el.selectionEnd;
+      for (const marker of imageDataMap.keys()) {
+        let index = el.value.indexOf(marker);
+        while (index !== -1) {
+          const finish = index + marker.length;
+          const touches = start < finish && end > index
+            || (start === end && start > index && start < finish)
+            || (start === end && e.inputType === 'deleteContentBackward' && start === finish)
+            || (start === end && e.inputType === 'deleteContentForward' && start === index);
+          if (touches && !(start <= index && end >= finish)) {
+            e.preventDefault();
+            showToast(t('showBase64'));
+            return;
+          }
+          index = el.value.indexOf(marker, finish);
+        }
+      }
+    }
+
+    function copyExpandedBase64(e) {
+      const el = e.currentTarget;
+      const selected = el.value.slice(el.selectionStart, el.selectionEnd);
+      const expanded = expandImageData(selected);
+      if (selected !== expanded && e.clipboardData) {
+        e.clipboardData.setData('text/plain', expanded);
+        e.preventDefault();
+      }
+    }
+    // Base64 folding END
+
     let previewMode = 'preview';
     let currentLang = 'zh-CN';
 
@@ -1455,6 +1582,7 @@
       updateViewMenuLabel();
       updateStatusBar();
       updateCount();
+      updateBase64Button();
     }
 
     function updateCollapseBtnLabels() {
@@ -1614,9 +1742,9 @@
 
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved !== null) {
-        editor.value = saved;
+        setMarkdown(saved);
       } else {
-        editor.value = i18n[currentLang].welcomeDoc;
+        setMarkdown(i18n[currentLang].welcomeDoc);
       }
       filenameInput.value = localStorage.getItem(FILENAME_KEY) || t('filenameDefault');
       const theme = localStorage.getItem(THEME_KEY) || 'light';
@@ -1647,9 +1775,9 @@
       setPreviewMode(previewMode);
 
       // 初始化历史记录
-      historyStack = [editor.value];
+      historyStack = [getMarkdown()];
       historyIndex = 0;
-      lastHistoryText = editor.value;
+      lastHistoryText = getMarkdown();
 
       // 默认打开为编辑 + 预览双栏；仅恢复用户明确的“仅编辑”或“双栏”状态
       const savedLayoutMode = localStorage.getItem(LAYOUT_MODE_KEY);
@@ -1674,7 +1802,7 @@
 
     // 渲染预览
     function updatePreview() {
-      let text = editor.value;
+      let text = getMarkdown();
       let placeholders = [];
 
       if (typeof renderMathInElement !== 'undefined') {
@@ -1758,20 +1886,21 @@
 
     // 统计字数
     function updateCount() {
-      const text = editor.value;
+      const text = getMarkdown();
       const count = text.replace(/\s/g, '').length;
       wordCount.textContent = t('wordCount', count);
     }
 
     // 切换预览/源码模式
     function setPreviewMode(mode) {
+      const wasSource = previewMode === 'source';
       previewMode = mode;
       localStorage.setItem(PREVIEW_MODE_KEY, previewMode);
       document.querySelectorAll('.preview-toggle .toggle-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.mode === mode);
       });
       if (mode === 'preview') {
-        editor.value = previewSource.value;
+        if (wasSource) editor.value = previewSource.value;
         preview.style.display = '';
         previewSource.style.display = 'none';
         updatePreview();
@@ -1790,7 +1919,7 @@
     function autoSave() {
       clearTimeout(saveTimer);
       saveTimer = setTimeout(() => {
-        localStorage.setItem(STORAGE_KEY, editor.value);
+        localStorage.setItem(STORAGE_KEY, getMarkdown());
         localStorage.setItem(FILENAME_KEY, filenameInput.value);
         showSaveHint();
       }, 500);
@@ -1804,7 +1933,7 @@
 
     // 手动保存
     function saveToLocal() {
-      localStorage.setItem(STORAGE_KEY, editor.value);
+      localStorage.setItem(STORAGE_KEY, getMarkdown());
       localStorage.setItem(FILENAME_KEY, filenameInput.value);
       showSaveHint();
       showToast(t('toastSaved'));
@@ -1812,7 +1941,7 @@
 
     // 导出文件
     function exportFile() {
-      const blob = new Blob([editor.value], { type: 'text/markdown;charset=utf-8' });
+      const blob = new Blob([getMarkdown()], { type: 'text/markdown;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       let name = filenameInput.value.trim();
@@ -1835,7 +1964,7 @@
       if (!name) name = '未命名文档.md';
       name = name.replace(/\.md$/i, '').replace(/\.markdown$/i, '') + '.doc';
 
-      const md = editor.value;
+      const md = getMarkdown();
       let bodyHtml;
       if (typeof marked !== 'undefined') {
         bodyHtml = marked.parse(md);
@@ -1892,7 +2021,7 @@ ${bodyHtml}
       if (!name) name = '未命名文档.md';
       name = name.replace(/\.md$/i, '').replace(/\.markdown$/i, '') + '.html';
 
-      const md = editor.value;
+      const md = getMarkdown();
       let bodyHtml;
       if (typeof marked !== 'undefined') {
         bodyHtml = marked.parse(md);
@@ -2157,7 +2286,7 @@ ${'</scr' + 'ipt>'}
     function loadFile(file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        editor.value = e.target.result;
+        setMarkdown(e.target.result);
         let name = file.name;
         if (!name.toLowerCase().endsWith('.md') && !name.toLowerCase().endsWith('.markdown')) {
           name += '.md';
@@ -2196,7 +2325,7 @@ ${'</scr' + 'ipt>'}
     // 清空文档
     function clearDoc() {
       if (confirm(t('confirmClear'))) {
-        editor.value = '';
+        setMarkdown('');
         updatePreview();
         updateCount();
         saveToLocal();
@@ -2210,7 +2339,7 @@ ${'</scr' + 'ipt>'}
     }
 
     function recordHistory() {
-      const text = editor.value;
+      const text = getMarkdown();
       if (text === lastHistoryText) return;
       historyStack = historyStack.slice(0, historyIndex + 1);
       historyStack.push(text);
@@ -2222,9 +2351,8 @@ ${'</scr' + 'ipt>'}
     function undo() {
       if (historyIndex <= 0) return;
       historyIndex--;
-      editor.value = historyStack[historyIndex];
-      lastHistoryText = editor.value;
-      if (previewMode === 'source') previewSource.value = editor.value;
+      setMarkdown(historyStack[historyIndex]);
+      lastHistoryText = getMarkdown();
       updatePreview();
       updateCount();
       autoSave();
@@ -2235,9 +2363,8 @@ ${'</scr' + 'ipt>'}
     function redo() {
       if (historyIndex >= historyStack.length - 1) return;
       historyIndex++;
-      editor.value = historyStack[historyIndex];
-      lastHistoryText = editor.value;
-      if (previewMode === 'source') previewSource.value = editor.value;
+      setMarkdown(historyStack[historyIndex]);
+      lastHistoryText = getMarkdown();
       updatePreview();
       updateCount();
       autoSave();
@@ -2410,7 +2537,7 @@ ${'</scr' + 'ipt>'}
       const el = getActiveEditor();
       const start = el.selectionStart;
       const end = el.selectionEnd;
-      el.setRangeText('![' + (safeAlt || t('image')) + '](' + url + ')', start, end, 'end');
+      el.setRangeText('![' + (safeAlt || t('image')) + '](' + collapseImageData(url).text + ')', start, end, 'end');
       syncEditorFromActive();
       updatePreview();
       updateCount();
@@ -3066,15 +3193,7 @@ ${'</scr' + 'ipt>'}
           return;
         }
 
-        if (!editor.value.trim()) {
-          editor.value = markdown;
-        } else {
-          editor.value += '\n\n' + markdown;
-        }
-
-        if (previewMode === 'source') {
-          previewSource.value = editor.value;
-        }
+        setMarkdown(getMarkdown().trim() ? getMarkdown() + '\n\n' + markdown : markdown);
         updatePreview();
         updateCount();
         saveToLocal();
@@ -3094,6 +3213,8 @@ ${'</scr' + 'ipt>'}
 
     // 事件监听
     editor.addEventListener('input', () => {
+      collapseTextareaData(editor);
+      if (previewMode === 'source') previewSource.value = editor.value;
       clearTimeout(historyTimer);
       historyTimer = setTimeout(recordHistory, 400);
       updatePreview();
@@ -3101,6 +3222,7 @@ ${'</scr' + 'ipt>'}
       autoSave();
     });
     previewSource.addEventListener('input', () => {
+      collapseTextareaData(previewSource);
       editor.value = previewSource.value;
       clearTimeout(historyTimer);
       historyTimer = setTimeout(recordHistory, 400);
@@ -3108,6 +3230,10 @@ ${'</scr' + 'ipt>'}
       autoSave();
     });
     filenameInput.addEventListener('input', autoSave);
+    for (const el of [editor, previewSource]) {
+      el.addEventListener('beforeinput', protectBase64Marker);
+      el.addEventListener('copy', copyExpandedBase64);
+    }
 
     // 拖放文件打开
     const dropOverlay = document.getElementById('drop-overlay');
