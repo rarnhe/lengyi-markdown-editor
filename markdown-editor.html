@@ -781,7 +781,8 @@
       opacity: 0;
       pointer-events: none;
       transition: all .3s ease;
-      z-index: 100;
+      /* Toasts must render above the z-index:200 blurred modal overlay. */
+      z-index: 400;
       box-shadow: var(--shadow-md);
       backdrop-filter: blur(8px);
     }
@@ -1827,12 +1828,14 @@
     // 同步滚动：导航期间短暂暂停比例同步，避免覆盖精确标题跳转。
     let isSyncingScroll = false;
     let syncSuppressUntil = 0;
+    let outlineNavigationActive = false;
+    let outlineNavigationId = 0;
     function suppressScrollSync(duration) {
       syncSuppressUntil = Date.now() + duration;
     }
 
     function syncScroll(source, target) {
-      if (isSyncingScroll || Date.now() < syncSuppressUntil) return;
+      if (isSyncingScroll || outlineNavigationActive || Date.now() < syncSuppressUntil) return;
       const sourceHeight = source.scrollHeight - source.clientHeight;
       const targetHeight = target.scrollHeight - target.clientHeight;
       if (sourceHeight <= 0 || targetHeight <= 0) return;
@@ -1840,6 +1843,37 @@
       const ratio = source.scrollTop / sourceHeight;
       target.scrollTop = ratio * targetHeight;
       isSyncingScroll = false;
+    }
+
+    // Navigate both panes independently. Resume proportional scroll syncing only
+    // once the smooth scrolling settles (or after a safety timeout).
+    function waitForOutlineNavigation(editorTop, previewTop) {
+      const navigationId = ++outlineNavigationId;
+      const start = Date.now();
+      let previousEditor = editor.scrollTop;
+      let previousPreview = preview.scrollTop;
+      let settledFrames = 0;
+
+      function check() {
+        if (navigationId !== outlineNavigationId) return;
+        const atPreview = Math.abs(preview.scrollTop - previewTop) <= 2;
+        const atEditor = readingMode || editorTop === null || Math.abs(editor.scrollTop - editorTop) <= 2;
+        const still = Math.abs(preview.scrollTop - previousPreview) < 0.5 &&
+          (readingMode || Math.abs(editor.scrollTop - previousEditor) < 0.5);
+        settledFrames = still ? settledFrames + 1 : 0;
+        previousPreview = preview.scrollTop;
+        previousEditor = editor.scrollTop;
+
+        const elapsed = Date.now() - start;
+        if ((atPreview && atEditor && settledFrames >= 2) ||
+            (elapsed >= 500 && settledFrames >= 12) || elapsed > 3500) {
+          outlineNavigationActive = false;
+          syncSuppressUntil = 0;
+          return;
+        }
+        requestAnimationFrame(check);
+      }
+      requestAnimationFrame(check);
     }
 
     editor.addEventListener('scroll', () => syncScroll(editor, preview));
@@ -1891,8 +1925,15 @@
       document.querySelectorAll('#outline-list .outline-item').forEach((el, i) => {
         el.classList.toggle('active', i === index);
       });
+      // Find the matching preview heading before starting navigation.
+      const ordinal = outlineHeadings.slice(0, index + 1).filter(item => item.level === h.level).length - 1;
+      const headings = preview.querySelectorAll('.markdown-body h' + h.level);
+      const heading = headings[ordinal];
+      if (!heading) return;
+
+      // Keep both panes unlinked until their own scroll animations have settled.
       suppressScrollSync(1400);
-      // 定位编辑区（源码模式下定位右侧源码框）
+      outlineNavigationActive = true;
       const target = editor;
       const lines = getMarkdown().split('\n');
       let pos = 0;
@@ -1901,12 +1942,7 @@
       const raw = getMarkdown();
       const folded = imageDataCollapsed ? collapseImageData(raw.slice(0, pos)).text.length : pos;
       target.setSelectionRange(folded, folded);
-      if (!readingMode) scrollTextareaToCaret(target);
-      // 同一级标题按其在源码中的出现顺序对应，避免不同级别/HTML 标题扰乱索引。
-      const ordinal = outlineHeadings.slice(0, index + 1).filter(item => item.level === h.level).length - 1;
-      const headings = preview.querySelectorAll('.markdown-body h' + h.level);
-      const heading = headings[ordinal];
-      if (!heading) return;
+      const editorTop = readingMode ? null : scrollTextareaToCaret(target, true);
       // 仅滚动预览区域，不使用 scrollIntoView（它可能滚动整个页面/其他祖先）。
       const top = Math.max(0, preview.scrollTop +
         heading.getBoundingClientRect().top - preview.getBoundingClientRect().top - preview.clientTop);
@@ -1920,10 +1956,13 @@
         }
       }
       preview.scrollTo({ top, behavior: 'smooth' });
+      waitForOutlineNavigation(editorTop, top);
     }
 
-    // 用镜像元素精确测量光标位置，兼容自动换行
-    function scrollTextareaToCaret(ta) {
+    // 用镜像元素精确测量光标位置，兼容自动换行。
+    // alignToTop compensates for wrapping and bottom-of-document clipping.
+    function scrollTextareaToCaret(ta, alignToTop = false) {
+      if (alignToTop) ta.style.paddingBottom = '';
       const mirror = document.createElement('div');
       const style = getComputedStyle(ta);
       ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'padding', 'border',
@@ -1942,7 +1981,20 @@
       document.body.appendChild(mirror);
       const caretTop = marker.offsetTop;
       document.body.removeChild(mirror);
-      ta.scrollTop = Math.max(0, caretTop - ta.clientHeight / 3);
+      if (!alignToTop) {
+        ta.scrollTop = Math.max(0, caretTop - ta.clientHeight / 3);
+        return ta.scrollTop;
+      }
+      const paddingTop = parseFloat(style.paddingTop) || 0;
+      const top = Math.max(0, caretTop - paddingTop);
+      const missing = top + ta.clientHeight - ta.scrollHeight;
+      if (missing > 0) {
+        // Allow even the last heading to reach the top of the editor.
+        const paddingBottom = parseFloat(style.paddingBottom) || 0;
+        ta.style.paddingBottom = Math.ceil(paddingBottom + missing + 2) + 'px';
+      }
+      ta.scrollTo({ top, behavior: 'smooth' });
+      return top;
     }
 
     function toggleOutline() {
