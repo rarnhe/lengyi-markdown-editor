@@ -269,7 +269,7 @@ test('code-block toolbar always inserts a fenced block, with an editable body', 
 });
 
 test('Standard layout shows editor, preview and outline, preserving their separate fold controls', () => {
-  const menu=html.match(/<div class="dropdown-menu" id="view-menu">([\s\S]*?)<\/div>/);
+  const menu=html.match(/<div class="dropdown-menu" id="view-menu">([\s\S]*?)<\/div>\s*<\/div>/);
   assert.ok(menu);
   assert.match(menu[1],/setLayoutMode\('standard'\)/);
   assert.doesNotMatch(menu[1],/setLayoutMode\('both'|'edit'|'preview'\)|toggleOutline\(\)/);
@@ -279,7 +279,7 @@ test('Standard layout shows editor, preview and outline, preserving their separa
   const stored={};
   let paneUpdates=0, outlineUpdates=0, outlineRenders=0;
   const ctx={
-    editorCollapsed:true, outlineVisible:false,
+    editorCollapsed:true, outlineVisible:false, readingMode:false,
     EDITOR_COLLAPSED_KEY:'editor',OUTLINE_VISIBLE_KEY:'outline',
     localStorage:{setItem(k,v){stored[k]=v;}},
     applyPaneStates(){paneUpdates++;},
@@ -310,7 +310,7 @@ test('outline collapse arrow moves to the left, switches direction and preserves
   const button={attributes:{},setAttribute(k,v){this.attributes[k]=v;}};
   const elements={'outline-pane':pane,'outline-resizer':resizer,'outline-collapse-btn':button};
   const ctx={
-    outlineVisible:true,outlineWidth:320,
+    outlineVisible:true,outlineWidth:320,readingMode:false,
     document:{getElementById(id){return elements[id];}},
     t:key=>key,applySplit(){}
   };
@@ -338,4 +338,107 @@ test('ten languages use Standard and expanded outline titles without obsolete vi
     assert.doesNotMatch(i18n,new RegExp('^    '+old+':','m'),old);
   }
   assert.match(html,/\.editor-toolbar button span\[data-i18n="codeBlock"\] \{ display: inline; \}/);
+});
+
+test('Reading mode hides editing chrome and replaces Page Fullscreen', () => {
+  const menu=html.match(/<div class="dropdown-menu" id="view-menu">([\s\S]*?)<\/div>\s*<\/div>/);
+  assert.ok(menu);
+  assert.match(menu[1],/setReadingMode\(true\)/);
+  assert.match(menu[1],/data-i18n="readingMode"/);
+  assert.doesNotMatch(menu[1],/pageFullscreen|PageFullscreen/);
+  for(const obsolete of ['togglePageFullscreen','PAGE_FULLSCREEN_KEY','.app.page-fullscreen','page-fullscreen-active']) {
+    assert.equal(html.includes(obsolete),false,obsolete);
+  }
+  for(const hidden of ['.top-bar','.editor-toolbar','.statusbar','.editor-pane','#resizer','#outline-resizer','.preview-pane .pane-header']) {
+    assert.ok(html.includes('.app.reading-mode '+hidden),hidden);
+  }
+  assert.match(html,/\.app\.reading-mode \.main \{ flex-direction: row; \}/);
+  assert.match(html,/\.app\.reading-mode \.outline-pane \{\s*position: absolute;/);
+  assert.match(html,/id="reading-exit-btn" onclick="setReadingMode\(false\)"/);
+  assert.match(html,/event\.key === 'Escape'\) setReadingMode\(false\)/);
+  assert.equal(existsSync('package.json'),false);
+});
+
+test('Reading mode toggle preserves the previous standard editor and outline states', () => {
+  const apply=html.match(/function applyReadingMode\(\) \{[\s\S]*?\n    \}/);
+  const setter=html.match(/function setReadingMode\(enabled\) \{[\s\S]*?\n    \}/);
+  assert.ok(apply&&setter);
+  const app={active:false,classList:{toggle(key,state){assert.equal(key,'reading-mode');app.active=state;}}};
+  const pane={style:{left:'',top:'',width:''}};
+  const saved={};
+  const ctx={
+    readingMode:false,editorCollapsed:true,outlineVisible:false,
+    READING_MODE_KEY:'read',
+    document:{querySelector(){return app;},getElementById(){return pane;}},
+    localStorage:{setItem(k,v){saved[k]=v;}},
+    applyOutlineState(){},positionReadingOutline(){pane.style.left='15px';},
+    renderOutline(){},endReadingOutlineDrag(){}
+  };
+  vm.runInNewContext(apply[0]+'\n'+setter[0]+'\nthis.setRead=setReadingMode;',ctx);
+  ctx.setRead(true);
+  assert.equal(app.active,true);
+  assert.equal(saved.read,'true');
+  assert.equal(ctx.editorCollapsed,true);
+  assert.equal(ctx.outlineVisible,false);
+  ctx.setRead(false);
+  assert.equal(app.active,false);
+  assert.equal(saved.read,'false');
+  assert.equal(pane.style.left,'');
+  assert.equal(ctx.editorCollapsed,true);
+  assert.equal(ctx.outlineVisible,false);
+});
+
+test('Reading outline position clamps to window and responds to resize', () => {
+  const block=html.match(/function clampReadingOutlinePosition\(left, top, paneWidth, paneHeight, areaWidth, areaHeight\) \{[\s\S]*?\n    \}/);
+  assert.ok(block);
+  const ctx={};
+  vm.runInNewContext(block[0]+'\nthis.clamp=clampReadingOutlinePosition;',ctx);
+  assert.equal(ctx.clamp(2500,1900,230,300,1200,800).left,970);
+  assert.equal(ctx.clamp(2500,1900,230,300,1200,800).top,500);
+  assert.equal(ctx.clamp(-20,-90,230,300,1200,800).left,0);
+  assert.equal(ctx.clamp(-20,-90,230,300,1200,800).top,0);
+  assert.equal(ctx.clamp(20,50,300,400,200,100).top,0);
+  assert.equal(ctx.clamp(20,50,300,400,200,100).left,0);
+  assert.match(html,/window\.addEventListener\('resize', \(\) => \{ if \(readingMode\) positionReadingOutline\(\); \}\)/);
+});
+
+test('Reading outline drag uses pointer events and remembers the bounded position', () => {
+  const names=['clampReadingOutlinePosition','beginReadingOutlineDrag','moveReadingOutlineDrag','endReadingOutlineDrag'];
+  const source=names.map(name=>{
+    const fn=html.match(new RegExp('function '+name+'\\([^\\n]+\\) \\{[\\s\\S]*?\\n    \\}'));
+    assert.ok(fn,name);return fn[0];
+  }).join('\n');
+  const pane={offsetLeft:60,offsetTop:45,offsetWidth:250,offsetHeight:200,style:{}};
+  const main={clientWidth:500,clientHeight:400};
+  const header={setPointerCapture(){},hasPointerCapture(){return false;}};
+  let stored=null;
+  const ctx={
+    readingMode:true,readingDrag:null,readingOutlinePosition:null,
+    READING_OUTLINE_POS_KEY:'position',
+    document:{getElementById(){return pane;},querySelector(q){return q==='.main'?main:header;}},
+    localStorage:{setItem(k,v){assert.equal(k,'position');stored=JSON.parse(v);}},JSON
+  };
+  vm.runInNewContext(source+'\nthis.start=beginReadingOutlineDrag;this.move=moveReadingOutlineDrag;this.finish=endReadingOutlineDrag;',ctx);
+  ctx.start({button:0,pointerId:7,clientX:100,clientY:100,target:{closest(){return null;}},preventDefault(){}});
+  ctx.move({pointerId:7,clientX:999,clientY:999,preventDefault(){}});
+  assert.equal(pane.style.left,'250px');
+  assert.equal(pane.style.top,'200px');
+  ctx.finish({pointerId:7});
+  assert.equal(stored.left,250);
+  assert.equal(stored.top,200);
+  assert.equal(ctx.readingDrag,null);
+  assert.match(html,/window\.addEventListener\('pointermove', moveReadingOutlineDrag\)/);
+  assert.match(html,/window\.addEventListener\('pointercancel', endReadingOutlineDrag\)/);
+});
+
+test('Reading mode translations, refresh restore and outline navigation remain functional', () => {
+  for(const key of ['readingMode','exitReadingMode']) {
+    assert.equal((i18n.match(new RegExp('^    '+key+':','gm'))||[]).length,10,key);
+  }
+  assert.doesNotMatch(i18n,/^    pageFullscreen:|^    toastPageFullscreen(?:On|Off):/m);
+  assert.match(html,/readingMode = localStorage\.getItem\(READING_MODE_KEY\) === 'true'/);
+  assert.match(html,/localStorage\.getItem\(READING_OUTLINE_POS_KEY\)/);
+  assert.match(html,/if \(!outlineVisible && !readingMode\) return;/);
+  assert.match(html,/if \(!readingMode\) target\.focus\(\)/);
+  assert.match(html,/if \(!readingMode\) scrollTextareaToCaret\(target\)/);
 });

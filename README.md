@@ -41,7 +41,7 @@ It is **just one HTML file**. Double-click to write. Everything is stored locall
 
 - **Drag-and-drop import**: drop files directly into the window.
 - **Live preview**: write on the left, preview on the right in real time.
-- **Standard three-pane layout**: editor, live preview, and outline open together. The editor and outline can be individually collapsed; the preview stays open.
+- **Standard and Reading modes**: Standard shows the editor, live preview, and outline. Reading mode hides editing controls and floats a draggable outline over a full-width preview; use its Exit Reading Mode button or Escape to return.
 - **File title sync**: editable filename fills the top bar and matches the browser tab.
 - **Base64 folding**: hide or show embedded image data on the left without affecting the preview.
 - **Draggable split**: adjust the editor/preview ratio; position is remembered.
