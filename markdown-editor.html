@@ -134,13 +134,35 @@
     @media (max-width: 1420px) {
       .editor-toolbar .format-group > button span { display: none; }
       .editor-toolbar .format-group > button span[data-i18n="codeBlock"] { display: inline; }
-      .editor-toolbar .filename-slot { flex-basis: 135px; max-width: 170px; }
+
     }
     @media (max-width: 1040px) {
       .editor-toolbar { flex-wrap: wrap; }
       .editor-toolbar .format-group { flex: 1 1 100%; justify-content: flex-start; }
-      .editor-toolbar .filename-slot { flex: 1 1 140px; max-width: none; }
+
       .editor-toolbar .more-actions { margin-left: auto; }
+    }
+    /* Responsive single-row tool sequence: format | import/export | view and utilities. */
+    .editor-toolbar { justify-content: flex-start; gap: 5px; }
+    .editor-toolbar .format-group { flex: 0 0 auto; }
+    .editor-toolbar .toolbar-divider {
+      flex: 0 0 1px; height: 23px; background: var(--border); margin: 0 4px;
+    }
+    .editor-toolbar .toolbar-utilities {
+      display: flex; align-items: center; gap: 3px; flex: 0 0 auto; min-width: 0;
+    }
+    .editor-toolbar .more-actions[hidden] { display: none; }
+    #toolbar-utilities > button { display: inline-flex; }
+    #toolbar-utilities > #lang-dropdown > button { display: inline-flex; }
+    .editor-toolbar .toolbar-utilities > #lang-dropdown { flex-shrink: 0; }
+    #lang-menu { left: 0; top: 100%; right: auto; margin-top: 8px; }
+    #more-menu #lang-menu { left: auto; top: 0; right: calc(100% + 6px); margin-top: 0; }
+    #more-menu > .dropdown, #more-menu > button { display: flex; width: 100%; }
+    #more-menu .dropdown > button { width: 100%; justify-content: space-between; }
+    #more-menu > #view-dropdown > .dropdown-menu { top: 0; left: auto; right: calc(100% + 6px); margin-top: 0; }
+    @media (max-width: 1040px) {
+      .editor-toolbar { flex-wrap: wrap; }
+      .editor-toolbar .format-group { flex: 1 1 100%; }
     }
     .dropdown {
       position: relative;
@@ -273,7 +295,10 @@
       text-transform: none; letter-spacing: normal; white-space: nowrap;
       border: none; background: transparent; padding: 0;
     }
-    .editor-pane.collapsed #document-time { display: none; }
+    .editor-pane.collapsed .filename-slot { display: none; }
+    .editor-heading .filename-slot { width: clamp(110px, 32%, 195px); min-width: 80px; }
+    .editor-heading .filename-slot input { text-align: left; }
+    .preview-title-group #document-time { font-weight: 400; }
     .editor-pane .pane-header > .collapse-btn { position: absolute; right: 12px; }
     #base64-toggle {
       padding: 3px 8px;
@@ -1080,7 +1105,7 @@
     </defs>
   </svg>
   <div class="app">
-    <div class="editor-toolbar">
+    <div class="editor-toolbar" id="editor-toolbar">
       <div class="format-group">
         <button onclick="undo()" data-i18n-title="undoTitle" title="撤销 Ctrl+Z"><svg class="icon"><use href="#icon-undo"></use></svg></button>
         <button onclick="redo()" data-i18n-title="redoTitle" title="重做 Ctrl+Y / Ctrl+Shift+Z"><svg class="icon"><use href="#icon-redo"></use></svg></button>
@@ -1111,7 +1136,7 @@
         <span class="divider"></span>
         <button onclick="insertCodeRow()" data-i18n-title="inlineCode" title="行内代码"><svg class="icon"><use href="#icon-code"></use></svg> <span data-i18n="inlineCode">行内代码</span></button>
         <button onclick="insertCode()" data-i18n-title="codeBlock" title="代码块"><svg class="icon"><use href="#icon-braces"></use></svg> <span data-i18n="codeBlock">代码块</span></button>
-        <button onclick="insertLink()" data-i18n-title="link" title="插入链接 Ctrl+K"><svg class="icon"><use href="#icon-link"></use></svg> <span data-i18n="link">链接</span></button>
+        <button onclick="openLinkModal()" data-i18n-title="link" title="插入链接 Ctrl+K"><svg class="icon"><use href="#icon-link"></use></svg> <span data-i18n="link">链接</span></button>
         <button onclick="openImageModal()" data-i18n-title="image" title="插入图片 Ctrl+Shift+K"><svg class="icon"><use href="#icon-image"></use></svg> <span data-i18n="image">图片</span></button>
         <div class="dropdown" id="table-dropdown">
           <button onclick="toggleTableMenu()" data-i18n-title="table" title="插入表格"><svg class="icon"><use href="#icon-table"></use></svg> <span data-i18n="table">表格</span></button>
@@ -1122,17 +1147,7 @@
         </div>
         <button onclick="openMermaidModal()" data-i18n-title="mermaid" title="插入 Mermaid 图表"><svg class="icon"><use href="#icon-mermaid"></use></svg> <span data-i18n="mermaid">Mermaid</span></button>
       </div>
-      <div class="filename-slot"><input type="text" id="filename" value="未命名文档.md" data-i18n-title="filenameTitle" title="文件名" aria-label="文件名"></div>
-      <div class="editor-actions">
-        <div class="dropdown" id="view-dropdown">
-          <button onclick="toggleViewMenu()" data-i18n-title="view" title="视图布局"><svg class="icon"><use href="#icon-layout"></use></svg> <span data-i18n="view">视图</span> <svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></button>
-          <div class="dropdown-menu" id="view-menu">
-            <div class="dropdown-item" onclick="setReadingMode(true); closeViewMenu();" data-i18n="readingMode">阅读模式</div>
-            <div class="dropdown-item" onclick="toggleFullscreen(); closeViewMenu();" data-i18n="systemFullscreen">系统全屏</div>
-          </div>
-        </div>
-        <button type="button" id="theme-toggle" onclick="toggleTheme()" title="夜间"><svg class="icon"><use href="#icon-moon"></use></svg> <span id="theme-label">夜间</span></button>
-      </div>
+      <span class="toolbar-divider" aria-hidden="true"></span>
       <div class="import-export-group">
         <label for="importFile"><svg class="icon"><use href="#icon-upload"></use></svg> <span data-i18n="importBtn">导入</span></label>
         <input type="file" id="importFile" accept=".md,.markdown,.txt" onchange="importFile(this)">
@@ -1147,11 +1162,18 @@
           </div>
         </div>
       </div>
-      <div class="more-actions">
-        <div class="dropdown" id="more-dropdown">
-          <button type="button" id="more-toggle" onclick="toggleMoreMenu()" aria-haspopup="true" aria-expanded="false" aria-label="更多操作" data-i18n-title="moreMenu" title="更多操作">⋮</button>
-          <div class="dropdown-menu" id="more-menu">
-            <button type="button" class="dropdown-item" onclick="openUrlModal(); closeMoreMenu();" data-i18n="webToMd">网页转MD</button>
+      <span class="toolbar-divider" aria-hidden="true"></span>
+      <div class="toolbar-utilities" id="toolbar-utilities">
+        <div class="dropdown" id="view-dropdown">
+          <button onclick="toggleViewMenu()" data-i18n-title="view" title="视图布局"><svg class="icon"><use href="#icon-layout"></use></svg> <span data-i18n="view">视图</span> <svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></button>
+          <div class="dropdown-menu" id="view-menu">
+            <div class="dropdown-item" onclick="setReadingMode(true); closeViewMenu();" data-i18n="readingMode">阅读模式</div>
+            <div class="dropdown-item" onclick="toggleFullscreen(); closeViewMenu();" data-i18n="systemFullscreen">系统全屏</div>
+          </div>
+        </div>
+        <button type="button" id="theme-toggle" onclick="toggleTheme()" title="夜间"><svg class="icon"><use href="#icon-moon"></use></svg> <span id="theme-label">夜间</span></button>
+
+        <button type="button" id="web-to-md-action" onclick="openUrlModal()" data-i18n-title="urlTitle"><svg class="icon"><use href="#icon-globe"></use></svg> <span data-i18n="webToMd">网页转MD</span></button>
             <div class="dropdown submenu" id="lang-dropdown">
               <button type="button" class="dropdown-item" onclick="toggleLangMenu()" data-i18n-title="langLabel"><span data-i18n="langLabel">语言</span><svg class="icon icon-sm"><use href="#icon-chevron-left"></use></svg></button>
           <div class="dropdown-menu" id="lang-menu">
@@ -1167,9 +1189,14 @@
             <div class="dropdown-item" onclick="setLanguage('pt'); closeLangMenu(); closeMoreMenu();">Português</div>
           </div>
             </div>
-            <button type="button" class="dropdown-item" onclick="closeMoreMenu(); clearDoc();" data-i18n="clear">清空</button>
-            <button type="button" class="dropdown-item" onclick="openHelp(); closeMoreMenu();" data-i18n="help">帮助</button>
-          </div>
+
+        <button type="button" id="clear-action" onclick="clearDoc()" data-i18n-title="clear"><svg class="icon"><use href="#icon-trash"></use></svg> <span data-i18n="clear">清空</span></button>
+        <button type="button" id="help-action" onclick="openHelp()" data-i18n-title="helpTitle"><svg class="icon"><use href="#icon-help"></use></svg> <span data-i18n="help">帮助</span></button>
+      </div>
+      <div class="more-actions" id="more-actions" hidden>
+        <div class="dropdown" id="more-dropdown">
+          <button type="button" id="more-toggle" onclick="toggleMoreMenu()" aria-haspopup="true" aria-expanded="false" aria-label="更多操作" data-i18n-title="moreMenu" title="更多操作">⋮</button>
+          <div class="dropdown-menu" id="more-menu"></div>
         </div>
       </div>
     </div>
@@ -1178,7 +1205,7 @@
       <div class="pane editor-pane">
         <div class="pane-header">
           <div class="editor-heading">
-            <time id="document-time" aria-live="polite"></time>
+            <div class="filename-slot"><input type="text" id="filename" value="未命名文档.md" data-i18n-title="filenameTitle" title="文件名" aria-label="文件名"></div>
             <span class="pane-title" data-i18n="editorPaneTitle">编辑</span>
             <button type="button" id="base64-toggle" onclick="toggleBase64()" aria-pressed="false" data-i18n-title="showBase64" title="显示 Base64">显示 Base64</button>
           </div>
@@ -1190,6 +1217,7 @@
       <div class="pane preview-pane">
         <div class="pane-header">
           <div class="preview-title-group">
+            <time id="document-time" aria-live="polite"></time>
             <span class="pane-title" data-i18n="previewPaneTitle">实时预览</span>
             <span id="word-count">0 字</span>
           </div>
