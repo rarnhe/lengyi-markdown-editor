@@ -222,7 +222,7 @@ test('outline panel persists visibility and width with ten-language labels', () 
   for (const key of ['outline-pane', 'outline-resizer', 'outline-collapse-btn', 'OUTLINE_VISIBLE_KEY', 'OUTLINE_WIDTH_KEY', 'jumpToHeading', 'scrollTextareaToCaret']) {
     assert.ok(html.includes(key), key);
   }
-  for (const key of ['outlineTitle', 'viewStandard', 'outlineEmpty', 'collapseOutline', 'expandOutline']) {
+  for (const key of ['outlineTitle', 'outlineEmpty', 'collapseOutline', 'expandOutline']) {
     assert.equal((i18n.match(new RegExp('^    '+key+':', 'gm')) || []).length, 10, key);
   }
 });
@@ -268,33 +268,17 @@ test('code-block toolbar always inserts a fenced block, with an editable body', 
   assert.match(html,/onclick="insertCode\(\)"[^>]*>[\s\S]*?data-i18n="codeBlock">代码块<\/span>/);
 });
 
-test('Standard layout shows editor, preview and outline, preserving their separate fold controls', () => {
+test('Standard layout keeps independent editor and outline fold controls', () => {
   const menu=html.match(/<div class="dropdown-menu" id="view-menu">([\s\S]*?)<\/div>\s*<\/div>/);
   assert.ok(menu);
-  assert.doesNotMatch(menu[1],/setLayoutMode\('standard'\)/);
-  assert.match(html,/function setLayoutMode\(mode\) \{/);
-  assert.doesNotMatch(menu[1],/setLayoutMode\('both'|'edit'|'preview'\)|toggleOutline\(\)/);
-  assert.doesNotMatch(html,/preview-collapse-btn|previewCollapsed|PREVIEW_COLLAPSED_KEY|LAYOUT_MODE_KEY/);
-  const block=html.match(/function setLayoutMode\(mode\) \{[\s\S]*?\n    \}/);
-  assert.ok(block);
-  const stored={};
-  let paneUpdates=0, outlineUpdates=0, outlineRenders=0;
-  const ctx={
-    editorCollapsed:true, outlineVisible:false, readingMode:false,
-    EDITOR_COLLAPSED_KEY:'editor',OUTLINE_VISIBLE_KEY:'outline',
-    localStorage:{setItem(k,v){stored[k]=v;}},
-    applyPaneStates(){paneUpdates++;},
-    applyOutlineState(){outlineUpdates++;},
-    renderOutline(){outlineRenders++;}
-  };
-  vm.runInNewContext(block[0]+"\nsetLayoutMode('standard');",ctx);
-  assert.equal(ctx.editorCollapsed,false);
-  assert.equal(ctx.outlineVisible,true);
-  assert.deepEqual(stored,{editor:'false',outline:'true'});
-  assert.equal(paneUpdates,1);
-  assert.equal(outlineUpdates,1);
-  assert.equal(outlineRenders,1);
+  assert.doesNotMatch(menu[1],/setLayoutMode\(|data-i18n="viewStandard"/);
+  assert.match(menu[1],/setReadingMode\(true\)/);
+  assert.match(menu[1],/toggleFullscreen\(\)/);
+  assert.doesNotMatch(html,/function setLayoutMode\(|previewCollapsed|PREVIEW_COLLAPSED_KEY|LAYOUT_MODE_KEY/);
+  assert.match(html,/editorCollapsed = localStorage\.getItem\(EDITOR_COLLAPSED_KEY\) === 'true'/);
   assert.match(html,/outlineVisible = localStorage\.getItem\(OUTLINE_VISIBLE_KEY\) !== 'false'/);
+  assert.match(html,/function applyPaneStates\(\)/);
+  assert.match(html,/function applyOutlineState\(\)/);
 });
 
 test('outline collapse arrow moves to the left, switches direction and preserves width', () => {
@@ -331,11 +315,11 @@ test('outline collapse arrow moves to the left, switches direction and preserves
   assert.match(html,/localStorage\.setItem\(OUTLINE_WIDTH_KEY, outlineWidth\)/);
 });
 
-test('ten languages use Standard and expanded outline titles without obsolete view options', () => {
-  for(const key of ['viewStandard','expandOutline','collapseOutline']) {
+test('ten languages use outline titles without obsolete view options', () => {
+  for(const key of ['expandOutline','collapseOutline']) {
     assert.equal((i18n.match(new RegExp('^    '+key+':','gm'))||[]).length,10,key);
   }
-  for(const old of ['viewBoth','viewEdit','viewPreview','viewOutline','collapsePreview','expandPreview']) {
+  for(const old of ['viewBoth','viewEdit','viewPreview','viewOutline','viewStandard','collapsePreview','expandPreview']) {
     assert.doesNotMatch(i18n,new RegExp('^    '+old+':','m'),old);
   }
   assert.match(html,/\.editor-toolbar button span\[data-i18n="codeBlock"\] \{ display: inline; \}/);
@@ -441,7 +425,7 @@ test('Reading mode translations, refresh restore and outline navigation remain f
   assert.match(html,/localStorage\.getItem\(READING_OUTLINE_POS_KEY\)/);
   assert.match(html,/if \(!outlineVisible && !readingMode\) return;/);
   assert.match(html,/if \(!readingMode\) target\.focus\(\)/);
-  assert.match(html,/const editorTop = readingMode \? null : scrollTextareaToCaret\(target, true\)/);
+  assert.match(html,/if \(!readingMode\) scrollTextareaToCaret\(target\)/);
 });
 
 
@@ -508,8 +492,8 @@ test('language and Help exchange places, Standard disappears from UI only', () =
   assert.doesNotMatch(view[1],/setLayoutMode\('standard'\)|data-i18n="viewStandard"/);
   assert.match(view[1],/setReadingMode\(true\)/);
   assert.match(view[1],/toggleFullscreen\(\)/);
-  assert.match(html,/function setLayoutMode\(mode\) \{/);
-  assert.equal((i18n.match(/^    viewStandard:/gm)||[]).length,10);
+  assert.doesNotMatch(html,/function setLayoutMode\(mode\) \{/);
+  assert.doesNotMatch(i18n,/^    viewStandard:/m);
 });
 
 test('missing scroll-sync suppression helper exists and prevents navigation interference', () => {
