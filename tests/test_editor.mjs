@@ -138,7 +138,7 @@ test('editable filename fills top bar and original brand label is removed', () =
 test('filename edits and imports synchronize browser tab title', () => {
   const fn = html.match(/function syncDocumentTitle\(\) \{[\s\S]*?\n    \}/);
   assert.ok(fn);
-  const ctx = { filenameInput:{value:'Example.md'}, filePathInput:{value:''}, document:{title:'before'}, t:()=>'Untitled.md' };
+  const ctx = { filenameInput:{value:'Example.md'}, document:{title:'before'}, t:()=>'Untitled.md' };
   vm.runInNewContext(fn[0] + '\nsyncDocumentTitle();', ctx);
   assert.equal(ctx.document.title, 'Example.md');
   ctx.filenameInput.value = 'Updated.md';
@@ -271,7 +271,8 @@ test('code-block toolbar always inserts a fenced block, with an editable body', 
 test('Standard layout shows editor, preview and outline, preserving their separate fold controls', () => {
   const menu=html.match(/<div class="dropdown-menu" id="view-menu">([\s\S]*?)<\/div>\s*<\/div>/);
   assert.ok(menu);
-  assert.match(menu[1],/setLayoutMode\('standard'\)/);
+  assert.doesNotMatch(menu[1],/setLayoutMode\('standard'\)/);
+  assert.match(html,/function setLayoutMode\(mode\) \{/);
   assert.doesNotMatch(menu[1],/setLayoutMode\('both'|'edit'|'preview'\)|toggleOutline\(\)/);
   assert.doesNotMatch(html,/preview-collapse-btn|previewCollapsed|PREVIEW_COLLAPSED_KEY|LAYOUT_MODE_KEY/);
   const block=html.match(/function setLayoutMode\(mode\) \{[\s\S]*?\n    \}/);
@@ -455,32 +456,60 @@ test('preview header centers the title beside a blue word count', () => {
   assert.match(html, /\.app\.reading-mode \.preview-pane \.pane-header \{ display: none !important; \}/);
 });
 
-test('browser tab shows an explicitly supplied path and leaves new files pathless', () => {
-  const title = html.match(/function syncDocumentTitle\(\) \{[\s\S]*?\n    \}/);
-  const setPath = html.match(/function setFilePath\(path\) \{[\s\S]*?\n    \}/);
-  assert.ok(title && setPath);
-  const ctx = {
-    filenameInput:{value:'story.md'}, filePathInput:{value:''},
-    document:{title:''},t:()=> 'Untitled.md'
+test('document timestamp shows HTML opening time, then successful Markdown import time', () => {
+  assert.match(html, /<time id="document-time" aria-live="polite"><\/time>/);
+  assert.doesNotMatch(html, /id="file-path"|filePathInput|setFilePath|FILE_PATH_KEY/);
+  const formatter=html.match(/function formatDocumentTime\(date\) \{[\s\S]*?\n    \}/);
+  const render=html.match(/function updateDocumentTime\(\) \{[\s\S]*?\n    \}/);
+  const setter=html.match(/function setDocumentImportTime\(isMarkdown\) \{[\s\S]*?\n    \}/);
+  assert.ok(formatter && render && setter);
+  const fakeDate=(year,month,day,hour,minute,second)=>({
+    getFullYear(){return year;},getMonth(){return month - 1;},
+    getDate(){return day;},getHours(){return hour;},
+    getMinutes(){return minute;},getSeconds(){return second;},
+    toISOString(){return year+'-ISO';}
+  });
+  const opened=fakeDate(2026,10,30,11,53,7);
+  const imported=fakeDate(2026,10,30,12,8,9);
+  const time={textContent:'',title:'',dateTime:''};
+  const ctx={
+    documentTime:time,htmlOpenedAt:opened,markdownImportedAt:null,
+    t:(key,value)=>key+':'+value,
+    Date:function(){return imported;}
   };
-  vm.runInNewContext(title[0]+'\n'+setPath[0]+'\nthis.setPath=setFilePath;syncDocumentTitle();',ctx);
-  assert.equal(ctx.document.title,'story.md');
-  ctx.setPath('C:\\Users\\reader\\Documents\\story.md');
-  assert.equal(ctx.document.title,'story.md — C:\\Users\\reader\\Documents\\story.md');
-  ctx.setPath('');
-  assert.equal(ctx.document.title,'story.md');
-  ctx.filenameInput.value='';
-  vm.runInNewContext('syncDocumentTitle();',ctx);
-  assert.equal(ctx.document.title,'Untitled.md');
-  assert.match(html,/id="file-path" value=""/);
-  assert.match(html,/filePathInput\.value = localStorage\.getItem\(FILE_PATH_KEY\) \|\| ''/);
-  assert.match(html,/localStorage\.setItem\(FILE_PATH_KEY, filePathInput\.value\.trim\(\)\)/);
-  assert.match(html,/setFilePath\(''\);\s*filenameInput\.value = name;/);
-  assert.match(html,/if \(confirm\(t\('confirmClear'\)\)\) \{\s*setFilePath\(''\);/);
-  assert.match(html,/filePathInput\.addEventListener\('input',/);
-  for (const key of ['filePathTitle','filePathPlaceholder']) {
+  vm.runInNewContext(formatter[0]+'\n'+render[0]+'\n'+setter[0]+
+    '\nthis.update=updateDocumentTime;this.setImport=setDocumentImportTime;',ctx);
+  ctx.update();
+  assert.equal(time.textContent,'openTime:2026-10-30 11:53:07');
+  assert.equal(time.dateTime,'2026-ISO');
+  ctx.setImport(true);
+  assert.equal(time.textContent,'importTime:2026-10-30 12:08:09');
+  ctx.setImport(false);
+  assert.equal(time.textContent,'openTime:2026-10-30 11:53:07');
+  assert.match(html,/setDocumentImportTime\(\/\\\.\(md\|markdown\)\$\/i\.test\(file\.name\)\)/);
+  assert.match(html,/if \(confirm\(t\('confirmClear'\)\)\) \{\s*setDocumentImportTime\(false\)/);
+  assert.match(html,/function applyLanguage\(\) \{[\s\S]*?updateDocumentTime\(\);/);
+  assert.doesNotMatch(html,/localStorage\.setItem\(FILE_PATH_KEY/);
+  for (const key of ['openTime','importTime']) {
     assert.equal((i18n.match(new RegExp('^    '+key+':','gm'))||[]).length,10,key);
   }
+});
+
+test('language and Help exchange places, Standard disappears from UI only', () => {
+  const header=html.match(/<div class="top-actions">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="editor-toolbar">/);
+  assert.ok(header);
+  const area=header[1];
+  const language=area.indexOf('id="lang-dropdown"');
+  const help=area.indexOf('onclick="openHelp()"');
+  const clear=area.indexOf('onclick="clearDoc()"');
+  assert.ok(language>0 && language<clear && clear<help);
+  const view=html.match(/<div class="dropdown-menu" id="view-menu">([\s\S]*?)<\/div>\s*<\/div>/);
+  assert.ok(view);
+  assert.doesNotMatch(view[1],/setLayoutMode\('standard'\)|data-i18n="viewStandard"/);
+  assert.match(view[1],/setReadingMode\(true\)/);
+  assert.match(view[1],/toggleFullscreen\(\)/);
+  assert.match(html,/function setLayoutMode\(mode\) \{/);
+  assert.equal((i18n.match(/^    viewStandard:/gm)||[]).length,10);
 });
 
 test('missing scroll-sync suppression helper exists and prevents navigation interference', () => {
