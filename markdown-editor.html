@@ -1824,24 +1824,57 @@
     window.addEventListener('mouseup', stopResize);
     window.addEventListener('touchend', stopResize);
 
-    // 滚轮动作同步，不同步两栏的滚动比例或位置。
-    // 鼠标所在栏保持原生滚动，另一栏仅接收相同像素的滚动增量。
-    function wheelDeltaPixels(event, source) {
-      const factor = event.deltaMode === 1
-        ? (parseFloat(getComputedStyle(source).lineHeight) || 24)
-        : event.deltaMode === 2 ? source.clientHeight : 1;
-      return { x: event.deltaX * factor, y: event.deltaY * factor };
+    // 双向动作联动：用户滚轮、触控板、滚动条拖拽均产生原生 scroll 事件。
+    // 只把源栏的“本次运动”映射到另一栏，不强制两栏的 scrollTop 相等。
+    const observedScrollTop = new WeakMap();
+    let outlineJumpToken = 0;
+    let outlineJumpActive = false;
+
+    function maxPaneScroll(pane) {
+      return Math.max(0, pane.scrollHeight - pane.clientHeight);
     }
 
-    function mirrorWheelAction(event, source, counterpart) {
-      if (readingMode || editorCollapsed || event.ctrlKey || event.metaKey) return;
-      const delta = wheelDeltaPixels(event, source);
-      counterpart.scrollTop += delta.y;
-      counterpart.scrollLeft += delta.x;
+    function directionalScrollMovement(delta, sourceBefore, sourceMax, otherBefore, otherMax) {
+      if (!delta) return 0;
+      const down = delta > 0;
+      const sourceRemaining = down ? sourceMax - sourceBefore : sourceBefore;
+      const otherRemaining = down ? otherMax - otherBefore : otherBefore;
+      if (sourceRemaining <= 0 || otherRemaining <= 0) return 0;
+      // Preserve each pane's own start position; converge at the nearest edge.
+      return delta * otherRemaining / sourceRemaining;
     }
 
-    editor.addEventListener('wheel', event => mirrorWheelAction(event, editor, preview), { passive: true });
-    preview.addEventListener('wheel', event => mirrorWheelAction(event, preview, editor), { passive: true });
+    function trackPaneScroll(source, counterpart) {
+      const current = source.scrollTop;
+      const previous = observedScrollTop.get(source);
+      observedScrollTop.set(source, current);
+      if (previous === undefined || current === previous ||
+          readingMode || editorCollapsed || outlineJumpActive) return;
+      const delta = current - previous;
+      const counterpartBefore = counterpart.scrollTop;
+      const movement = directionalScrollMovement(delta, previous, maxPaneScroll(source),
+        counterpartBefore, maxPaneScroll(counterpart));
+      if (!movement) return;
+      const max = maxPaneScroll(counterpart);
+      counterpart.scrollTop = Math.min(max, Math.max(0, counterpartBefore + movement));
+      // Programmatically mirrored scroll events are not a second user action.
+      observedScrollTop.set(counterpart, counterpart.scrollTop);
+    }
+
+    function finishOutlineJump(token) {
+      // Direct heading positioning must not generate scroll actions in the other pane.
+      requestAnimationFrame(() => {
+        if (token !== outlineJumpToken) return;
+        observedScrollTop.set(editor, editor.scrollTop);
+        observedScrollTop.set(preview, preview.scrollTop);
+        outlineJumpActive = false;
+      });
+    }
+
+    observedScrollTop.set(editor, editor.scrollTop);
+    observedScrollTop.set(preview, preview.scrollTop);
+    editor.addEventListener('scroll', () => trackPaneScroll(editor, preview), { passive: true });
+    preview.addEventListener('scroll', () => trackPaneScroll(preview, editor), { passive: true });
 
     // 大纲：从 Markdown 源码提取标题（跳过代码块内的内容）
     let outlineVisible = true;
@@ -1895,12 +1928,14 @@
       const heading = headings[ordinal];
       if (!heading) return;
 
-      // Each pane navigates independently to the same heading.
+      // Both panes align to this heading independently; suppress mirrored scroll events.
+      const token = ++outlineJumpToken;
+      outlineJumpActive = true;
       const target = editor;
       const lines = getMarkdown().split('\n');
       let pos = 0;
       for (let i = 0; i < h.line && i < lines.length; i++) pos += lines[i].length + 1;
-      if (!readingMode) target.focus();
+      if (!readingMode) target.focus({ preventScroll: true });
       const raw = getMarkdown();
       const folded = imageDataCollapsed ? collapseImageData(raw.slice(0, pos)).text.length : pos;
       target.setSelectionRange(folded, folded);
@@ -1917,16 +1952,20 @@
           body.style.paddingBottom = Math.ceil(existing + missing + 2) + 'px';
         }
       }
-      preview.scrollTo({ top, behavior: 'smooth' });
+      preview.scrollTo({ top, behavior: 'instant' });
+      finishOutlineJump(token);
     }
 
-    // 用镜像元素精确测量 Markdown 标题位置（含软换行），置顶编辑栏。
-    function scrollTextareaToCaret(ta) {
-      ta.style.paddingBottom = '';
-      const mirror = document.createElement('div');
+    // 与 textarea 的真实内容视口同宽，消除滚动条占宽带来的长文档换行累积误差。
+    function measureTextareaHeadingTop(ta) {
       const style = getComputedStyle(ta);
-      ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'padding', 'border',
-       'boxSizing', 'letterSpacing', 'tabSize', 'width'].forEach(p => { mirror.style[p] = style[p]; });
+      const mirror = document.createElement('div');
+      ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'lineHeight',
+       'letterSpacing', 'wordSpacing', 'tabSize', 'padding', 'border',
+       'boxSizing', 'textAlign', 'textIndent', 'direction'].forEach(p => {
+        mirror.style[p] = style[p];
+      });
+      mirror.style.width = ta.clientWidth + 'px';
       mirror.style.position = 'absolute';
       mirror.style.top = '0';
       mirror.style.left = '-99999px';
@@ -1934,22 +1973,32 @@
       mirror.style.whiteSpace = 'pre-wrap';
       mirror.style.wordBreak = 'break-all';
       mirror.style.overflowWrap = 'break-word';
+      mirror.style.height = 'auto';
       mirror.textContent = ta.value.substring(0, ta.selectionStart);
       const marker = document.createElement('span');
-      marker.textContent = '​';
+      marker.textContent = '\u200b';
       mirror.appendChild(marker);
       document.body.appendChild(mirror);
-      const caretTop = marker.offsetTop;
+      const top = marker.offsetTop - (parseFloat(style.paddingTop) || 0);
       document.body.removeChild(mirror);
-      const paddingTop = parseFloat(style.paddingTop) || 0;
-      const top = Math.max(0, caretTop - paddingTop);
-      const missing = top + ta.clientHeight - ta.scrollHeight;
-      if (missing > 0) {
-        // Allow even the last heading to reach the top of the editor.
-        const paddingBottom = parseFloat(style.paddingBottom) || 0;
-        ta.style.paddingBottom = Math.ceil(paddingBottom + missing + 2) + 'px';
+      return Math.max(0, top);
+    }
+
+    function scrollTextareaToCaret(ta) {
+      // Remove any leftover spacer from an earlier heading before measuring.
+      ta.style.paddingBottom = '';
+      const top = measureTextareaHeadingTop(ta);
+      // For a heading near the end, allocate enough trailing room for exact alignment.
+      // Recheck against the real scrollHeight after layout, not an estimate.
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const deficit = top - maxPaneScroll(ta);
+        if (deficit <= 1) break;
+        const padding = parseFloat(getComputedStyle(ta).paddingBottom) || 0;
+        ta.style.paddingBottom = Math.ceil(padding + deficit + 4) + 'px';
       }
-      ta.scrollTo({ top, behavior: 'smooth' });
+      // Instant scrolling avoids browser caret and smooth-scroll animations
+      // independently displacing the editor's precisely chosen heading.
+      ta.scrollTo({ top, behavior: 'instant' });
     }
 
     function toggleOutline() {
