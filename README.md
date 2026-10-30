@@ -44,7 +44,7 @@ It is **just one HTML file**. Double-click to write. Everything is stored locall
 - **Standard and Reading modes**: Standard shows the editor, live preview, and outline. Reading mode hides editing controls and floats a draggable outline over a full-width preview; use its Exit Reading Mode button or Escape to return.
 - **File title and timestamp**: the browser tab shows the Markdown filename. The top bar displays this HTML page's opening time, or the import time after loading a `.md` / `.markdown` file. The timestamp is read-only and resets to the opening time when creating a new document.
 - **Base64 folding**: hide or show embedded image data on the left without affecting the preview.
-- **Draggable split and independent scrolling**: resize the panes while keeping each pane's scroll position independent. Mouse-wheel or trackpad scrolling forwards the same delta to the other visible pane; selecting an outline heading scrolls both headings to the top independently.
+- **Draggable split and independent scrolling**: resize the panes while keeping each pane's scroll position independent. Mouse-wheel, trackpad, and direct scrollbar dragging all mirror the movement to the other pane. The amount is scaled by each pane's remaining distance to the top or bottom, so both can reach that edge together while retaining independent intermediate positions; selecting an outline heading aligns both headings to the top.
 
 ### 🛠️ Rich Editing Tools
 
