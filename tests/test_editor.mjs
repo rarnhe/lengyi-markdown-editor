@@ -126,22 +126,26 @@ test('copying hidden Base64 transfers complete Markdown, not a placeholder', () 
   assert.ok(prevented);
 });
 
-test('single toolbar places format, filename, view/theme, import/export and More in order', () => {
-  assert.doesNotMatch(html, /class="top-bar"|class="top-actions"|class="brand"/);
-  const toolbar=html.match(/<div class="editor-toolbar">([\s\S]*?)<div class="main">/);
+test('expanded toolbar orders Mermaid, import/export, view/theme and all four actions', () => {
+  const toolbar=html.match(/<div class="editor-toolbar" id="editor-toolbar">([\s\S]*?)<div class="main">/);
   assert.ok(toolbar);
-  const ui=toolbar[1];
-  const ids=['class="format-group"','class="filename-slot"','class="editor-actions"',
-    'class="import-export-group"','class="more-actions"'];
-  const positions=ids.map(key=>ui.indexOf(key));
-  assert.ok(positions.every(index=>index>=0));
-  assert.deepEqual(positions,[...positions].sort((a,b)=>a-b));
-  assert.match(ui,/id="filename"/);
-  assert.match(ui,/id="heading-menu"[\s\S]*?id="table-menu"[\s\S]*?data-i18n="mermaid"/);
-  assert.match(ui,/class="import-export-group"[\s\S]*?for="importFile"[\s\S]*?id="export-dropdown"/);
-  assert.match(html,/\.editor-toolbar \{[\s\S]*?flex-wrap: nowrap;/);
-  assert.match(html,/\.editor-toolbar \.filename-slot \{[^}]*min-width: 110px;/);
-  assert.match(html,/@media \(max-width: 1040px\) \{/);
+  const src=toolbar[1];
+  const keys=['data-i18n="mermaid"','class="toolbar-divider"','class="import-export-group"',
+    'class="toolbar-divider"','id="view-dropdown"','id="theme-toggle"',
+    'id="web-to-md-action"','id="lang-dropdown"','id="clear-action"','id="help-action"'];
+  let cursor=-1;
+  for(const key of keys){
+    const next=src.indexOf(key,cursor+1);
+    assert.ok(next>cursor,'Toolbar order: '+key);
+    cursor=next;
+  }
+  assert.equal((src.match(/class="toolbar-divider"/g)||[]).length,2);
+  assert.doesNotMatch(src,/id="filename"/);
+  assert.match(src,/id="more-actions" hidden/);
+  assert.match(src,/id="more-menu"><\/div>/);
+  assert.match(src,/id="lang-menu"[\s\S]*?setLanguage\('pt'\)/);
+  assert.match(html,/@media \(max-width: 1040px\)/);
+  assert.doesNotMatch(html,/class="top-bar"/);
 });
 
 test('filename edits and imports synchronize browser tab title', () => {
@@ -450,9 +454,10 @@ test('preview header centers the title beside a blue word count', () => {
 });
 
 test('document timestamp shows HTML opening time, then successful Markdown import time', () => {
-  assert.match(html, /class="editor-heading"[\s\S]*?<time id="document-time" aria-live="polite"><\/time>[\s\S]*?data-i18n="editorPaneTitle"/);
+  assert.match(html, /class="preview-title-group"[\s\S]*?<time id="document-time" aria-live="polite"><\/time>[\s\S]*?data-i18n="previewPaneTitle"/);
   assert.match(html, /#document-time \{[^}]*border: none; background: transparent; padding: 0;/);
-  assert.match(html, /\.editor-pane\.collapsed #document-time \{ display: none; \}/);
+  assert.match(html, /class="editor-heading"[\s\S]*?class="filename-slot"[\s\S]*?id="filename"[\s\S]*?data-i18n="editorPaneTitle"/);
+  assert.match(html, /\.editor-pane\.collapsed \.filename-slot \{ display: none; \}/);
   assert.doesNotMatch(html, /id="file-path"|filePathInput|setFilePath|FILE_PATH_KEY/);
   const formatter=html.match(/function formatDocumentTime\(date\) \{[\s\S]*?\n    \}/);
   const render=html.match(/function updateDocumentTime\(\) \{[\s\S]*?\n    \}/);
@@ -490,26 +495,46 @@ test('document timestamp shows HTML opening time, then successful Markdown impor
   }
 });
 
-test('More menu contains web conversion, nested language, Clear and Help in order', () => {
-  const area=html.match(/<div class="dropdown-menu" id="more-menu">([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>\s*<\/div>\s*<div class="main">/);
-  assert.ok(area);
-  const keys=['openUrlModal(); closeMoreMenu();','id="lang-dropdown"',
-    'closeMoreMenu(); clearDoc();','openHelp(); closeMoreMenu();'];
-  const positions=keys.map(x=>area[1].indexOf(x));
-  assert.ok(positions.every(x=>x>=0));
-  assert.deepEqual(positions,[...positions].sort((a,b)=>a-b));
-  assert.match(area[1], /id="lang-menu"[\s\S]*?setLanguage\('pt'\); closeLangMenu\(\); closeMoreMenu\(\)/);
-  assert.match(html, /#more-dropdown > \.dropdown-menu \{[^}]*overflow: visible;/);
-  assert.match(html, /#lang-menu \{[^}]*right: calc\(100% \+ 6px\)/);
-  assert.doesNotMatch(html,/onclick="saveToLocal\(\)"|onclick="openFindModal\(\)"/);
+test('all actions are visible initially and overflow moves the original controls by width', () => {
+  const fn=html.match(/function applyToolbarOverflow\(\) \{[\s\S]*?\n    \}/);
+  assert.ok(fn);
+  const makeNode=(id,tag='BUTTON')=>({
+    id,tagName:tag,parent:null,classList:{added:false,
+      add(){this.added=true;},remove(){this.added=false;}}
+  });
+  const ids=['view-dropdown','theme-toggle','web-to-md-action','lang-dropdown','clear-action','help-action'];
+  const nodes=Object.fromEntries(ids.map(id=>[id,makeNode(id,
+    ['view-dropdown','lang-dropdown'].includes(id)?'DIV':'BUTTON')]));
+  const containers={
+    'toolbar-utilities':{nodes:[],appendChild(node){node.parent=this;this.nodes.push(node);}},
+    'more-menu':{nodes:[],appendChild(node){node.parent=this;this.nodes.push(node);}},
+    'more-actions':{hidden:true},
+    'editor-toolbar':{clientWidth:1900}
+  };
+  const context={document:{getElementById(id){return containers[id]||nodes[id];}},
+    closeMoreMenu(){context.closeCount++;},closeCount:0};
+  vm.runInNewContext(fn[0]+'\nthis.resize=applyToolbarOverflow;',context);
+  context.resize();
+  assert.equal(containers['more-actions'].hidden,true);
+  assert.ok(ids.every(id=>nodes[id].parent===containers['toolbar-utilities']));
+  containers['editor-toolbar'].clientWidth=1500;
+  context.resize();
+  assert.equal(containers['more-actions'].hidden,false);
+  assert.ok(ids.slice(2).every(id=>nodes[id].parent===containers['more-menu']));
+  containers['editor-toolbar'].clientWidth=1100;
+  context.resize();
+  assert.ok(ids.every(id=>nodes[id].parent===containers['more-menu']));
+  containers['editor-toolbar'].clientWidth=1900;
+  context.resize();
+  assert.ok(ids.every(id=>nodes[id].parent===containers['toolbar-utilities']));
+  assert.equal(containers['more-actions'].hidden,true);
+  assert.equal(context.closeCount,4);
+  assert.match(html,/window\.addEventListener\('resize', applyToolbarOverflow\)/);
+  assert.match(html,/applyLanguage\(\);\s*applyToolbarOverflow\(\);/);
   assert.match(html,/function saveToLocal\(\)/);
   assert.match(html,/function openFindModal\(/);
-  const handler=html.match(/function handleEditorKeydown\(e\) \{[\s\S]*?\n    \}/);
-  assert.ok(handler);
-  assert.match(handler[0], /e\.key === 's'[\s\S]*?saveToLocal\(\)/);
-  assert.match(handler[0], /e\.key === 'f'[\s\S]*?openFindModal\(\)/);
-  assert.match(html, /function closeMoreMenu\(\)/);
-  assert.match(html, /if \(moreDropdown && !moreDropdown\.contains\(e\.target\)\) \{\s*closeMoreMenu\(\)/);
+  assert.match(html,/e\.key === 's'[\s\S]*?saveToLocal\(\)/);
+  assert.match(html,/e\.key === 'f'[\s\S]*?openFindModal\(\)/);
 });
 
 test('directional movement converges at both edges without forcing intermediate positions', () => {
@@ -810,4 +835,100 @@ test('theme action swaps 夜间 and 日间 on click, language change and stored 
   }
   assert.match(i18n,/themeDark: '夜间'/);
   assert.match(i18n,/themeLight: '日间'/);
+});
+
+
+test('filename input lives beside Edit and Enter commits the trimmed filename', () => {
+  const heading=html.match(/<div class="editor-heading">([\s\S]*?)<\/div>\s*<button class="collapse-btn"/);
+  assert.ok(heading);
+  assert.match(heading[1],/id="filename"[\s\S]*?data-i18n="editorPaneTitle"/);
+  assert.doesNotMatch(heading[1],/id="document-time"/);
+  const block=html.match(/filenameInput\.addEventListener\('keydown', event => \{[\s\S]*?\n    \}\);/);
+  assert.ok(block);
+  const handlers={};
+  const input={value:'  Draft.md  ',blurred:false,
+    addEventListener(type,fn){handlers[type]=fn;},blur(){this.blurred=true;}};
+  const ctx={filenameInput:input,t(){return 'Untitled.md';},
+    syncDocumentTitle(){ctx.synced++;},autoSave(){ctx.saved++;},synced:0,saved:0};
+  vm.runInNewContext(block[0],ctx);
+  let prevented=false;
+  handlers.keydown({key:'Enter',preventDefault(){prevented=true;}});
+  assert.equal(input.value,'Draft.md');
+  assert.equal(ctx.synced,1);assert.equal(ctx.saved,1);
+  assert.equal(input.blurred,true);assert.equal(prevented,true);
+  handlers.keydown({key:'Escape',preventDefault(){throw Error('wrong key');}});
+  assert.equal(ctx.saved,1);
+  input.value=' ';
+  handlers.keydown({key:'Enter',preventDefault(){}});
+  assert.equal(input.value,'Untitled.md');
+});
+
+test('link editing uses a standard modal and captures the selected text before focusing URL', () => {
+  const modal=html.match(/<div class="modal-overlay" id="link-modal">([\s\S]*?)<!-- 插入图片模态框 -->/);
+  assert.ok(modal);
+  assert.match(modal[1],/class="modal-header"[\s\S]*?class="modal-body"[\s\S]*?class="modal-footer"/);
+  assert.match(modal[1],/id="link-text-input"[\s\S]*?id="link-url-input"/);
+  assert.match(modal[1],/confirmLinkInsert\(\)/);
+  assert.doesNotMatch(html,/prompt\(t\('promptLinkUrl'\)/);
+  const open=html.match(/function openLinkModal\(\) \{[\s\S]*?\n    \}/);
+  const confirm=html.match(/function confirmLinkInsert\(\) \{[\s\S]*?\n    \}/);
+  assert.ok(open&&confirm);
+  const form={display:'none',classList:{add(){}},offsetWidth:50,style:{}};
+  const label={value:''},url={value:'',focused:false,focus(){this.focused=true;}};
+  const editor={value:'Hello world',selectionStart:6,selectionEnd:11,
+    setRangeText(text,start,end){this.value=this.value.slice(0,start)+text+this.value.slice(end);this.inserted=[text,start,end];},
+    focus(){this.focused=true;}};
+  const dom={getElementById(id){return {'link-text-input':label,'link-url-input':url,'link-modal':form}[id];}};
+  const ctx={editor,document:dom,linkSelection:null,t:k=>k==='link'?'链接':k,
+    pushHistory(){ctx.history++;},updatePreview(){},updateCount(){},autoSave(){},
+    closeLinkModal(){ctx.closed++;ctx.linkSelection=null;},
+    showToast(msg){ctx.warning=msg;},history:0,closed:0};
+  vm.runInNewContext(open[0]+'\n'+confirm[0]+'\nthis.open=openLinkModal;this.commit=confirmLinkInsert;',ctx);
+  ctx.open();
+  assert.equal(label.value,'world');
+  assert.equal(url.focused,true);
+  assert.equal(ctx.linkSelection.start,6);
+  ctx.commit();
+  assert.equal(ctx.history,0);
+  assert.equal(ctx.warning,'promptLinkUrl');
+  url.value='https://example.com/a';
+  ctx.commit();
+  assert.equal(editor.value,'Hello [world](https://example.com/a)');
+  assert.equal(ctx.history,1);assert.equal(ctx.closed,1);
+  editor.value='';editor.selectionStart=0;editor.selectionEnd=0;
+  ctx.open();assert.equal(label.value,'链接');
+  url.value='https://example.com';
+  ctx.commit();assert.equal(editor.value,'[链接](https://example.com)');
+  assert.match(html,/function insertLink\(\) \{\s*openLinkModal\(\);/);
+  assert.match(html,/onclick="openLinkModal\(\)" data-i18n-title="link"/);
+  assert.match(html,/e\.key === 'k'[\s\S]*?insertLink\(\)/);
+  for(const key of ['linkModalTitle','linkTextLabel','linkUrlLabel','linkTextPlaceholder','linkUrlPlaceholder']) {
+    assert.equal((i18n.match(new RegExp('^    '+key+':','gm'))||[]).length,10,key);
+  }
+});
+
+
+test('main inline JavaScript and translations parse without new runtime dependencies', () => {
+  const first=html.indexOf('  <script>');
+  const last=html.lastIndexOf('  </script>');
+  assert.ok(first>0 && last>first);
+  const source=html.slice(first+'  <script>'.length,last);
+  assert.doesNotThrow(()=>new vm.Script(source,{filename:'markdown-editor.html'}));
+  assert.doesNotThrow(()=>new vm.Script(i18n,{filename:'i18n.js'}));
+});
+
+test('responsive toolbar remains configurable when reading mode hides its width', () => {
+  assert.match(html,/const width = document\.getElementById\('editor-toolbar'\)\.clientWidth \|\| window\.innerWidth;/);
+  assert.match(html,/\.app\.reading-mode \.editor-toolbar[, ]/);
+  assert.match(html,/id="more-actions" hidden/);
+});
+
+
+test('Language button uses the correct chevron in inline and overflow layouts', () => {
+  const button=html.match(/id="lang-dropdown"[^]*?<button type="button"[^]*?<\/button>/);
+  assert.ok(button);
+  assert.match(button[0],/language-inline-chevron"[^]*?icon-chevron-down/);
+  assert.match(button[0],/language-overflow-chevron"[^]*?icon-chevron-left/);
+  assert.match(html,/#toolbar-utilities \.language-overflow-chevron \{ display: none; \}/);
+  assert.match(html,/#more-menu \.language-inline-chevron \{ display: none; \}/);
 });
