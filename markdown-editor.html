@@ -155,6 +155,9 @@
     #toolbar-utilities > button { display: inline-flex; }
     #toolbar-utilities > #lang-dropdown > button { display: inline-flex; }
     .editor-toolbar .toolbar-utilities > #lang-dropdown { flex-shrink: 0; }
+    #toolbar-utilities .language-overflow-chevron { display: none; }
+    #more-menu .language-inline-chevron { display: none; }
+    #more-menu .language-overflow-chevron { display: inline; }
     #lang-menu { left: 0; top: 100%; right: auto; margin-top: 8px; }
     #more-menu #lang-menu { left: auto; top: 0; right: calc(100% + 6px); margin-top: 0; }
     #more-menu > .dropdown, #more-menu > button { display: flex; width: 100%; }
@@ -1175,7 +1178,7 @@
 
         <button type="button" id="web-to-md-action" onclick="openUrlModal()" data-i18n-title="urlTitle"><svg class="icon"><use href="#icon-globe"></use></svg> <span data-i18n="webToMd">网页转MD</span></button>
             <div class="dropdown submenu" id="lang-dropdown">
-              <button type="button" class="dropdown-item" onclick="toggleLangMenu()" data-i18n-title="langLabel"><span data-i18n="langLabel">语言</span><svg class="icon icon-sm"><use href="#icon-chevron-left"></use></svg></button>
+              <button type="button" class="dropdown-item" onclick="toggleLangMenu()" data-i18n-title="langLabel"><svg class="icon"><use href="#icon-globe"></use></svg><span data-i18n="langLabel">语言</span><svg class="icon icon-sm language-inline-chevron"><use href="#icon-chevron-down"></use></svg><svg class="icon icon-sm language-overflow-chevron"><use href="#icon-chevron-left"></use></svg></button>
           <div class="dropdown-menu" id="lang-menu">
             <div class="dropdown-item" onclick="setLanguage('zh-CN'); closeLangMenu(); closeMoreMenu();">简体中文</div>
             <div class="dropdown-item" onclick="setLanguage('zh-TW'); closeLangMenu(); closeMoreMenu();">繁體中文</div>
