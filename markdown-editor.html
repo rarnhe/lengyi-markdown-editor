@@ -294,17 +294,17 @@
     [data-theme="dark"] #word-count { color: #60a5fa; }
     .editor-pane .pane-header { position: relative; justify-content: center; }
     .editor-heading { display: flex; align-items: center; justify-content: center; gap: 10px; }
-    #document-time {
-      color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums;
-      text-transform: none; letter-spacing: normal; white-space: nowrap;
+    #document-time, .preview-title-group #filename {
+      color: var(--text-muted); font-family: inherit; font-size: 11px;
+      font-variant-numeric: tabular-nums; text-transform: none;
+      letter-spacing: normal; white-space: nowrap;
       border: none; background: transparent; padding: 0;
     }
-    .editor-pane.collapsed .filename-slot { display: none; }
-    /* Measured text width leaves exactly the 10px flex gap after .md, not a
-       fixed-width input's unused space. Long filenames can shrink on small panes. */
-    .editor-heading .filename-slot { display: flex; flex: 0 1 auto; min-width: 0; max-width: 48%; }
-    .editor-heading .filename-slot input { min-width: 0; max-width: 100%; }
+    .preview-title-group .filename-slot { display: flex; flex: 0 0 auto; min-width: 0; }
+    .preview-title-group #filename { font-weight: 700; text-align: left; }
     .preview-title-group #document-time { font-weight: 400; }
+    /* Match the outline's collapsed list: hide the editor's scrollable body. */
+    .editor-pane.collapsed #editor { display: none; }
     .editor-pane .pane-header > .collapse-btn { position: absolute; right: 12px; }
     #base64-toggle {
       padding: 3px 8px;
@@ -1204,7 +1204,6 @@
       <div class="pane editor-pane">
         <div class="pane-header">
           <div class="editor-heading">
-            <div class="filename-slot"><input type="text" id="filename" value="未命名文档.md" readonly aria-readonly="true" data-i18n-title="filenameTitle" title="文件名" aria-label="文件名"></div>
             <span class="pane-title" data-i18n="editorPaneTitle">编辑</span>
             <button type="button" id="base64-toggle" onclick="toggleBase64()" aria-pressed="false" hidden disabled data-i18n-title="showBase64" title="显示 Base64">显示 Base64</button>
           </div>
@@ -1216,6 +1215,7 @@
       <div class="pane preview-pane">
         <div class="pane-header">
           <div class="preview-title-group">
+            <div class="filename-slot"><input type="text" id="filename" value="未命名文档.md" readonly aria-readonly="true" data-i18n-title="filenameTitle" title="文件名" aria-label="文件名"></div>
             <time id="document-time" aria-live="polite"></time>
             <span class="pane-title" data-i18n="previewPaneTitle">实时预览</span>
             <span id="word-count">0 字</span>
