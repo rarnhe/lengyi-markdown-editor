@@ -1506,7 +1506,7 @@
       const context = document.createElement('canvas').getContext('2d');
       if (!context) return;
       const style = getComputedStyle(filenameInput);
-      context.font = style.font;
+      context.font = style.font || (style.fontWeight + ' ' + style.fontSize + ' ' + style.fontFamily);
       slot.style.width = Math.ceil(context.measureText(filenameInput.value).width + 1) + 'px';
     }
 
@@ -3779,7 +3779,11 @@ ${'</scr' + 'ipt>'}
         closeLangMenu();
       }
       const moreDropdown = document.getElementById('more-dropdown');
-      if (moreDropdown && !moreDropdown.contains(e.target)) {
+      const moreMenu = document.getElementById('more-menu');
+      // A click on the inline Language trigger is outside ⋮, but must not
+      // immediately close Language through closeMoreMenu() when ⋮ is closed.
+      if (moreDropdown && moreMenu.classList.contains('show') &&
+          !moreDropdown.contains(e.target)) {
         closeMoreMenu();
       }
     });
