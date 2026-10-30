@@ -120,6 +120,13 @@
       outline: none;
       transition: border-color .2s ease, box-shadow .2s ease;
     }
+    #file-path {
+      flex: 1 1 225px;
+      max-width: 400px;
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--text-secondary);
+    }
     .top-bar input[type="text"]:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 3px var(--accent-soft);
@@ -315,6 +322,10 @@
     .pane-title {
       font-weight: 600;
     }
+    .preview-pane .pane-header { justify-content: center; }
+    .preview-title-group { display: inline-flex; align-items: center; justify-content: center; gap: 10px; }
+    #word-count { color: #2563eb; font-weight: 600; }
+    [data-theme="dark"] #word-count { color: #60a5fa; }
     .editor-pane .pane-header { position: relative; justify-content: center; }
     .editor-heading { display: flex; align-items: center; justify-content: center; gap: 10px; }
     .editor-pane .pane-header > .collapse-btn { position: absolute; right: 12px; }
@@ -1124,6 +1135,7 @@
   <div class="app">
     <div class="top-bar">
       <input type="text" id="filename" value="未命名文档.md" data-i18n-title="filenameTitle" title="文件名" aria-label="文件名">
+      <input type="text" id="file-path" value="" data-i18n-placeholder="filePathPlaceholder" data-i18n-title="filePathTitle" placeholder="文件系统路径（可手动填写）" title="浏览器无法自动获取文件绝对路径，可手动填写" autocomplete="off" spellcheck="false">
       <div class="top-actions">
         <button onclick="saveToLocal()" class="primary" data-i18n-title="save"><svg class="icon"><use href="#icon-save"></use></svg> <span data-i18n="save">保存</span></button>
         <label for="importFile"><svg class="icon"><use href="#icon-upload"></use></svg> <span data-i18n="importBtn">导入</span></label>
@@ -1229,8 +1241,10 @@
       <div class="resizer" id="resizer"></div>
       <div class="pane preview-pane">
         <div class="pane-header">
-          <span class="pane-title" data-i18n="previewPaneTitle">实时预览</span>
-          <span id="word-count">0 字</span>
+          <div class="preview-title-group">
+            <span class="pane-title" data-i18n="previewPaneTitle">实时预览</span>
+            <span id="word-count">0 字</span>
+          </div>
         </div>
         <div class="preview-content" id="preview"></div>
       </div>
@@ -1472,8 +1486,15 @@
     const editor = document.getElementById('editor');
     const preview = document.getElementById('preview');
     const filenameInput = document.getElementById('filename');
+    const filePathInput = document.getElementById('file-path');
     function syncDocumentTitle() {
-      document.title = filenameInput.value.trim() || t('filenameDefault');
+      const name = filenameInput.value.trim() || t('filenameDefault');
+      const path = filePathInput.value.trim();
+      document.title = path ? name + ' — ' + path : name;
+    }
+    function setFilePath(path) {
+      filePathInput.value = path || '';
+      syncDocumentTitle();
     }
     const wordCount = document.getElementById('word-count');
     const saveHint = document.getElementById('save-hint');
@@ -1481,6 +1502,7 @@
 
     const STORAGE_KEY = 'md_editor_content';
     const FILENAME_KEY = 'md_editor_filename';
+    const FILE_PATH_KEY = 'md_editor_file_path';
     const THEME_KEY = 'md_editor_theme';
     const HELP_SHOWN_KEY = 'md_editor_help_shown';
     const RATIO_KEY = 'md_editor_ratio';
@@ -1788,11 +1810,15 @@
     window.addEventListener('mouseup', stopResize);
     window.addEventListener('touchend', stopResize);
 
-    // 同步滚动
+    // 同步滚动：导航期间短暂暂停比例同步，避免覆盖精确标题跳转。
     let isSyncingScroll = false;
+    let syncSuppressUntil = 0;
+    function suppressScrollSync(duration) {
+      syncSuppressUntil = Date.now() + duration;
+    }
 
     function syncScroll(source, target) {
-      if (isSyncingScroll) return;
+      if (isSyncingScroll || Date.now() < syncSuppressUntil) return;
       const sourceHeight = source.scrollHeight - source.clientHeight;
       const targetHeight = target.scrollHeight - target.clientHeight;
       if (sourceHeight <= 0 || targetHeight <= 0) return;
@@ -1851,7 +1877,7 @@
       document.querySelectorAll('#outline-list .outline-item').forEach((el, i) => {
         el.classList.toggle('active', i === index);
       });
-      suppressScrollSync(600);
+      suppressScrollSync(1400);
       // 定位编辑区（源码模式下定位右侧源码框）
       const target = editor;
       const lines = getMarkdown().split('\n');
@@ -1862,10 +1888,24 @@
       const folded = imageDataCollapsed ? collapseImageData(raw.slice(0, pos)).text.length : pos;
       target.setSelectionRange(folded, folded);
       if (!readingMode) scrollTextareaToCaret(target);
-      // 预览区滚动到对应标题（与渲染出的标题按顺序一一对应）
-      const previewHeadings = preview.querySelectorAll('.markdown-body h1,.markdown-body h2,.markdown-body h3,.markdown-body h4,.markdown-body h5,.markdown-body h6');
-      const el = previewHeadings[index];
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // 同一级标题按其在源码中的出现顺序对应，避免不同级别/HTML 标题扰乱索引。
+      const ordinal = outlineHeadings.slice(0, index + 1).filter(item => item.level === h.level).length - 1;
+      const headings = preview.querySelectorAll('.markdown-body h' + h.level);
+      const heading = headings[ordinal];
+      if (!heading) return;
+      // 仅滚动预览区域，不使用 scrollIntoView（它可能滚动整个页面/其他祖先）。
+      const top = Math.max(0, preview.scrollTop +
+        heading.getBoundingClientRect().top - preview.getBoundingClientRect().top - preview.clientTop);
+      const missing = top + preview.clientHeight - preview.scrollHeight;
+      if (missing > 0) {
+        // 为文末标题留出空间，使它也可以精确移至预览区顶部。
+        const body = preview.querySelector('.markdown-body');
+        if (body) {
+          const existing = parseFloat(getComputedStyle(body).paddingBottom) || 0;
+          body.style.paddingBottom = Math.ceil(existing + missing + 2) + 'px';
+        }
+      }
+      preview.scrollTo({ top, behavior: 'smooth' });
     }
 
     // 用镜像元素精确测量光标位置，兼容自动换行
@@ -2067,6 +2107,8 @@
         setMarkdown(i18n[currentLang].welcomeDoc);
       }
       filenameInput.value = localStorage.getItem(FILENAME_KEY) || t('filenameDefault');
+      // Native <input type=file> does not expose the file's system path.
+      filePathInput.value = localStorage.getItem(FILE_PATH_KEY) || '';
       const theme = localStorage.getItem(THEME_KEY) || 'light';
       document.body.setAttribute('data-theme', theme);
 
@@ -2221,6 +2263,7 @@
       saveTimer = setTimeout(() => {
         localStorage.setItem(STORAGE_KEY, getMarkdown());
         localStorage.setItem(FILENAME_KEY, filenameInput.value);
+        localStorage.setItem(FILE_PATH_KEY, filePathInput.value.trim());
         showSaveHint();
       }, 500);
     }
@@ -2235,6 +2278,7 @@
     function saveToLocal() {
       localStorage.setItem(STORAGE_KEY, getMarkdown());
       localStorage.setItem(FILENAME_KEY, filenameInput.value);
+      localStorage.setItem(FILE_PATH_KEY, filePathInput.value.trim());
       showSaveHint();
       showToast(t('toastSaved'));
     }
@@ -2581,6 +2625,8 @@ ${'</scr' + 'ipt>'}
         if (!name.toLowerCase().endsWith('.md') && !name.toLowerCase().endsWith('.markdown')) {
           name += '.md';
         }
+        // Imported File objects expose only a name, not a trusted absolute path.
+        setFilePath('');
         filenameInput.value = name;
         syncDocumentTitle();
         updatePreview();
@@ -2616,6 +2662,7 @@ ${'</scr' + 'ipt>'}
     // 清空文档
     function clearDoc() {
       if (confirm(t('confirmClear'))) {
+        setFilePath('');
         setMarkdown('');
         updatePreview();
         updateCount();
@@ -3472,6 +3519,10 @@ ${'</scr' + 'ipt>'}
       autoSave();
     });
     filenameInput.addEventListener('input', () => {
+      syncDocumentTitle();
+      autoSave();
+    });
+    filePathInput.addEventListener('input', () => {
       syncDocumentTitle();
       autoSave();
     });

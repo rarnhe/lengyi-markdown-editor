@@ -138,7 +138,7 @@ test('editable filename fills top bar and original brand label is removed', () =
 test('filename edits and imports synchronize browser tab title', () => {
   const fn = html.match(/function syncDocumentTitle\(\) \{[\s\S]*?\n    \}/);
   assert.ok(fn);
-  const ctx = { filenameInput:{value:'Example.md'}, document:{title:'before'}, t:()=>'Untitled.md' };
+  const ctx = { filenameInput:{value:'Example.md'}, filePathInput:{value:''}, document:{title:'before'}, t:()=>'Untitled.md' };
   vm.runInNewContext(fn[0] + '\nsyncDocumentTitle();', ctx);
   assert.equal(ctx.document.title, 'Example.md');
   ctx.filenameInput.value = 'Updated.md';
@@ -441,4 +441,105 @@ test('Reading mode translations, refresh restore and outline navigation remain f
   assert.match(html,/if \(!outlineVisible && !readingMode\) return;/);
   assert.match(html,/if \(!readingMode\) target\.focus\(\)/);
   assert.match(html,/if \(!readingMode\) scrollTextareaToCaret\(target\)/);
+});
+
+
+test('preview header centers the title beside a blue word count', () => {
+  const section = html.match(/<div class="pane preview-pane">([\s\S]*?)<div class="preview-content"/);
+  assert.ok(section);
+  assert.match(section[1], /class="preview-title-group"[\s\S]*?data-i18n="previewPaneTitle"[\s\S]*?id="word-count"/);
+  assert.match(html, /\.preview-pane \.pane-header \{ justify-content: center; \}/);
+  assert.match(html, /\.preview-title-group \{[^}]*gap: 10px/);
+  assert.match(html, /#word-count \{ color: #2563eb;/);
+  assert.match(html, /\[data-theme="dark"\] #word-count \{ color: #60a5fa;/);
+  assert.match(html, /\.app\.reading-mode \.preview-pane \.pane-header \{ display: none !important; \}/);
+});
+
+test('browser tab shows an explicitly supplied path and leaves new files pathless', () => {
+  const title = html.match(/function syncDocumentTitle\(\) \{[\s\S]*?\n    \}/);
+  const setPath = html.match(/function setFilePath\(path\) \{[\s\S]*?\n    \}/);
+  assert.ok(title && setPath);
+  const ctx = {
+    filenameInput:{value:'story.md'}, filePathInput:{value:''},
+    document:{title:''},t:()=> 'Untitled.md'
+  };
+  vm.runInNewContext(title[0]+'\n'+setPath[0]+'\nthis.setPath=setFilePath;syncDocumentTitle();',ctx);
+  assert.equal(ctx.document.title,'story.md');
+  ctx.setPath('C:\\Users\\reader\\Documents\\story.md');
+  assert.equal(ctx.document.title,'story.md — C:\\Users\\reader\\Documents\\story.md');
+  ctx.setPath('');
+  assert.equal(ctx.document.title,'story.md');
+  ctx.filenameInput.value='';
+  vm.runInNewContext('syncDocumentTitle();',ctx);
+  assert.equal(ctx.document.title,'Untitled.md');
+  assert.match(html,/id="file-path" value=""/);
+  assert.match(html,/filePathInput\.value = localStorage\.getItem\(FILE_PATH_KEY\) \|\| ''/);
+  assert.match(html,/localStorage\.setItem\(FILE_PATH_KEY, filePathInput\.value\.trim\(\)\)/);
+  assert.match(html,/setFilePath\(''\);\s*filenameInput\.value = name;/);
+  assert.match(html,/if \(confirm\(t\('confirmClear'\)\)\) \{\s*setFilePath\(''\);/);
+  assert.match(html,/filePathInput\.addEventListener\('input',/);
+  for (const key of ['filePathTitle','filePathPlaceholder']) {
+    assert.equal((i18n.match(new RegExp('^    '+key+':','gm'))||[]).length,10,key);
+  }
+});
+
+test('missing scroll-sync suppression helper exists and prevents navigation interference', () => {
+  const suppress=html.match(/function suppressScrollSync\(duration\) \{[\s\S]*?\n    \}/);
+  const sync=html.match(/function syncScroll\(source, target\) \{[\s\S]*?\n    \}/);
+  assert.ok(suppress && sync);
+  const ctx={isSyncingScroll:false,now:500,Date:{now(){return ctx.now;}}};
+  vm.runInNewContext('let syncSuppressUntil=0;\n'+suppress[0]+'\n'+sync[0]+
+    '\nthis.suppress=suppressScrollSync;this.sync=syncScroll;',ctx);
+  const source={scrollHeight:500,clientHeight:100,scrollTop:150};
+  const dest={scrollHeight:400,clientHeight:100,scrollTop:0};
+  ctx.suppress(1200);
+  ctx.sync(source,dest);
+  assert.equal(dest.scrollTop,0);
+  ctx.now=1701;
+  ctx.sync(source,dest);
+  assert.equal(dest.scrollTop,112.5);
+});
+
+test('outline jumps to the correct heading level and scrolls only the preview to its top', () => {
+  const fn=html.match(/function jumpToHeading\(index\) \{[\s\S]*?\n    \}/);
+  assert.ok(fn);
+  const outlineHeadings=[
+    {level:1,line:0,text:'Top'},
+    {level:2,line:1,text:'First'},
+    {level:3,line:2,text:'Nested'},
+    {level:2,line:3,text:'Second'}
+  ];
+  const body={style:{}};
+  const first={getBoundingClientRect(){return {top:220,height:40};}};
+  const second={getBoundingClientRect(){return {top:750,height:40};}};
+  const preview={
+    scrollTop:50,clientTop:0,clientHeight:300,scrollHeight:800,
+    getBoundingClientRect(){return {top:100};},
+    querySelectorAll(selector) {
+      assert.equal(selector,'.markdown-body h2');
+      return [first,second];
+    },
+    querySelector(selector) {assert.equal(selector,'.markdown-body');return body;},
+    scrollTo(options){this.scrolled=options;}
+  };
+  const editor={
+    value:'',selectionStart:0,
+    setSelectionRange(a,b){this.selectionStart=a;this.selectionEnd=b;},
+    focus(){throw Error('reading mode must not focus the editor');}
+  };
+  const ctx={
+    outlineHeadings,readingMode:true,editor,preview,imageDataCollapsed:false,
+    getMarkdown(){return '# Top\n## First\n### Nested\n## Second';},
+    suppressScrollSync(duration){ctx.suppressed=duration;},
+    document:{querySelectorAll(){return Array.from({length:4},()=>({classList:{toggle(){}}}));}},
+    getComputedStyle(){return {paddingBottom:'32px'};}
+  };
+  vm.runInNewContext(fn[0]+'\njumpToHeading(3);',ctx);
+  assert.equal(preview.scrolled.top,700);
+  assert.equal(preview.scrolled.behavior,'smooth');
+  assert.equal(body.style.paddingBottom,'234px');
+  assert.equal(editor.selectionStart,'# Top\n## First\n### Nested\n'.length);
+  assert.equal(ctx.suppressed,1400);
+  assert.doesNotMatch(fn[0],/\.scrollIntoView\s*\(/);
+  assert.match(fn[0],/preview\.scrollTo\(\{ top, behavior: 'smooth' \}\)/);
 });
