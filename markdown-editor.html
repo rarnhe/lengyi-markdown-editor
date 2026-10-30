@@ -124,7 +124,7 @@
     .editor-toolbar .format-group { flex: 1 1 auto; min-width: 0; }
     .editor-toolbar .format-group > button, .editor-toolbar .format-group > .dropdown { flex-shrink: 0; }
     #more-toggle { font-size: 23px; line-height: 16px; font-weight: 700; padding: 5px 9px; min-width: 35px; }
-    #more-dropdown > .dropdown-menu { left: auto; right: 0; min-width: 152px; }
+    #more-dropdown > .dropdown-menu { left: auto; right: 0; min-width: 152px; overflow: visible; }
     #more-menu > button.dropdown-item, #more-menu > .submenu > button.dropdown-item {
       width: 100%; justify-content: flex-start; text-align: left; font-size: 13px; padding: 9px 12px;
     }
@@ -268,6 +268,12 @@
     [data-theme="dark"] #word-count { color: #60a5fa; }
     .editor-pane .pane-header { position: relative; justify-content: center; }
     .editor-heading { display: flex; align-items: center; justify-content: center; gap: 10px; }
+    #document-time {
+      color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums;
+      text-transform: none; letter-spacing: normal; white-space: nowrap;
+      border: none; background: transparent; padding: 0;
+    }
+    .editor-pane.collapsed #document-time { display: none; }
     .editor-pane .pane-header > .collapse-btn { position: absolute; right: 12px; }
     #base64-toggle {
       padding: 3px 8px;
@@ -664,12 +670,12 @@
     .modal-footer button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
     /* 移动端 */
     @media (max-width: 768px) {
-      .top-bar { padding: 8px; gap: 6px; }
-      .top-bar input[type="text"] { flex: 1 1 120px; min-width: 0; }
       .editor-toolbar { padding: 6px; gap: 8px; }
       .editor-toolbar .format-group, .editor-toolbar .editor-actions { gap: 3px; padding: 3px; }
-      .top-bar button span, .editor-toolbar button span { display: none; }
-      .editor-toolbar button span[data-i18n="codeBlock"] { display: inline; }
+      .editor-toolbar .format-group { flex-wrap: wrap; }
+      .editor-toolbar .format-group > button span { display: none; }
+      .editor-toolbar .format-group > button span[data-i18n="codeBlock"] { display: inline; }
+      #more-menu button span, #theme-label { display: inline; }
       .main { flex-direction: column; }
       .preview-pane { border-left: none; border-top: 1px solid var(--border); }
       .pane { flex: 1; height: auto; min-height: 0; }
@@ -903,7 +909,6 @@
     }
     /* 阅读模式：预览占满空间，大纲浮动且可拖动，不改标准布局状态。 */
     .reading-controls { display: none; }
-    .app.reading-mode .top-bar,
     .app.reading-mode .editor-toolbar,
     .app.reading-mode .statusbar,
     .app.reading-mode .editor-pane,
@@ -993,7 +998,7 @@
     }
     /* 打印 / 导出 PDF */
     @media print {
-      .top-bar, .editor-toolbar, .statusbar, .editor-pane, .resizer, .outline-pane, .preview-pane .pane-header,
+      .editor-toolbar, .statusbar, .editor-pane, .resizer, .outline-pane, .preview-pane .pane-header,
       .modal-overlay, .toast, .icon-sprite {
         display: none !important;
       }
@@ -1634,6 +1639,7 @@
       if (outlineVisible) renderOutline();
       syncDocumentTitle();
       updateDocumentTime();
+      updateThemeButton();
     }
 
     function updateCollapseBtnLabels() {
@@ -1648,6 +1654,19 @@
       if (statusLeft) statusLeft.textContent = t('autosaveEnabled');
       if (statusRight) statusRight.textContent = t('statusShortcuts');
       if (saveHint) saveHint.textContent = '✓ ' + t('saved');
+    }
+
+    function toggleMoreMenu() {
+      const menu = document.getElementById('more-menu');
+      const opened = menu.classList.toggle('show');
+      document.getElementById('more-toggle').setAttribute('aria-expanded', String(opened));
+      if (!opened) closeLangMenu();
+    }
+
+    function closeMoreMenu() {
+      document.getElementById('more-menu').classList.remove('show');
+      document.getElementById('more-toggle').setAttribute('aria-expanded', 'false');
+      closeLangMenu();
     }
 
     function toggleLangMenu() {
@@ -2649,11 +2668,23 @@ ${'</scr' + 'ipt>'}
       input.value = '';
     }
 
+    // Theme button shows the action that will be taken, not the current mode.
+    function updateThemeButton() {
+      const button = document.getElementById('theme-toggle');
+      const dark = document.body.getAttribute('data-theme') === 'dark';
+      const label = t(dark ? 'themeLight' : 'themeDark');
+      button.querySelector('#theme-label').textContent = label;
+      button.querySelector('use').setAttribute('href', dark ? '#icon-sun' : '#icon-moon');
+      button.title = label;
+      button.setAttribute('aria-label', label);
+    }
+
     // 切换主题
     function toggleTheme() {
       const current = document.body.getAttribute('data-theme');
       const next = current === 'dark' ? 'light' : 'dark';
       document.body.setAttribute('data-theme', next);
+      updateThemeButton();
       localStorage.setItem(THEME_KEY, next);
       if (typeof mermaid !== 'undefined') {
         mermaid.initialize({
@@ -3596,6 +3627,10 @@ ${'</scr' + 'ipt>'}
       const langDropdown = document.getElementById('lang-dropdown');
       if (langDropdown && !langDropdown.contains(e.target)) {
         closeLangMenu();
+      }
+      const moreDropdown = document.getElementById('more-dropdown');
+      if (moreDropdown && !moreDropdown.contains(e.target)) {
+        closeMoreMenu();
       }
     });
 
