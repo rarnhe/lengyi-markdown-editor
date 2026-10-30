@@ -120,12 +120,16 @@
       outline: none;
       transition: border-color .2s ease, box-shadow .2s ease;
     }
-    #file-path {
-      flex: 1 1 225px;
-      max-width: 400px;
-      font-size: 12px;
-      font-weight: 400;
+    #document-time {
+      flex: 0 0 auto;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
       color: var(--text-secondary);
+      font-size: 12px;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
     }
     .top-bar input[type="text"]:focus {
       border-color: var(--accent);
@@ -1135,7 +1139,7 @@
   <div class="app">
     <div class="top-bar">
       <input type="text" id="filename" value="未命名文档.md" data-i18n-title="filenameTitle" title="文件名" aria-label="文件名">
-      <input type="text" id="file-path" value="" data-i18n-placeholder="filePathPlaceholder" data-i18n-title="filePathTitle" placeholder="文件系统路径（可手动填写）" title="浏览器无法自动获取文件绝对路径，可手动填写" autocomplete="off" spellcheck="false">
+      <time id="document-time" aria-live="polite"></time>
       <div class="top-actions">
         <button onclick="saveToLocal()" class="primary" data-i18n-title="save"><svg class="icon"><use href="#icon-save"></use></svg> <span data-i18n="save">保存</span></button>
         <label for="importFile"><svg class="icon"><use href="#icon-upload"></use></svg> <span data-i18n="importBtn">导入</span></label>
@@ -1151,8 +1155,6 @@
           </div>
         </div>
         <button onclick="openUrlModal()" data-i18n-title="urlTitle"><svg class="icon"><use href="#icon-globe"></use></svg> <span data-i18n="webToMd">网页转MD</span></button>
-        <button onclick="openHelp()" data-i18n-title="helpTitle"><svg class="icon"><use href="#icon-help"></use></svg> <span data-i18n="help">帮助</span></button>
-        <button onclick="clearDoc()" data-i18n-title="clear"><svg class="icon"><use href="#icon-trash"></use></svg> <span data-i18n="clear">清空</span></button>
         <div class="dropdown" id="lang-dropdown">
           <button onclick="toggleLangMenu()" data-i18n-title="langLabel"><svg class="icon"><use href="#icon-globe"></use></svg> <span data-i18n="langLabel">语言</span></button>
           <div class="dropdown-menu" id="lang-menu">
@@ -1168,6 +1170,8 @@
             <div class="dropdown-item" onclick="setLanguage('pt'); closeLangMenu();">Português</div>
           </div>
         </div>
+        <button onclick="clearDoc()" data-i18n-title="clear"><svg class="icon"><use href="#icon-trash"></use></svg> <span data-i18n="clear">清空</span></button>
+        <button onclick="openHelp()" data-i18n-title="helpTitle"><svg class="icon"><use href="#icon-help"></use></svg> <span data-i18n="help">帮助</span></button>
       </div>
     </div>
 
@@ -1218,7 +1222,6 @@
         <div class="dropdown" id="view-dropdown">
           <button onclick="toggleViewMenu()" data-i18n-title="view" title="视图布局"><svg class="icon"><use href="#icon-layout"></use></svg> <span data-i18n="view">视图</span> <svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></button>
           <div class="dropdown-menu" id="view-menu">
-            <div class="dropdown-item" onclick="setLayoutMode('standard'); closeViewMenu();" data-i18n="viewStandard">标准</div>
             <div class="dropdown-item" onclick="setReadingMode(true); closeViewMenu();" data-i18n="readingMode">阅读模式</div>
             <div class="dropdown-item" onclick="toggleFullscreen(); closeViewMenu();" data-i18n="systemFullscreen">系统全屏</div>
           </div>
@@ -1486,15 +1489,26 @@
     const editor = document.getElementById('editor');
     const preview = document.getElementById('preview');
     const filenameInput = document.getElementById('filename');
-    const filePathInput = document.getElementById('file-path');
-    function syncDocumentTitle() {
-      const name = filenameInput.value.trim() || t('filenameDefault');
-      const path = filePathInput.value.trim();
-      document.title = path ? name + ' — ' + path : name;
+    const documentTime = document.getElementById('document-time');
+    const htmlOpenedAt = new Date();
+    let markdownImportedAt = null;
+    function formatDocumentTime(date) {
+      const pad = value => String(value).padStart(2, '0');
+      return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) +
+        ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds());
     }
-    function setFilePath(path) {
-      filePathInput.value = path || '';
-      syncDocumentTitle();
+    function updateDocumentTime() {
+      const time = markdownImportedAt || htmlOpenedAt;
+      documentTime.textContent = t(markdownImportedAt ? 'importTime' : 'openTime', formatDocumentTime(time));
+      documentTime.dateTime = time.toISOString();
+      documentTime.title = documentTime.textContent;
+    }
+    function setDocumentImportTime(isMarkdown) {
+      markdownImportedAt = isMarkdown ? new Date() : null;
+      updateDocumentTime();
+    }
+    function syncDocumentTitle() {
+      document.title = filenameInput.value.trim() || t('filenameDefault');
     }
     const wordCount = document.getElementById('word-count');
     const saveHint = document.getElementById('save-hint');
@@ -1502,7 +1516,6 @@
 
     const STORAGE_KEY = 'md_editor_content';
     const FILENAME_KEY = 'md_editor_filename';
-    const FILE_PATH_KEY = 'md_editor_file_path';
     const THEME_KEY = 'md_editor_theme';
     const HELP_SHOWN_KEY = 'md_editor_help_shown';
     const RATIO_KEY = 'md_editor_ratio';
@@ -1680,6 +1693,7 @@
       applyOutlineState();
       if (outlineVisible) renderOutline();
       syncDocumentTitle();
+      updateDocumentTime();
     }
 
     function updateCollapseBtnLabels() {
@@ -2107,8 +2121,6 @@
         setMarkdown(i18n[currentLang].welcomeDoc);
       }
       filenameInput.value = localStorage.getItem(FILENAME_KEY) || t('filenameDefault');
-      // Native <input type=file> does not expose the file's system path.
-      filePathInput.value = localStorage.getItem(FILE_PATH_KEY) || '';
       const theme = localStorage.getItem(THEME_KEY) || 'light';
       document.body.setAttribute('data-theme', theme);
 
@@ -2263,7 +2275,6 @@
       saveTimer = setTimeout(() => {
         localStorage.setItem(STORAGE_KEY, getMarkdown());
         localStorage.setItem(FILENAME_KEY, filenameInput.value);
-        localStorage.setItem(FILE_PATH_KEY, filePathInput.value.trim());
         showSaveHint();
       }, 500);
     }
@@ -2278,7 +2289,6 @@
     function saveToLocal() {
       localStorage.setItem(STORAGE_KEY, getMarkdown());
       localStorage.setItem(FILENAME_KEY, filenameInput.value);
-      localStorage.setItem(FILE_PATH_KEY, filePathInput.value.trim());
       showSaveHint();
       showToast(t('toastSaved'));
     }
@@ -2625,8 +2635,8 @@ ${'</scr' + 'ipt>'}
         if (!name.toLowerCase().endsWith('.md') && !name.toLowerCase().endsWith('.markdown')) {
           name += '.md';
         }
-        // Imported File objects expose only a name, not a trusted absolute path.
-        setFilePath('');
+        // Record the successful import time only for Markdown files.
+        setDocumentImportTime(/\.(md|markdown)$/i.test(file.name));
         filenameInput.value = name;
         syncDocumentTitle();
         updatePreview();
@@ -2662,7 +2672,7 @@ ${'</scr' + 'ipt>'}
     // 清空文档
     function clearDoc() {
       if (confirm(t('confirmClear'))) {
-        setFilePath('');
+        setDocumentImportTime(false);
         setMarkdown('');
         updatePreview();
         updateCount();
@@ -3519,10 +3529,6 @@ ${'</scr' + 'ipt>'}
       autoSave();
     });
     filenameInput.addEventListener('input', () => {
-      syncDocumentTitle();
-      autoSave();
-    });
-    filePathInput.addEventListener('input', () => {
       syncDocumentTitle();
       autoSave();
     });
