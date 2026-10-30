@@ -919,6 +919,6 @@ test('main inline JavaScript and translations parse without new runtime dependen
 
 test('responsive toolbar remains configurable when reading mode hides its width', () => {
   assert.match(html,/const width = document\.getElementById\('editor-toolbar'\)\.clientWidth \|\| window\.innerWidth;/);
-  assert.match(html,/\.app\.reading-mode \.editor-toolbar \{/);
+  assert.match(html,/\.app\.reading-mode \.editor-toolbar[, ]/);
   assert.match(html,/id="more-actions" hidden/);
 });
