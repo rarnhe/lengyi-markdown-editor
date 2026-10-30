@@ -1825,59 +1825,24 @@
     window.addEventListener('mouseup', stopResize);
     window.addEventListener('touchend', stopResize);
 
-    // 同步滚动：导航期间短暂暂停比例同步，避免覆盖精确标题跳转。
-    let isSyncingScroll = false;
-    let syncSuppressUntil = 0;
-    let outlineNavigationActive = false;
-    let outlineNavigationId = 0;
-    function suppressScrollSync(duration) {
-      syncSuppressUntil = Date.now() + duration;
+    // 滚轮动作同步，不同步两栏的滚动比例或位置。
+    // 鼠标所在栏保持原生滚动，另一栏仅接收相同像素的滚动增量。
+    function wheelDeltaPixels(event, source) {
+      const factor = event.deltaMode === 1
+        ? (parseFloat(getComputedStyle(source).lineHeight) || 24)
+        : event.deltaMode === 2 ? source.clientHeight : 1;
+      return { x: event.deltaX * factor, y: event.deltaY * factor };
     }
 
-    function syncScroll(source, target) {
-      if (isSyncingScroll || outlineNavigationActive || Date.now() < syncSuppressUntil) return;
-      const sourceHeight = source.scrollHeight - source.clientHeight;
-      const targetHeight = target.scrollHeight - target.clientHeight;
-      if (sourceHeight <= 0 || targetHeight <= 0) return;
-      isSyncingScroll = true;
-      const ratio = source.scrollTop / sourceHeight;
-      target.scrollTop = ratio * targetHeight;
-      isSyncingScroll = false;
+    function mirrorWheelAction(event, source, counterpart) {
+      if (readingMode || event.ctrlKey || event.metaKey) return;
+      const delta = wheelDeltaPixels(event, source);
+      counterpart.scrollTop += delta.y;
+      counterpart.scrollLeft += delta.x;
     }
 
-    // Navigate both panes independently. Resume proportional scroll syncing only
-    // once the smooth scrolling settles (or after a safety timeout).
-    function waitForOutlineNavigation(editorTop, previewTop) {
-      const navigationId = ++outlineNavigationId;
-      const start = Date.now();
-      let previousEditor = editor.scrollTop;
-      let previousPreview = preview.scrollTop;
-      let settledFrames = 0;
-
-      function check() {
-        if (navigationId !== outlineNavigationId) return;
-        const atPreview = Math.abs(preview.scrollTop - previewTop) <= 2;
-        const atEditor = readingMode || editorTop === null || Math.abs(editor.scrollTop - editorTop) <= 2;
-        const still = Math.abs(preview.scrollTop - previousPreview) < 0.5 &&
-          (readingMode || Math.abs(editor.scrollTop - previousEditor) < 0.5);
-        settledFrames = still ? settledFrames + 1 : 0;
-        previousPreview = preview.scrollTop;
-        previousEditor = editor.scrollTop;
-
-        const elapsed = Date.now() - start;
-        if ((atPreview && atEditor && settledFrames >= 2) ||
-            (elapsed >= 500 && settledFrames >= 12) || elapsed > 3500) {
-          outlineNavigationActive = false;
-          syncSuppressUntil = 0;
-          return;
-        }
-        requestAnimationFrame(check);
-      }
-      requestAnimationFrame(check);
-    }
-
-    editor.addEventListener('scroll', () => syncScroll(editor, preview));
-    preview.addEventListener('scroll', () => syncScroll(preview, editor));
+    editor.addEventListener('wheel', event => mirrorWheelAction(event, editor, preview), { passive: true });
+    preview.addEventListener('wheel', event => mirrorWheelAction(event, preview, editor), { passive: true });
 
     // 大纲：从 Markdown 源码提取标题（跳过代码块内的内容）
     let outlineVisible = true;
@@ -1931,9 +1896,7 @@
       const heading = headings[ordinal];
       if (!heading) return;
 
-      // Keep both panes unlinked until their own scroll animations have settled.
-      suppressScrollSync(1400);
-      outlineNavigationActive = true;
+      // Each pane navigates independently to the same heading.
       const target = editor;
       const lines = getMarkdown().split('\n');
       let pos = 0;
@@ -1942,7 +1905,7 @@
       const raw = getMarkdown();
       const folded = imageDataCollapsed ? collapseImageData(raw.slice(0, pos)).text.length : pos;
       target.setSelectionRange(folded, folded);
-      const editorTop = readingMode ? null : scrollTextareaToCaret(target, true);
+      if (!readingMode) scrollTextareaToCaret(target);
       // 仅滚动预览区域，不使用 scrollIntoView（它可能滚动整个页面/其他祖先）。
       const top = Math.max(0, preview.scrollTop +
         heading.getBoundingClientRect().top - preview.getBoundingClientRect().top - preview.clientTop);
@@ -1956,13 +1919,11 @@
         }
       }
       preview.scrollTo({ top, behavior: 'smooth' });
-      waitForOutlineNavigation(editorTop, top);
     }
 
-    // 用镜像元素精确测量光标位置，兼容自动换行。
-    // alignToTop compensates for wrapping and bottom-of-document clipping.
-    function scrollTextareaToCaret(ta, alignToTop = false) {
-      if (alignToTop) ta.style.paddingBottom = '';
+    // 用镜像元素精确测量 Markdown 标题位置（含软换行），置顶编辑栏。
+    function scrollTextareaToCaret(ta) {
+      ta.style.paddingBottom = '';
       const mirror = document.createElement('div');
       const style = getComputedStyle(ta);
       ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'padding', 'border',
@@ -1981,10 +1942,6 @@
       document.body.appendChild(mirror);
       const caretTop = marker.offsetTop;
       document.body.removeChild(mirror);
-      if (!alignToTop) {
-        ta.scrollTop = Math.max(0, caretTop - ta.clientHeight / 3);
-        return ta.scrollTop;
-      }
       const paddingTop = parseFloat(style.paddingTop) || 0;
       const top = Math.max(0, caretTop - paddingTop);
       const missing = top + ta.clientHeight - ta.scrollHeight;
@@ -1994,7 +1951,6 @@
         ta.style.paddingBottom = Math.ceil(paddingBottom + missing + 2) + 'px';
       }
       ta.scrollTo({ top, behavior: 'smooth' });
-      return top;
     }
 
     function toggleOutline() {
@@ -3152,19 +3108,7 @@ ${'</scr' + 'ipt>'}
       }
     }
 
-    // 视图布局与全屏
-    function setLayoutMode(mode) {
-      if (mode !== 'standard') return;
-      if (readingMode) setReadingMode(false);
-      editorCollapsed = false;
-      outlineVisible = true;
-      localStorage.setItem(EDITOR_COLLAPSED_KEY, 'false');
-      localStorage.setItem(OUTLINE_VISIBLE_KEY, 'true');
-      applyPaneStates();
-      applyOutlineState();
-      renderOutline();
-    }
-
+    // 视图菜单与系统全屏
     function toggleViewMenu() {
       document.getElementById('view-menu').classList.toggle('show');
     }
@@ -3184,11 +3128,6 @@ ${'</scr' + 'ipt>'}
         if (el.requestFullscreen) el.requestFullscreen();
         else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
       }
-    }
-
-    function onFullscreenChange() {
-      const isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
-      // Optionally update toolbar state here in the future
     }
 
     // 帮助模态框
@@ -3672,10 +3611,6 @@ ${'</scr' + 'ipt>'}
         closeLangMenu();
       }
     });
-
-    // 全屏状态监听
-    document.addEventListener('fullscreenchange', onFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
 
     // 快捷键
     function handleEditorKeydown(e) {
