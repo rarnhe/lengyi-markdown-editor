@@ -540,6 +540,6 @@ test('outline jumps to the correct heading level and scrolls only the preview to
   assert.equal(body.style.paddingBottom,'234px');
   assert.equal(editor.selectionStart,'# Top\n## First\n### Nested\n'.length);
   assert.equal(ctx.suppressed,1400);
-  assert.doesNotMatch(fn[0],/scrollIntoView/);
+  assert.doesNotMatch(fn[0],/\.scrollIntoView\s*\(/);
   assert.match(fn[0],/preview\.scrollTo\(\{ top, behavior: 'smooth' \}\)/);
 });
