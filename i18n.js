@@ -10,7 +10,7 @@ const i18n = {
 <p><b>调整视图</b></p>
 <ul>
   <li>拖动中间分隔线调整左右宽度；点击标题栏的折叠按钮收起或展开区域。</li>
-  <li>「视图」可开启阅读模式或系统全屏。鼠标在任一栏滚动时另一栏接收同样的滚动增量，两栏位置独立；点击大纲标题可分别将两栏的标题置顶。</li>
+  <li>「视图」可开启阅读模式或系统全屏。滚轮、触控板或拖动滚动条时另一栏同步动作，按向上/向下剩余距离调整增量，让两栏同时抵达边界但不强制位置相等；点击大纲标题可分别将两栏的标题置顶。</li>
 </ul>
 <p><b>保存、导入与导出</b></p>
 <ul>
@@ -198,7 +198,7 @@ const i18n = {
 <p><b>調整檢視</b></p>
 <ul>
   <li>拖曳中間分隔線調整左右寬度；點擊標題列的折疊按鈕收起或展開區域。</li>
-  <li>「檢視」可開啟閱讀模式或系統全螢幕。滑鼠在任一欄捲動時另一欄會接收相同的捲動增量，但位置獨立；點擊大綱標題可使兩欄分別將標題置頂。</li>
+  <li>「檢視」可開啟閱讀模式或系統全螢幕。使用滾輪、觸控板或拖曳捲軸時，另一欄會依兩欄到頂部或底部的剩餘距離比例捲動，讓兩欄同時抵達邊界而不強制中途位置相同；點擊大綱標題可讓兩欄分別將標題置頂。</li>
 </ul>
 <p><b>儲存、匯入與匯出</b></p>
 <ul>
@@ -386,7 +386,7 @@ const i18n = {
 <p><b>Adjust the view</b></p>
 <ul>
   <li>Drag the divider to resize panes; click the collapse buttons on the headers to collapse or expand a pane.</li>
-  <li>The View menu offers Reading Mode and System Fullscreen. Wheel scrolling either pane forwards the same scroll delta to the other without synchronizing positions; clicking an outline heading aligns that heading at the top of each pane.</li>
+  <li>The View menu offers Reading Mode and System Fullscreen. Wheel, trackpad, and scrollbar dragging synchronize actions, scaled by each pane's distance to the top or bottom so both reach that edge together without locking intermediate positions. Outline headings align independently at the top of both panes.</li>
 </ul>
 <p><b>Save, import & export</b></p>
 <ul>
@@ -574,7 +574,7 @@ const i18n = {
 <p><b>表示を調整する</b></p>
 <ul>
   <li>中央の区切り線をドラッグして左右の幅を調整；ヘッダーの「⟨」/「⟩」でエリアを折りたたみ/展開。</li>
-  <li>「表示」メニューから閲覧モードやシステム全画面に切り替えられます。片方のペインでホイールスクロールすると、もう片方にも同じ移動量が反映され、位置は独立します。目次の見出しをクリックすると両方のペインで見出しが先頭に移動します。</li>
+  <li>「表示」メニューから閲覧モードやシステム全画面に切り替えられます。ホイール・トラックパッド・スクロールバーのドラッグに応じ、もう片方も上端または下端までの残り距離比率に合わせてスクロールします。途中の位置は独立したまま両方が同時に端へ到達します。目次の見出しは両ペインの先頭へ揃います。</li>
 </ul>
 <p><b>保存、インポート、エクスポート</b></p>
 <ul>
@@ -762,7 +762,7 @@ const i18n = {
 <p><b>보기 조정</b></p>
 <ul>
   <li>가운데 구분선을 드래그하여 좌우 너비 조절; 헤더의「⟨」/「⟩」버튼으로 영역 접기/펼치기.</li>
-  <li>「보기」 메뉴에서 읽기 모드 또는 시스템 전체 화면을 선택합니다. 한 창에서 휠을 스크롤하면 다른 창에도 같은 이동량이 적용되지만 위치는 독립적입니다. 목차 제목을 클릭하면 양쪽 창의 해당 제목이 맨 위로 이동합니다.</li>
+  <li>「보기」 메뉴에서 읽기 모드 또는 시스템 전체 화면을 선택합니다. 휠, 트랙패드 또는 스크롤바 드래그 시 다른 창도 위쪽 또는 아래쪽 끝까지 남은 거리 비율에 따라 스크롤합니다. 중간 위치는 독립적이지만 양쪽이 끝에 함께 도달합니다. 목차 제목을 클릭하면 두 창의 해당 제목이 맨 위로 이동합니다.</li>
 </ul>
 <p><b>저장, 가져오기 및 내보내기</b></p>
 <ul>
@@ -950,7 +950,7 @@ const i18n = {
 <p><b>Ajustar la vista</b></p>
 <ul>
   <li>Arrastra la barra divisoria para cambiar el tamaño; pulsa los botones “⟨” / “⟩” en los encabezados para contraer o expandir.</li>
-  <li>El menú Vista ofrece Modo lectura y Pantalla completa. La rueda desplaza ambas áreas con el mismo incremento, sin igualar sus posiciones; pulsar un título del índice sitúa ese título arriba en cada área.</li>
+  <li>El menú Vista ofrece Modo lectura y Pantalla completa. La rueda, el panel táctil y el arrastre de la barra sincronizan el movimiento según la distancia restante al borde superior o inferior, de modo que ambas áreas llegan juntas al extremo sin igualar sus posiciones intermedias. Los títulos del índice se alinean arriba en ambas.</li>
 </ul>
 <p><b>Guardar, importar y exportar</b></p>
 <ul>
@@ -1138,7 +1138,7 @@ const i18n = {
 <p><b>Ajuster l’affichage</b></p>
 <ul>
   <li>Faites glisser le séparateur pour redimensionner ; cliquez sur les boutons « ⟨ » / « ⟩ » pour réduire ou développer un volet.</li>
-  <li>Le menu Affichage propose le mode lecture et le plein écran. La molette applique le même déplacement aux deux volets sans aligner leurs positions ; un clic sur un titre du plan le place en haut de chaque volet.</li>
+  <li>Le menu Affichage propose le mode lecture et le plein écran. La molette, le pavé tactile et le glissement de la barre synchronisent le mouvement selon la distance restante jusqu'en haut ou en bas : les deux volets atteignent le bord ensemble, sans imposer la même position intermédiaire. Un titre du plan se place en haut des deux volets.</li>
 </ul>
 <p><b>Enregistrer, importer et exporter</b></p>
 <ul>
@@ -1326,7 +1326,7 @@ const i18n = {
 <p><b>Ansicht anpassen</b></p>
 <ul>
   <li>Ziehe den Trennbalken, um die Bereiche zu skalieren; klicke auf die „⟨“ / „⟩“ Buttons in den Kopfzeilen, um einen Bereich ein- oder auszuklappen.</li>
-  <li>Das Menü Ansicht bietet Lesemodus und Vollbild. Das Mausrad überträgt nur die gleiche Scrollbewegung auf beide Bereiche, nicht die relative Position. Ein Klick auf eine Gliederungsüberschrift setzt diese in beiden Bereichen nach oben.</li>
+  <li>Das Menü Ansicht bietet Lesemodus und Vollbild. Scrollrad, Touchpad und Ziehen der Bildlaufleiste übertragen die Bewegung entsprechend der verbleibenden Entfernung zum oberen oder unteren Rand. Beide Bereiche erreichen den Rand gemeinsam, ohne zwischendurch gleiche Positionen zu erzwingen. Gliederungsüberschriften werden in beiden Bereichen oben ausgerichtet.</li>
 </ul>
 <p><b>Speichern, importieren und exportieren</b></p>
 <ul>
@@ -1514,7 +1514,7 @@ const i18n = {
 <p><b>Настройка вида</b></p>
 <ul>
   <li>Перетаскивайте разделитель для изменения размеров; нажимайте кнопки «⟨» / «⟩» в заголовках, чтобы свернуть или развернуть область.</li>
-  <li>Меню «Вид» предлагает режим чтения и полноэкранный режим. Колёсико мыши передаёт одинаковое смещение обоим панелям без синхронизации их позиций; нажатие на заголовок структуры перемещает его к верху обеих панелей.</li>
+  <li>Меню «Вид» предлагает режим чтения и полноэкранный режим. Колёсико, сенсорная панель и перетаскивание полосы прокрутки согласуют движение по отношению оставшихся расстояний до верхнего или нижнего края. Обе панели достигают края вместе, сохраняя независимые промежуточные позиции. Заголовки структуры выравниваются сверху в обеих панелях.</li>
 </ul>
 <p><b>Сохранение, импорт и экспорт</b></p>
 <ul>
@@ -1702,7 +1702,7 @@ const i18n = {
 <p><b>Ajustar a visualização</b></p>
 <ul>
   <li>Arraste o divisor para redimensionar; clique nos botões “⟨” / “⟩” nos cabeçalhos para recolher ou expandir.</li>
-  <li>O menu Visualização oferece Modo leitura e Tela cheia. A roda do mouse envia o mesmo deslocamento às duas áreas sem igualar suas posições; clicar em um título do índice o posiciona no topo de cada área.</li>
+  <li>O menu Visualização oferece Modo leitura e Tela cheia. A roda do mouse, o touchpad e o arrasto da barra sincronizam o movimento pela distância restante até o topo ou a base. As duas áreas chegam juntas ao limite sem igualar as posições intermediárias. Os títulos do índice ficam alinhados no topo de ambas.</li>
 </ul>
 <p><b>Salvar, importar e exportar</b></p>
 <ul>
