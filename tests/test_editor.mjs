@@ -503,7 +503,7 @@ test('language and Help exchange places, Standard disappears from UI only', () =
   const help=area.indexOf('onclick="openHelp()"');
   const clear=area.indexOf('onclick="clearDoc()"');
   assert.ok(language>0 && language<clear && clear<help);
-  const view=html.match(/<div class="dropdown-menu" id="view-menu">([\s\S]*?)<\/div>/);
+  const view=html.match(/<div class="dropdown-menu" id="view-menu">([\s\S]*?)<\/div>\s*<\/div>/);
   assert.ok(view);
   assert.doesNotMatch(view[1],/setLayoutMode\('standard'\)|data-i18n="viewStandard"/);
   assert.match(view[1],/setReadingMode\(true\)/);
