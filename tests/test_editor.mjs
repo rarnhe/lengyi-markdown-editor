@@ -496,24 +496,36 @@ test('language and Help exchange places, Standard disappears from UI only', () =
   assert.doesNotMatch(i18n,/^    viewStandard:/m);
 });
 
-test('missing scroll-sync suppression helper exists and prevents navigation interference', () => {
-  const suppress=html.match(/function suppressScrollSync\(duration\) \{[\s\S]*?\n    \}/);
-  const sync=html.match(/function syncScroll\(source, target\) \{[\s\S]*?\n    \}/);
-  assert.ok(suppress && sync);
-  const ctx={isSyncingScroll:false,outlineNavigationActive:false,now:500,Date:{now(){return ctx.now;}}};
-  vm.runInNewContext('let syncSuppressUntil=0;\n'+suppress[0]+'\n'+sync[0]+
-    '\nthis.suppress=suppressScrollSync;this.sync=syncScroll;',ctx);
-  const source={scrollHeight:500,clientHeight:100,scrollTop:150};
-  const dest={scrollHeight:400,clientHeight:100,scrollTop:0};
-  ctx.suppress(1200);
-  ctx.sync(source,dest);
-  assert.equal(dest.scrollTop,0);
-  ctx.now=1701;
-  ctx.sync(source,dest);
-  assert.equal(dest.scrollTop,112.5);
+test('wheel actions transfer delta pixels, not proportional positions', () => {
+  const convert=html.match(/function wheelDeltaPixels\(event, source\) \{[\s\S]*?\n    \}/);
+  const mirror=html.match(/function mirrorWheelAction\(event, source, counterpart\) \{[\s\S]*?\n    \}/);
+  assert.ok(convert && mirror);
+  const source={scrollTop:120,scrollLeft:0,clientHeight:400};
+  const target={scrollTop:780,scrollLeft:5,clientHeight:250};
+  const ctx={readingMode:false,getComputedStyle(){return {lineHeight:'20px'};}};
+  vm.runInNewContext(convert[0]+'\n'+mirror[0]+'\nthis.mirror=mirrorWheelAction;',ctx);
+  ctx.mirror({deltaY:36,deltaX:4,deltaMode:0},source,target);
+  assert.equal(source.scrollTop,120);
+  assert.equal(target.scrollTop,816);
+  assert.equal(target.scrollLeft,9);
+  ctx.mirror({deltaY:-2,deltaX:0,deltaMode:1},source,target);
+  assert.equal(target.scrollTop,776);
+  ctx.mirror({deltaY:1,deltaX:0,deltaMode:2},source,target);
+  assert.equal(target.scrollTop,1176);
+  ctx.readingMode=true;
+  ctx.mirror({deltaY:100,deltaX:0,deltaMode:0},source,target);
+  assert.equal(target.scrollTop,1176);
+  ctx.readingMode=false;
+  ctx.mirror({deltaY:100,deltaX:0,deltaMode:0,ctrlKey:true},source,target);
+  assert.equal(target.scrollTop,1176);
+  ctx.mirror({deltaY:100,deltaX:0,deltaMode:0,metaKey:true},source,target);
+  assert.equal(target.scrollTop,1176);
+  assert.match(html,/editor\.addEventListener\('wheel', event => mirrorWheelAction\(event, editor, preview\), \{ passive: true \}\)/);
+  assert.match(html,/preview\.addEventListener\('wheel', event => mirrorWheelAction\(event, preview, editor\), \{ passive: true \}\)/);
+  assert.doesNotMatch(html,/\.addEventListener\('scroll', \(\) => syncScroll/);
 });
 
-test('outline jumps to the correct heading level and scrolls only the preview to its top', () => {
+test('reading-mode outline jumps to preview without focusing or scrolling the hidden editor', () => {
   const fn=html.match(/function jumpToHeading\(index\) \{[\s\S]*?\n    \}/);
   assert.ok(fn);
   const outlineHeadings=[
@@ -528,23 +540,19 @@ test('outline jumps to the correct heading level and scrolls only the preview to
   const preview={
     scrollTop:50,clientTop:0,clientHeight:300,scrollHeight:800,
     getBoundingClientRect(){return {top:100};},
-    querySelectorAll(selector) {
-      assert.equal(selector,'.markdown-body h2');
-      return [first,second];
-    },
-    querySelector(selector) {assert.equal(selector,'.markdown-body');return body;},
+    querySelectorAll(selector){assert.equal(selector,'.markdown-body h2');return [first,second];},
+    querySelector(){return body;},
     scrollTo(options){this.scrolled=options;}
   };
   const editor={
-    value:'',selectionStart:0,
-    setSelectionRange(a,b){this.selectionStart=a;this.selectionEnd=b;},
-    focus(){throw Error('reading mode must not focus the editor');}
+    selectionStart:0,
+    setSelectionRange(a){this.selectionStart=a;},
+    focus(){throw Error('reading mode must not focus the hidden editor');}
   };
   const ctx={
     outlineHeadings,readingMode:true,editor,preview,imageDataCollapsed:false,
     getMarkdown(){return '# Top\n## First\n### Nested\n## Second';},
-    suppressScrollSync(duration){ctx.suppressed=duration;},
-    waitForOutlineNavigation(editorTop,previewTop){ctx.waited=[editorTop,previewTop];},
+    scrollTextareaToCaret(){throw Error('reading mode must not scroll hidden editor');},
     document:{querySelectorAll(){return Array.from({length:4},()=>({classList:{toggle(){}}}));}},
     getComputedStyle(){return {paddingBottom:'32px'};}
   };
@@ -553,14 +561,9 @@ test('outline jumps to the correct heading level and scrolls only the preview to
   assert.equal(preview.scrolled.behavior,'smooth');
   assert.equal(body.style.paddingBottom,'234px');
   assert.equal(editor.selectionStart,'# Top\n## First\n### Nested\n'.length);
-  assert.equal(ctx.suppressed,1400);
-  assert.equal(ctx.waited[0],null);
-  assert.equal(ctx.waited[1],700);
-  assert.equal(ctx.outlineNavigationActive,true);
+  assert.match(fn[0],/if \(!readingMode\) scrollTextareaToCaret\(target\)/);
   assert.doesNotMatch(fn[0],/\.scrollIntoView\s*\(/);
-  assert.match(fn[0],/preview\.scrollTo\(\{ top, behavior: 'smooth' \}\)/);
 });
-
 
 test('image export success/error notifications stay in front of the blurred overlay', () => {
   assert.match(html,/\.modal-overlay \{[\s\S]*?backdrop-filter: blur\(4px\);[\s\S]*?z-index: 200;/);
