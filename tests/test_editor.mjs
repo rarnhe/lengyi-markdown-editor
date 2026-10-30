@@ -424,7 +424,7 @@ test('Reading mode translations, refresh restore and outline navigation remain f
   assert.match(html,/readingMode = localStorage\.getItem\(READING_MODE_KEY\) === 'true'/);
   assert.match(html,/localStorage\.getItem\(READING_OUTLINE_POS_KEY\)/);
   assert.match(html,/if \(!outlineVisible && !readingMode\) return;/);
-  assert.match(html,/if \(!readingMode\) target\.focus\(\)/);
+  assert.match(html,/if \(!readingMode\) target\.focus\(\{ preventScroll: true \}\)/);
   assert.match(html,/if \(!readingMode\) scrollTextareaToCaret\(target\)/);
 });
 
@@ -501,7 +501,7 @@ test('directional movement converges at both edges without forcing intermediate 
   assert.ok(fn);
   const ctx={};
   vm.runInNewContext(fn[0]+'\nthis.move=directionalScrollMovement;',ctx);
-  assert.equal(ctx.move(20,80,100,40,200),120);
+  assert.equal(ctx.move(20,80,100,40,200),160);
   assert.equal(ctx.move(-20,80,100,40,200),-10);
   assert.equal(ctx.move(20,80,100,199,200),1);
   assert.equal(ctx.move(-80,80,100,20,200),-20);
@@ -719,7 +719,7 @@ test('standard-mode outline aligns both headings without cross-pane correction',
   vm.runInNewContext(fn[0]+'\njumpToHeading(2);',ctx);
   assert.equal(editor.selectionStart,raw.indexOf('## Final'));
   assert.equal(preview.scrolled.top,410);
-  assert.equal(preview.scrolled.behavior,'smooth');
+  assert.equal(preview.scrolled.behavior,'instant');
   assert.equal(ctx.editorAlignmentCalls,1);
   assert.equal(editor.focusOptions.preventScroll,true);
   assert.equal(ctx.completed,1);
