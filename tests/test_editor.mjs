@@ -1042,3 +1042,33 @@ test('inline Chinese Language menu opens inward at right edge without being clip
   ctx.toggle();assert.equal(state.show,false);
   assert.match(html,/if \(langDropdown && !langDropdown\.contains\(e\.target\)\) \{\s*closeLangMenu\(\)/);
 });
+
+
+test('clicking inline Language must not be closed by the inactive More menu', () => {
+  const click=html.match(/\/\/ 点击外部关闭下拉菜单\s*\n\s*document\.addEventListener\('click', \(e\) => \{[\s\S]*?\n    \}\);/);
+  assert.ok(click);
+  const handlers={};
+  const state={moreOpen:false,langOpen:true,moreCloses:0,langCloses:0};
+  const elements={
+    'lang-dropdown':{contains(target){return target==='inline-language';}},
+    'more-dropdown':{contains(target){return target==='more-button';}},
+    'more-menu':{classList:{contains(c){return c==='show'&&state.moreOpen;}}}
+  };
+  const ctx={
+    document:{
+      addEventListener(name,fn){handlers[name]=fn;},
+      getElementById(id){return elements[id]||null;}
+    },
+    closeLangMenu(){state.langOpen=false;state.langCloses++;},
+    closeMoreMenu(){state.moreOpen=false;state.langOpen=false;state.moreCloses++;}
+  };
+  vm.runInNewContext(click[0],ctx);
+  assert.equal(typeof handlers.click,'function');
+  handlers.click({target:'inline-language'});
+  assert.equal(state.langOpen,true,'Inline Language should remain open');
+  assert.equal(state.moreCloses,0,'Closed More menu must not be closed again');
+  state.moreOpen=true;state.langOpen=true;
+  handlers.click({target:'outside'});
+  assert.equal(state.moreCloses,1,'Open More menu closes on outside click');
+  assert.equal(state.langOpen,false);
+});
