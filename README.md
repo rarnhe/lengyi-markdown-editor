@@ -40,10 +40,11 @@ It is **just one HTML file**. Double-click to write. Everything is stored locall
 ### 🖊️ Complete Markdown Experience
 
 - **Drag-and-drop import**: drop files directly into the window.
+- **Link dialog**: click Link or press Ctrl+K to open a modal matching the image-insertion dialog. The selected text is prefilled (or defaults to “Link”), with a separate URL input.
 - **Live preview**: write on the left, preview on the right in real time.
-- **Compact single-row toolbar**: formatting and Mermaid tools, editable filename, View / Night–Day theme toggle, grouped Import / Export, and a right-edge ⋮ menu for Web to Markdown, Language, Clear, and Help. Saving (Ctrl+S) and finding (Ctrl+F) remain available as keyboard shortcuts.
+- **Responsive toolbar**: editing and Mermaid tools | Import / Export | View, Night/Day, Web to Markdown, Language, Clear and Help. Actions remain visible on wide screens; a ⋮ overflow menu collects less-used actions as the window narrows. Save with Ctrl+S and find with Ctrl+F.
 - **Standard and Reading modes**: Standard shows the editor, live preview, and outline. Reading mode hides editing controls and floats a draggable outline over a full-width preview; use its Exit Reading Mode button or Escape to return.
-- **File title and timestamp**: the browser tab shows the Markdown filename. The top bar displays this HTML page's opening time, or the import time after loading a `.md` / `.markdown` file. The timestamp is read-only and resets to the opening time when creating a new document.
+- **Filename and timestamp**: the editable filename is immediately left of the editor pane title (press Enter to commit), and the read-only HTML-open/Markdown-import time appears immediately left of the live-preview pane title. The filename updates the browser tab, and the timestamp returns to the opening time for a new document.
 - **Base64 folding**: hide or show embedded image data on the left without affecting the preview.
 - **Draggable split and independent scrolling**: resize the panes while keeping each pane's scroll position independent. Mouse-wheel, trackpad, and direct scrollbar dragging all mirror the movement to the other pane. The amount is scaled by each pane's remaining distance to the top or bottom, so both can reach that edge together while retaining independent intermediate positions; selecting an outline heading aligns both headings to the top.
 
