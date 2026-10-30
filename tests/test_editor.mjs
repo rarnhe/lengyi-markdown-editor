@@ -577,8 +577,8 @@ test('image export success/error notifications stay in front of the blurred over
   assert.match(html,/id="export-image-preview"/);
 });
 
-test('heading caret positioning scrolls editor to top, even for last heading', () => {
-  const match=html.match(/function scrollTextareaToCaret\(ta, alignToTop = false\) \{[\s\S]*?\n    \}/);
+test('heading caret mirror aligns editor heading to top and extends the last page if needed', () => {
+  const match=html.match(/function scrollTextareaToCaret\(ta\) \{[\s\S]*?\n    \}/);
   assert.ok(match);
   const ta={
     value:'# First\ntext\n## Last',selectionStart:'# First\ntext\n'.length,
@@ -588,100 +588,37 @@ test('heading caret positioning scrolls editor to top, even for last heading', (
   };
   const mirror={style:{},appendChild(child){this.child=child;},textContent:''};
   const marker={offsetTop:660,textContent:''};
-  const doc={
-    createElement(tag){return tag==='span'?marker:mirror;},
-    body:{appendChild(){},removeChild(){}}
-  };
-  const style={
-    paddingTop:'28px',paddingBottom:'28px',fontSize:'16px',width:'460px'
-  };
-  const ctx={
-    document:doc, getComputedStyle(){return style;}
-  };
-  vm.runInNewContext(match[0]+'\nthis.go=scrollTextareaToCaret;',ctx);
-  const top=ctx.go(ta,true);
-  assert.equal(top,632);
-  assert.equal(ta.scrollTop,632);
+  const doc={createElement(tag){return tag==='span'?marker:mirror;},
+    body:{appendChild(){},removeChild(){}}};
+  const style={paddingTop:'28px',paddingBottom:'28px',fontSize:'16px',width:'460px'};
+  const ctx={document:doc,getComputedStyle(){return style;}};
+  vm.runInNewContext(match[0]+'\nthis.align=scrollTextareaToCaret;',ctx);
+  ctx.align(ta);
+  assert.equal(ta.scrolled.top,632);
   assert.equal(ta.scrolled.behavior,'smooth');
   assert.equal(ta.style.paddingBottom,'242px');
-  // No expansion needed for an earlier heading.
   marker.offsetTop=75;
   ta.scrollHeight=700;
-  ta.style.paddingBottom='242px';
-  const earlier=ctx.go(ta,true);
-  assert.equal(earlier,47);
-  assert.equal(ta.style.paddingBottom,'');
+  ctx.align(ta);
   assert.equal(ta.scrolled.top,47);
-  // Non-navigation behavior still places the cursor one third into the viewport.
-  marker.offsetTop=330;
-  ctx.go(ta);
-  assert.equal(ta.scrollTop,Math.max(0,330-280/3));
+  assert.equal(ta.style.paddingBottom,'');
 });
 
-test('scroll coupling stays paused during navigation and resumes when both panes settle', () => {
-  const wait=html.match(/function waitForOutlineNavigation\(editorTop, previewTop\) \{[\s\S]*?\n    \}/);
-  const sync=html.match(/function syncScroll\(source, target\) \{[\s\S]*?\n    \}/);
-  assert.ok(wait&&sync);
-  const frames=[];
-  const editor={scrollTop:10,clientHeight:300,scrollHeight:1200};
-  const preview={scrollTop:20,clientHeight:300,scrollHeight:1500};
-  const ctx={
-    outlineNavigationId:0,outlineNavigationActive:true,syncSuppressUntil:3000,
-    readingMode:false,isSyncingScroll:false,now:100,
-    editor,preview,
-    Date:{now(){return ctx.now;}},
-    requestAnimationFrame(fn){frames.push(fn);}
-  };
-  vm.runInNewContext(wait[0]+'\n'+sync[0]+'\nthis.wait=waitForOutlineNavigation;this.sync=syncScroll;',ctx);
-  ctx.wait(400,620);
-  assert.equal(ctx.outlineNavigationId,1);
-  ctx.sync(editor,preview);
-  assert.equal(preview.scrollTop,20);
-  function frame(){ctx.now+=33;const fn=frames.shift();assert.ok(fn);fn();}
-  editor.scrollTop=400;
-  preview.scrollTop=500;
-  frame();
-  assert.equal(ctx.outlineNavigationActive,true);
-  preview.scrollTop=620;
-  frame();
-  frame();
-  frame();
-  assert.equal(ctx.outlineNavigationActive,false);
-  assert.equal(ctx.syncSuppressUntil,0);
-  editor.scrollTop=0;
-  ctx.sync(editor,preview);
-  assert.equal(preview.scrollTop,0);
+test('dead proportional sync and orphan Standard/fullscreen handlers have been removed', () => {
+  for(const obsolete of ['function syncScroll(', 'function suppressScrollSync(',
+    'function waitForOutlineNavigation(', 'outlineNavigationActive',
+    'outlineNavigationId', 'syncSuppressUntil', 'isSyncingScroll',
+    'setLayoutMode(', 'onFullscreenChange']) {
+    assert.equal(html.includes(obsolete),false,obsolete);
+  }
+  for(const required of ['function wheelDeltaPixels(', 'function mirrorWheelAction(',
+    "editor.addEventListener('wheel'", "preview.addEventListener('wheel'"]) {
+    assert.equal(html.includes(required),true,required);
+  }
+  assert.doesNotMatch(i18n,/^    viewStandard:/m);
 });
 
-test('repeated outline jumps do not let a stale animation restore coupling', () => {
-  const wait=html.match(/function waitForOutlineNavigation\(editorTop, previewTop\) \{[\s\S]*?\n    \}/);
-  assert.ok(wait);
-  const frames=[],editor={scrollTop:0},preview={scrollTop:0};
-  const ctx={
-    outlineNavigationId:0,outlineNavigationActive:true,syncSuppressUntil:1400,
-    readingMode:false,editor,preview,now:0,
-    Date:{now(){return ctx.now;}},
-    requestAnimationFrame(fn){frames.push(fn);}
-  };
-  vm.runInNewContext(wait[0]+'\nthis.wait=waitForOutlineNavigation;',ctx);
-  ctx.wait(100,100);
-  ctx.wait(200,200);
-  assert.equal(ctx.outlineNavigationId,2);
-  ctx.now+=16;
-  frames.shift()(); // stale navigation ID 1
-  assert.equal(ctx.outlineNavigationActive,true);
-  editor.scrollTop=200;
-  preview.scrollTop=200;
-  ctx.now+=16;
-  frames.shift()();
-  ctx.now+=16;
-  frames.shift()();
-  ctx.now+=16;
-  frames.shift()();
-  assert.equal(ctx.outlineNavigationActive,false);
-});
-
-test('outline navigation still targets the correct preview heading and now aligns editor', () => {
+test('standard-mode outline aligns both headings independently, without a scroll lock', () => {
   const fn=html.match(/function jumpToHeading\(index\) \{[\s\S]*?\n    \}/);
   assert.ok(fn);
   const headings=[{level:1,line:0},{level:2,line:2},{level:2,line:4}];
@@ -697,24 +634,20 @@ test('outline navigation still targets the correct preview heading and now align
     scrollTo(args){this.scrolled=args;}
   };
   const raw='# Heading\np\n## Mid\np\n## Final';
-  const editor={
-    selectionStart:0,
-    setSelectionRange(start){this.selectionStart=start;},
-    focus(){}
-  };
+  const editor={selectionStart:0,setSelectionRange(start){this.selectionStart=start;},focus(){}};
   const ctx={
     outlineHeadings:headings,readingMode:false,editor,preview,imageDataCollapsed:false,
     getMarkdown(){return raw;},
     document:{querySelectorAll(){return headings.map(()=>({classList:{toggle(){}}}));}},
-    suppressScrollSync(){},scrollTextareaToCaret(ta,top){assert.equal(top,true);return 285;},
-    waitForOutlineNavigation(editorTop,previewTop){ctx.waited=[editorTop,previewTop];},
+    scrollTextareaToCaret(ta){assert.equal(ta,editor);ctx.editorAlignmentCalls++;},
+    editorAlignmentCalls:0,
     getComputedStyle(){return {paddingBottom:'24px'};}
   };
   vm.runInNewContext(fn[0]+'\njumpToHeading(2);',ctx);
   assert.equal(editor.selectionStart,raw.indexOf('## Final'));
   assert.equal(preview.scrolled.top,410);
-  assert.equal(ctx.waited[0],285);
-  assert.equal(ctx.waited[1],410);
-  assert.equal(ctx.outlineNavigationActive,true);
+  assert.equal(preview.scrolled.behavior,'smooth');
+  assert.equal(ctx.editorAlignmentCalls,1);
   assert.doesNotMatch(fn[0],/\.scrollIntoView\s*\(/);
+  assert.doesNotMatch(fn[0],/suppressScrollSync|waitForOutlineNavigation|outlineNavigationActive/);
 });
