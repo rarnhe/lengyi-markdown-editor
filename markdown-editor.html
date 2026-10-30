@@ -1149,7 +1149,7 @@
       </div>
       <div class="more-actions">
         <div class="dropdown" id="more-dropdown">
-          <button type="button" id="more-toggle" onclick="toggleMoreMenu()" aria-haspopup="true" aria-expanded="false" data-i18n-title="moreMenu" title="更多操作">⋮</button>
+          <button type="button" id="more-toggle" onclick="toggleMoreMenu()" aria-haspopup="true" aria-expanded="false" aria-label="更多操作" data-i18n-title="moreMenu" title="更多操作">⋮</button>
           <div class="dropdown-menu" id="more-menu">
             <button type="button" class="dropdown-item" onclick="openUrlModal(); closeMoreMenu();" data-i18n="webToMd">网页转MD</button>
             <div class="dropdown submenu" id="lang-dropdown">
@@ -1249,7 +1249,7 @@
 
         <p><b>保存、导入与导出</b></p>
         <ul>
-          <li>按 <code>Ctrl+S</code> 或点「保存」按钮；编辑器每 500ms 自动保存一次。</li>
+          <li>按 <code>Ctrl+S</code> 保存；编辑器每 500ms 自动保存一次。按 <code>Ctrl+F</code> 可查找替换。</li>
           <li>点「导入」导入本地 .md / .txt，或直接把文件拖进窗口。</li>
           <li>点「导出」导出 Markdown、HTML、Word、PDF（打印另存为）或图片。</li>
         </ul>
@@ -1640,6 +1640,7 @@
       syncDocumentTitle();
       updateDocumentTime();
       updateThemeButton();
+      document.getElementById('more-toggle').setAttribute('aria-label', t('moreMenu'));
     }
 
     function updateCollapseBtnLabels() {
