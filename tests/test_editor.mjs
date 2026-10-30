@@ -157,7 +157,7 @@ test('read-only filename preserves imported name, browser title and export behav
   ctx.sync();assert.equal(ctx.document.title,'Report.md');
   ctx.filenameInput.value='Imported.md';ctx.sync();
   assert.equal(ctx.document.title,'Imported.md');
-  const header=html.match(/<div class="preview-title-group">([\s\S]*?)<\/div>/);
+  const header=html.match(/<div class="preview-title-group">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="preview-content"/);
   assert.ok(header);
   assert.match(header[1],/<input type="text" id="filename"[^>]*readonly aria-readonly="true"/);
   assert.match(header[1],/id="filename"[\s\S]*?id="document-time"/);
@@ -458,7 +458,7 @@ test('preview header centers the title beside a blue word count', () => {
 
 test('document timestamp shows HTML opening time, then successful Markdown import time', () => {
   assert.match(html, /class="preview-title-group"[\s\S]*?<time id="document-time" aria-live="polite"><\/time>[\s\S]*?data-i18n="previewPaneTitle"/);
-  assert.match(html, /#document-time \{[^}]*border: none; background: transparent; padding: 0;/);
+  assert.match(html, /#document-time, \.preview-title-group #filename \{[^}]*border: none; background: transparent; padding: 0;/);
   assert.match(html, /class="preview-title-group"[\s\S]*?class="filename-slot"[\s\S]*?id="filename"[\s\S]*?id="document-time"/);
   assert.doesNotMatch(html, /class="editor-heading"[\s\S]*?id="filename"[\s\S]*?data-i18n="editorPaneTitle"/);
   assert.doesNotMatch(html, /id="file-path"|filePathInput|setFilePath|FILE_PATH_KEY/);
@@ -870,7 +870,7 @@ test('theme action swaps 夜间 and 日间 on click, language change and stored 
 
 
 test('filename is displayed before preview time but cannot be edited or confirmed by Enter', () => {
-  const heading=html.match(/<div class="preview-title-group">([\s\S]*?)<\/div>/);
+  const heading=html.match(/<div class="preview-title-group">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="preview-content"/);
   assert.ok(heading);
   assert.match(heading[1],/id="filename"[^>]*readonly aria-readonly="true"[\s\S]*?id="document-time"/);
   assert.doesNotMatch(html,/filenameInput\.addEventListener\('keydown'/);
@@ -1080,7 +1080,7 @@ test('editor collapse hides scrollable textarea exactly as outline collapse hide
   assert.match(html,/\.outline-pane\.collapsed \.outline-list \{ display: none; \}/);
   assert.match(html,/\.editor-pane\.collapsed #editor \{ display: none; \}/);
   const editorPane=html.match(/<div class="pane editor-pane">([\s\S]*?)<div class="resizer"/);
-  const outlinePane=html.match(/<div class="pane outline-pane" id="outline-pane">([\s\S]*?)<\/div>\s*<\/div>/);
+  const outlinePane=html.match(/<div class="pane outline-pane" id="outline-pane">([\s\S]*?<div class="outline-list" id="outline-list")/);
   assert.ok(editorPane && outlinePane);
   assert.match(editorPane[1],/<textarea id="editor"[\s\S]*?<\/textarea>/);
   assert.match(outlinePane[1],/class="outline-list" id="outline-list"/);
@@ -1096,7 +1096,7 @@ test('editor collapse hides scrollable textarea exactly as outline collapse hide
 });
 
 test('preview title order preserves full filename, timestamp, preview label and word count', () => {
-  const header=html.match(/<div class="preview-title-group">([\s\S]*?)<\/div>/);
+  const header=html.match(/<div class="preview-title-group">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="preview-content"/);
   assert.ok(header);
   const indices=['id="filename"','id="document-time"','data-i18n="previewPaneTitle"','id="word-count"']
     .map(needle=>header[1].indexOf(needle));
