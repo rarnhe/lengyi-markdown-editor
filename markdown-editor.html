@@ -103,9 +103,10 @@
       min-width: 0; overflow: visible;
     }
     .filename-slot input[type="text"] {
-      box-sizing: border-box; width: 100%; min-width: 0; padding: 2px 4px;
+      box-sizing: border-box; width: 100%; min-width: 0; padding: 0;
       border: none; background: transparent; color: var(--text-secondary); font-size: 12px;
-      font-weight: 600; cursor: default; outline: none;
+      font-weight: 600; letter-spacing: normal; text-align: right;
+      cursor: default; outline: none;
     }
     .editor-toolbar button, .editor-toolbar label {
       display: inline-flex; align-items: center; justify-content: center; gap: 5px;
@@ -125,9 +126,6 @@
     .editor-toolbar .format-group { flex: 0 0 auto; min-width: 0; }
     .editor-toolbar .format-group > button,
     .editor-toolbar .format-group > .dropdown { flex-shrink: 0; }
-    .editor-toolbar .toolbar-divider {
-      flex: 0 0 1px; height: 23px; background: var(--border); margin: 0 4px;
-    }
     .editor-toolbar .toolbar-utilities {
       display: flex; align-items: center; gap: 3px; flex: 0 0 auto; min-width: 0;
     }
@@ -141,7 +139,12 @@
       text-align: left; font-size: 13px; padding: 9px 12px;
     }
     #more-menu > .dropdown { display: flex; width: 100%; }
-    #more-menu > .dropdown > button { justify-content: space-between; }
+    /* All overflow entries: icon, text and optional chevron align consistently left. */
+    #more-menu > .dropdown > button {
+      justify-content: flex-start; text-align: left; gap: 8px;
+    }
+    #more-menu > .dropdown > button .language-overflow-chevron,
+    #more-menu > .dropdown > button .view-overflow-chevron { margin-left: auto; }
     #more-menu > #view-dropdown > .dropdown-menu,
     #more-menu > #export-dropdown > .dropdown-menu {
       top: 0; left: auto; right: calc(100% + 6px); margin-top: 0;
@@ -149,10 +152,14 @@
     #toolbar-utilities > button,
     #toolbar-utilities > label,
     #toolbar-utilities > #lang-dropdown > button { display: inline-flex; }
-    #toolbar-utilities .language-overflow-chevron { display: none; }
-    #more-menu .language-inline-chevron { display: none; }
-    #more-menu .language-overflow-chevron { display: inline; }
-    #lang-menu { left: 0; top: 100%; right: auto; margin-top: 8px; }
+    #toolbar-utilities .language-overflow-chevron,
+    #toolbar-utilities .view-overflow-chevron { display: none; }
+    #more-menu .language-inline-chevron,
+    #more-menu .view-inline-chevron { display: none; }
+    #more-menu .language-overflow-chevron,
+    #more-menu .view-overflow-chevron { display: inline; }
+    /* An inline language menu next to ⋮ must open inward, not off-screen. */
+    #toolbar-utilities #lang-menu { left: auto; right: 0; top: 100%; margin-top: 8px; }
     #more-menu #lang-menu { left: auto; top: 0; right: calc(100% + 6px); margin-top: 0; }
     /* Only when every secondary action is tucked away, compress formatting labels. */
     .editor-toolbar.format-compact .format-group > button span { display: none; }
@@ -293,8 +300,10 @@
       border: none; background: transparent; padding: 0;
     }
     .editor-pane.collapsed .filename-slot { display: none; }
-    .editor-heading .filename-slot { width: clamp(110px, 32%, 195px); min-width: 80px; }
-    .editor-heading .filename-slot input { text-align: left; }
+    /* Measured text width leaves exactly the 10px flex gap after .md, not a
+       fixed-width input's unused space. Long filenames can shrink on small panes. */
+    .editor-heading .filename-slot { display: flex; flex: 0 1 auto; min-width: 0; max-width: 48%; }
+    .editor-heading .filename-slot input { min-width: 0; max-width: 100%; }
     .preview-title-group #document-time { font-weight: 400; }
     .editor-pane .pane-header > .collapse-btn { position: absolute; right: 12px; }
     #base64-toggle {
@@ -1141,7 +1150,6 @@
         </div>
         <button onclick="openMermaidModal()" data-i18n-title="mermaid" title="插入 Mermaid 图表"><svg class="icon"><use href="#icon-mermaid"></use></svg> <span data-i18n="mermaid">Mermaid</span></button>
       </div>
-      <span class="toolbar-divider" aria-hidden="true"></span>
       <div class="toolbar-utilities" id="toolbar-utilities">
         <label id="import-action" for="importFile"><svg class="icon"><use href="#icon-upload"></use></svg> <span data-i18n="importBtn">导入</span></label>
         <input type="file" id="importFile" accept=".md,.markdown,.txt" onchange="importFile(this)">
@@ -1156,7 +1164,7 @@
           </div>
         </div>
         <div class="dropdown" id="view-dropdown">
-          <button onclick="toggleViewMenu()" data-i18n-title="view" title="视图布局"><svg class="icon"><use href="#icon-layout"></use></svg> <span data-i18n="view">视图</span> <svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></button>
+          <button onclick="toggleViewMenu()" data-i18n-title="view" title="视图布局"><svg class="icon"><use href="#icon-layout"></use></svg> <span data-i18n="view">视图</span> <svg class="icon icon-sm view-inline-chevron"><use href="#icon-chevron-down"></use></svg><svg class="icon icon-sm view-overflow-chevron"><use href="#icon-chevron-left"></use></svg></button>
           <div class="dropdown-menu" id="view-menu">
             <div class="dropdown-item" onclick="setReadingMode(true); closeViewMenu();" data-i18n="readingMode">阅读模式</div>
             <div class="dropdown-item" onclick="toggleFullscreen(); closeViewMenu();" data-i18n="systemFullscreen">系统全屏</div>
@@ -1198,7 +1206,7 @@
           <div class="editor-heading">
             <div class="filename-slot"><input type="text" id="filename" value="未命名文档.md" readonly aria-readonly="true" data-i18n-title="filenameTitle" title="文件名" aria-label="文件名"></div>
             <span class="pane-title" data-i18n="editorPaneTitle">编辑</span>
-            <button type="button" id="base64-toggle" onclick="toggleBase64()" aria-pressed="false" data-i18n-title="showBase64" title="显示 Base64">显示 Base64</button>
+            <button type="button" id="base64-toggle" onclick="toggleBase64()" aria-pressed="false" hidden disabled data-i18n-title="showBase64" title="显示 Base64">显示 Base64</button>
           </div>
           <button class="collapse-btn" id="editor-collapse-btn" onclick="togglePane('editor')" title="收起编辑区"><svg class="icon icon-sm"><use href="#icon-chevron-left"></use></svg></button>
         </div>
@@ -1492,6 +1500,16 @@
       markdownImportedAt = isMarkdown ? new Date() : null;
       updateDocumentTime();
     }
+    // Size the read-only filename to the measured text instead of a fixed box.
+    function updateFilenameWidth() {
+      const slot = filenameInput.parentElement;
+      const context = document.createElement('canvas').getContext('2d');
+      if (!context) return;
+      const style = getComputedStyle(filenameInput);
+      context.font = style.font;
+      slot.style.width = Math.ceil(context.measureText(filenameInput.value).width + 1) + 'px';
+    }
+
     function syncDocumentTitle() {
       document.title = filenameInput.value.trim() || t('filenameDefault');
     }
@@ -1575,9 +1593,18 @@
       el.setSelectionRange(folded.position(start), folded.position(end));
     }
 
+    // Detect a real embedded image data URI in the full Markdown, even when
+    // its source text is currently represented by a folded Base64 marker.
+    function hasEmbeddedBase64Image() {
+      return /data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+/i.test(getMarkdown());
+    }
+
     function updateBase64Button() {
       const button = document.getElementById('base64-toggle');
       if (!button) return;
+      const available = hasEmbeddedBase64Image();
+      button.hidden = !available;
+      button.disabled = !available;
       const key = imageDataCollapsed ? 'showBase64' : 'hideBase64';
       button.textContent = t(key);
       button.title = t(key);
@@ -1585,6 +1612,7 @@
     }
 
     function toggleBase64() {
+      if (!hasEmbeddedBase64Image()) return;
       const active = editor;
       const start = active.selectionStart, end = active.selectionEnd;
       const previous = active.value;
@@ -1679,6 +1707,7 @@
       applyOutlineState();
       if (outlineVisible) renderOutline();
       syncDocumentTitle();
+      updateFilenameWidth();
       updateDocumentTime();
       updateThemeButton();
       document.getElementById('more-toggle').setAttribute('aria-label', t('moreMenu'));
@@ -2273,6 +2302,7 @@
     // 渲染预览
     function updatePreview() {
       let text = getMarkdown();
+      updateBase64Button();
       let placeholders = [];
 
       if (typeof renderMathInElement !== 'undefined') {
@@ -2742,6 +2772,7 @@ ${'</scr' + 'ipt>'}
         setDocumentImportTime(/\.(md|markdown)$/i.test(file.name));
         filenameInput.value = name;
         syncDocumentTitle();
+        updateFilenameWidth();
         updatePreview();
         updateCount();
         saveToLocal();
