@@ -94,78 +94,73 @@
     .icon-sm { width: 14px; height: 14px; }
     .icon-lg { width: 18px; height: 18px; }
 
-    /* 单行合并工具栏 */
+    /* Toolbar stays on one row. The actual toolbar width, not screen breakpoints,
+       determines which original controls move into the overflow menu. */
     .editor-toolbar {
-      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      display: flex; align-items: center; justify-content: flex-start; gap: 5px;
       padding: 8px 12px; background: var(--panel-bg); border-bottom: 1px solid var(--border);
       box-shadow: var(--shadow-sm); flex-wrap: nowrap; position: relative; z-index: 10;
+      min-width: 0; overflow: visible;
     }
-    .editor-toolbar .filename-slot { flex: 1 1 165px; min-width: 110px; max-width: 200px; }
     .filename-slot input[type="text"] {
       box-sizing: border-box; width: 100%; min-width: 0; padding: 6px 9px;
       border: 1px solid var(--border); border-radius: var(--radius-sm);
-      background: var(--bg); color: var(--text); font-size: 13px; font-weight: 500; outline: none;
+      background: var(--surface); color: var(--text-secondary); font-size: 13px;
+      font-weight: 500; cursor: default; outline: none;
     }
-    .filename-slot input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
     .editor-toolbar button, .editor-toolbar label {
-      display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 6px 8px;
-      border: none; border-radius: var(--radius-sm); background: transparent;
-      color: var(--text-secondary); font-size: 12px; font-weight: 500;
-      cursor: pointer; user-select: none; white-space: nowrap;
+      display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+      padding: 6px 8px; border: none; border-radius: var(--radius-sm);
+      background: transparent; color: var(--text-secondary); font-size: 12px;
+      font-weight: 500; cursor: pointer; user-select: none; white-space: nowrap;
     }
-    .editor-toolbar button:hover, .editor-toolbar label:hover { background: var(--surface-hover); color: var(--accent); }
+    .editor-toolbar button:hover, .editor-toolbar label:hover {
+      background: var(--surface-hover); color: var(--accent);
+    }
     .editor-toolbar input[type="file"] { display: none; }
-    .editor-toolbar .format-group, .editor-toolbar .editor-actions,
-    .editor-toolbar .import-export-group, .editor-toolbar .more-actions {
-      display: flex; align-items: center; gap: 3px; padding: 4px; background: var(--surface);
-      border: 1px solid var(--border); border-radius: var(--radius);
-      flex-wrap: nowrap; flex-shrink: 0;
+    .editor-toolbar .format-group, .editor-toolbar .more-actions {
+      display: flex; align-items: center; gap: 3px; padding: 4px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); flex-wrap: nowrap; flex-shrink: 0;
     }
-    .editor-toolbar .format-group { flex: 1 1 auto; min-width: 0; }
-    .editor-toolbar .format-group > button, .editor-toolbar .format-group > .dropdown { flex-shrink: 0; }
-    #more-toggle { font-size: 23px; line-height: 16px; font-weight: 700; padding: 5px 9px; min-width: 35px; }
-    #more-dropdown > .dropdown-menu { left: auto; right: 0; min-width: 152px; overflow: visible; }
-    #more-menu > button.dropdown-item, #more-menu > .submenu > button.dropdown-item {
-      width: 100%; justify-content: flex-start; text-align: left; font-size: 13px; padding: 9px 12px;
-    }
-    #more-menu > .submenu { display: block; width: 100%; }
-    #more-menu > .submenu > button.dropdown-item { justify-content: space-between; }
-    #lang-menu { top: 0; right: calc(100% + 6px); left: auto; margin-top: 0; }
-    @media (max-width: 1420px) {
-      .editor-toolbar .format-group > button span { display: none; }
-      .editor-toolbar .format-group > button span[data-i18n="codeBlock"] { display: inline; }
-
-    }
-    @media (max-width: 1040px) {
-      .editor-toolbar { flex-wrap: wrap; }
-      .editor-toolbar .format-group { flex: 1 1 100%; justify-content: flex-start; }
-
-      .editor-toolbar .more-actions { margin-left: auto; }
-    }
-    /* Responsive single-row tool sequence: format | import/export | view and utilities. */
-    .editor-toolbar { justify-content: flex-start; gap: 5px; }
-    .editor-toolbar .format-group { flex: 0 0 auto; }
+    .editor-toolbar .format-group { flex: 0 0 auto; min-width: 0; }
+    .editor-toolbar .format-group > button,
+    .editor-toolbar .format-group > .dropdown { flex-shrink: 0; }
     .editor-toolbar .toolbar-divider {
       flex: 0 0 1px; height: 23px; background: var(--border); margin: 0 4px;
     }
     .editor-toolbar .toolbar-utilities {
       display: flex; align-items: center; gap: 3px; flex: 0 0 auto; min-width: 0;
     }
+    .editor-toolbar .more-actions { flex: 0 0 auto; }
     .editor-toolbar .more-actions[hidden] { display: none; }
-    #toolbar-utilities > button { display: inline-flex; }
+    #more-toggle { font-size: 23px; line-height: 16px; font-weight: 700; padding: 5px 9px; min-width: 35px; }
+    #more-dropdown > .dropdown-menu { left: auto; right: 0; min-width: 152px; overflow: visible; }
+    #more-menu > button.dropdown-item, #more-menu > label.dropdown-item,
+    #more-menu > .dropdown > button {
+      display: flex; width: 100%; justify-content: flex-start;
+      text-align: left; font-size: 13px; padding: 9px 12px;
+    }
+    #more-menu > .dropdown { display: flex; width: 100%; }
+    #more-menu > .dropdown > button { justify-content: space-between; }
+    #more-menu > #view-dropdown > .dropdown-menu,
+    #more-menu > #export-dropdown > .dropdown-menu {
+      top: 0; left: auto; right: calc(100% + 6px); margin-top: 0;
+    }
+    #toolbar-utilities > button,
+    #toolbar-utilities > label,
     #toolbar-utilities > #lang-dropdown > button { display: inline-flex; }
-    .editor-toolbar .toolbar-utilities > #lang-dropdown { flex-shrink: 0; }
     #toolbar-utilities .language-overflow-chevron { display: none; }
     #more-menu .language-inline-chevron { display: none; }
     #more-menu .language-overflow-chevron { display: inline; }
     #lang-menu { left: 0; top: 100%; right: auto; margin-top: 8px; }
     #more-menu #lang-menu { left: auto; top: 0; right: calc(100% + 6px); margin-top: 0; }
-    #more-menu > .dropdown, #more-menu > button { display: flex; width: 100%; }
-    #more-menu .dropdown > button { width: 100%; justify-content: space-between; }
-    #more-menu > #view-dropdown > .dropdown-menu { top: 0; left: auto; right: calc(100% + 6px); margin-top: 0; }
-    @media (max-width: 1040px) {
-      .editor-toolbar { flex-wrap: wrap; }
-      .editor-toolbar .format-group { flex: 1 1 100%; }
+    /* Only when every secondary action is tucked away, compress formatting labels. */
+    .editor-toolbar.format-compact .format-group > button span { display: none; }
+    .editor-toolbar.format-compact .format-group > button span[data-i18n="codeBlock"] { display: inline; }
+    /* Ultra-narrow windows can horizontally scroll the format area; ⋮ stays beside it. */
+    .editor-toolbar.format-scroll .format-group {
+      flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: thin;
     }
     .dropdown {
       position: relative;
@@ -698,11 +693,8 @@
     .modal-footer button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
     /* 移动端 */
     @media (max-width: 768px) {
-      .editor-toolbar { padding: 6px; gap: 8px; }
-      .editor-toolbar .format-group, .editor-toolbar .editor-actions { gap: 3px; padding: 3px; }
-      .editor-toolbar .format-group { flex-wrap: wrap; }
-      .editor-toolbar .format-group > button span { display: none; }
-      .editor-toolbar .format-group > button span[data-i18n="codeBlock"] { display: inline; }
+      .editor-toolbar { padding: 6px; gap: 4px; flex-wrap: nowrap; }
+      .editor-toolbar .format-group { flex-wrap: nowrap; gap: 3px; padding: 3px; }
       #more-menu button span, #theme-label { display: inline; }
       .main { flex-direction: column; }
       .preview-pane { border-left: none; border-top: 1px solid var(--border); }
@@ -1151,8 +1143,8 @@
         <button onclick="openMermaidModal()" data-i18n-title="mermaid" title="插入 Mermaid 图表"><svg class="icon"><use href="#icon-mermaid"></use></svg> <span data-i18n="mermaid">Mermaid</span></button>
       </div>
       <span class="toolbar-divider" aria-hidden="true"></span>
-      <div class="import-export-group">
-        <label for="importFile"><svg class="icon"><use href="#icon-upload"></use></svg> <span data-i18n="importBtn">导入</span></label>
+      <div class="toolbar-utilities" id="toolbar-utilities">
+        <label id="import-action" for="importFile"><svg class="icon"><use href="#icon-upload"></use></svg> <span data-i18n="importBtn">导入</span></label>
         <input type="file" id="importFile" accept=".md,.markdown,.txt" onchange="importFile(this)">
         <div class="dropdown" id="export-dropdown">
           <button onclick="toggleExportMenu()" data-i18n-title="exportBtn"><svg class="icon"><use href="#icon-download"></use></svg> <span data-i18n="exportBtn">导出</span></button>
@@ -1164,9 +1156,6 @@
             <div class="dropdown-item" onclick="openExportImageModal(); closeExportMenu();" data-i18n="exportImage">导出图片 (.png)</div>
           </div>
         </div>
-      </div>
-      <span class="toolbar-divider" aria-hidden="true"></span>
-      <div class="toolbar-utilities" id="toolbar-utilities">
         <div class="dropdown" id="view-dropdown">
           <button onclick="toggleViewMenu()" data-i18n-title="view" title="视图布局"><svg class="icon"><use href="#icon-layout"></use></svg> <span data-i18n="view">视图</span> <svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></button>
           <div class="dropdown-menu" id="view-menu">
@@ -1208,7 +1197,7 @@
       <div class="pane editor-pane">
         <div class="pane-header">
           <div class="editor-heading">
-            <div class="filename-slot"><input type="text" id="filename" value="未命名文档.md" data-i18n-title="filenameTitle" title="文件名" aria-label="文件名"></div>
+            <div class="filename-slot"><input type="text" id="filename" value="未命名文档.md" readonly aria-readonly="true" data-i18n-title="filenameTitle" title="文件名" aria-label="文件名"></div>
             <span class="pane-title" data-i18n="editorPaneTitle">编辑</span>
             <button type="button" id="base64-toggle" onclick="toggleBase64()" aria-pressed="false" data-i18n-title="showBase64" title="显示 Base64">显示 Base64</button>
           </div>
@@ -1657,6 +1646,7 @@
       currentLang = lang;
       localStorage.setItem(LANG_KEY, lang);
       applyLanguage();
+      applyToolbarOverflow();
     }
 
     function applyLanguage() {
@@ -1709,31 +1699,51 @@
       if (saveHint) saveHint.textContent = '✓ ' + t('saved');
     }
 
-    // Move the original controls (not copies) between inline toolbar and overflow.
-    // Two width thresholds preserve one line on desktop without changing handlers.
+    // Measure the real toolbar's rendered content. Keep the formatting group and ⋮
+    // on a single row, moving rightmost controls one at a time, only when necessary.
+    const toolbarActionIds = ['import-action', 'export-dropdown', 'view-dropdown',
+      'theme-toggle', 'web-to-md-action', 'lang-dropdown', 'clear-action', 'help-action'];
+    let toolbarLayoutBusy = false;
     function applyToolbarOverflow() {
-      const width = document.getElementById('editor-toolbar').clientWidth || window.innerWidth;
-      const utilities = document.getElementById('toolbar-utilities');
-      const menu = document.getElementById('more-menu');
-      const more = document.getElementById('more-actions');
-      const ids = ['view-dropdown', 'theme-toggle', 'web-to-md-action',
-        'lang-dropdown', 'clear-action', 'help-action'];
-      const hidden = width < 1260 ? ids :
-        width < 1720 ? ids.slice(2) : [];
-      closeMoreMenu();
-      ids.forEach(id => {
-        const node = document.getElementById(id);
-        if (hidden.includes(id)) {
-          menu.appendChild(node);
-          if (node.tagName === 'BUTTON') node.classList.add('dropdown-item');
-        } else {
-          utilities.appendChild(node);
-          node.classList.remove('dropdown-item');
+      if (toolbarLayoutBusy) return;
+      const toolbar = document.getElementById('editor-toolbar');
+      if (!toolbar || !toolbar.clientWidth) return; // Hidden in Reading Mode.
+      toolbarLayoutBusy = true;
+      try {
+        const inline = document.getElementById('toolbar-utilities');
+        const menu = document.getElementById('more-menu');
+        const more = document.getElementById('more-actions');
+        closeMoreMenu();
+        toolbar.classList.remove('format-compact', 'format-scroll');
+        toolbarActionIds.forEach(id => {
+          const control = document.getElementById(id);
+          inline.appendChild(control);
+          control.classList.remove('dropdown-item');
+        });
+        more.hidden = true;
+        const overflows = () => toolbar.scrollWidth > toolbar.clientWidth + 1;
+        // Move the least important rightmost controls first, never copy the actions.
+        for (let i = toolbarActionIds.length - 1; i >= 0 && overflows(); i--) {
+          const control = document.getElementById(toolbarActionIds[i]);
+          menu.prepend(control);
+          if (control.tagName === 'BUTTON' || control.tagName === 'LABEL') {
+            control.classList.add('dropdown-item');
+          }
+          more.hidden = false;
         }
-      });
-      more.hidden = hidden.length === 0;
+        if (overflows()) toolbar.classList.add('format-compact');
+        if (overflows()) {
+          toolbar.classList.add('format-scroll');
+          more.hidden = false;
+        }
+      } finally {
+        toolbarLayoutBusy = false;
+      }
     }
     window.addEventListener('resize', applyToolbarOverflow);
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(applyToolbarOverflow).observe(document.getElementById('editor-toolbar'));
+    }
 
     function toggleMoreMenu() {
       const menu = document.getElementById('more-menu');
@@ -3650,18 +3660,6 @@ ${'</scr' + 'ipt>'}
       updatePreview();
       updateCount();
       autoSave();
-    });
-    filenameInput.addEventListener('input', () => {
-      syncDocumentTitle();
-      autoSave();
-    });
-    filenameInput.addEventListener('keydown', event => {
-      if (event.key !== 'Enter') return;
-      event.preventDefault();
-      filenameInput.value = filenameInput.value.trim() || t('filenameDefault');
-      syncDocumentTitle();
-      autoSave();
-      filenameInput.blur();
     });
     editor.addEventListener('beforeinput', protectBase64Marker);
     editor.addEventListener('copy', copyExpandedBase64);
