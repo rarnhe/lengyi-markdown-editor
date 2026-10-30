@@ -496,37 +496,69 @@ test('language and Help exchange places, Standard disappears from UI only', () =
   assert.doesNotMatch(i18n,/^    viewStandard:/m);
 });
 
-test('wheel actions transfer delta pixels, not proportional positions', () => {
-  const convert=html.match(/function wheelDeltaPixels\(event, source\) \{[\s\S]*?\n    \}/);
-  const mirror=html.match(/function mirrorWheelAction\(event, source, counterpart\) \{[\s\S]*?\n    \}/);
-  assert.ok(convert && mirror);
-  const source={scrollTop:120,scrollLeft:0,clientHeight:400};
-  const target={scrollTop:780,scrollLeft:5,clientHeight:250};
-  const ctx={readingMode:false,editorCollapsed:false,getComputedStyle(){return {lineHeight:'20px'};}};
-  vm.runInNewContext(convert[0]+'\n'+mirror[0]+'\nthis.mirror=mirrorWheelAction;',ctx);
-  ctx.mirror({deltaY:36,deltaX:4,deltaMode:0},source,target);
-  assert.equal(source.scrollTop,120);
-  assert.equal(target.scrollTop,816);
-  assert.equal(target.scrollLeft,9);
-  ctx.mirror({deltaY:-2,deltaX:0,deltaMode:1},source,target);
-  assert.equal(target.scrollTop,776);
-  ctx.mirror({deltaY:1,deltaX:0,deltaMode:2},source,target);
-  assert.equal(target.scrollTop,1176);
+test('directional movement converges at both edges without forcing intermediate positions', () => {
+  const fn=html.match(/function directionalScrollMovement\(delta, sourceBefore, sourceMax, otherBefore, otherMax\) \{[\s\S]*?\n    \}/);
+  assert.ok(fn);
+  const ctx={};
+  vm.runInNewContext(fn[0]+'\nthis.move=directionalScrollMovement;',ctx);
+  assert.equal(ctx.move(20,80,100,40,200),120);
+  assert.equal(ctx.move(-20,80,100,40,200),-10);
+  assert.equal(ctx.move(20,80,100,199,200),1);
+  assert.equal(ctx.move(-80,80,100,20,200),-20);
+  assert.equal(ctx.move(30,100,100,50,200),0);
+  assert.equal(ctx.move(-20,0,100,50,200),0);
+  assert.equal(ctx.move(0,80,100,40,200),0);
+  // Approaching an edge from different starting positions uses the remaining distance.
+  for (const [direction,src,srcMax,other,otherMax] of [
+    [1,120,500,60,300],[1,290,300,90,100],[1,0,800,700,1200],
+    [-1,400,500,900,1500],[-1,10,100,400,800],[-1,700,800,1,250]
+  ]) {
+    const delta=direction>0?srcMax-src:-src;
+    const next=other+ctx.move(delta,src,srcMax,other,otherMax);
+    assert.ok(Math.abs(next-(direction>0?otherMax:0))<1e-8);
+  }
+});
+
+test('native scroll events mirror wheel and scrollbar dragging, without a feedback loop', () => {
+  const max=html.match(/function maxPaneScroll\(pane\) \{[\s\S]*?\n    \}/);
+  const directional=html.match(/function directionalScrollMovement\(delta, sourceBefore, sourceMax, otherBefore, otherMax\) \{[\s\S]*?\n    \}/);
+  const track=html.match(/function trackPaneScroll\(source, counterpart\) \{[\s\S]*?\n    \}/);
+  assert.ok(max&&directional&&track);
+  const left={scrollTop:80,scrollHeight:500,clientHeight:100};
+  const right={scrollTop:40,scrollHeight:900,clientHeight:100};
+  const ctx={observedScrollTop:new WeakMap(),readingMode:false,
+    editorCollapsed:false,outlineJumpActive:false};
+  vm.runInNewContext(max[0]+'\n'+directional[0]+'\n'+track[0]+'\nthis.track=trackPaneScroll;',ctx);
+  ctx.observedScrollTop.set(left,80);
+  ctx.observedScrollTop.set(right,40);
+  left.scrollTop=100; // scrollbar drag or wheel, observed via same native scroll event
+  ctx.track(left,right);
+  assert.equal(right.scrollTop,87.5); // 20 * (800-40)/(400-80)
+  ctx.track(right,left); // resulting programmatic scroll event must not bounce
+  assert.equal(left.scrollTop,100);
+  left.scrollTop=400;
+  ctx.track(left,right);
+  assert.equal(right.scrollTop,800);
+  right.scrollTop=400;
+  ctx.track(right,left);
+  assert.equal(left.scrollTop,200);
+  right.scrollTop=0;
+  ctx.track(right,left);
+  assert.equal(left.scrollTop,0);
   ctx.readingMode=true;
-  ctx.mirror({deltaY:100,deltaX:0,deltaMode:0},source,target);
-  assert.equal(target.scrollTop,1176);
+  left.scrollTop=50;ctx.track(left,right);
+  assert.equal(right.scrollTop,0);
   ctx.readingMode=false;
   ctx.editorCollapsed=true;
-  ctx.mirror({deltaY:100,deltaX:0,deltaMode:0},source,target);
-  assert.equal(target.scrollTop,1176);
+  left.scrollTop=60;ctx.track(left,right);
+  assert.equal(right.scrollTop,0);
   ctx.editorCollapsed=false;
-  ctx.mirror({deltaY:100,deltaX:0,deltaMode:0,ctrlKey:true},source,target);
-  assert.equal(target.scrollTop,1176);
-  ctx.mirror({deltaY:100,deltaX:0,deltaMode:0,metaKey:true},source,target);
-  assert.equal(target.scrollTop,1176);
-  assert.match(html,/editor\.addEventListener\('wheel', event => mirrorWheelAction\(event, editor, preview\), \{ passive: true \}\)/);
-  assert.match(html,/preview\.addEventListener\('wheel', event => mirrorWheelAction\(event, preview, editor\), \{ passive: true \}\)/);
-  assert.doesNotMatch(html,/\.addEventListener\('scroll', \(\) => syncScroll/);
+  ctx.outlineJumpActive=true;
+  left.scrollTop=70;ctx.track(left,right);
+  assert.equal(right.scrollTop,0);
+  assert.match(html,/editor\.addEventListener\('scroll', \(\) => trackPaneScroll\(editor, preview\), \{ passive: true \}\)/);
+  assert.match(html,/preview\.addEventListener\('scroll', \(\) => trackPaneScroll\(preview, editor\), \{ passive: true \}\)/);
+  assert.doesNotMatch(html,/addEventListener\('wheel'/);
 });
 
 test('reading-mode outline jumps to preview without focusing or scrolling the hidden editor', () => {
@@ -558,14 +590,16 @@ test('reading-mode outline jumps to preview without focusing or scrolling the hi
     getMarkdown(){return '# Top\n## First\n### Nested\n## Second';},
     scrollTextareaToCaret(){throw Error('reading mode must not scroll hidden editor');},
     document:{querySelectorAll(){return Array.from({length:4},()=>({classList:{toggle(){}}}));}},
-    getComputedStyle(){return {paddingBottom:'32px'};}
+    getComputedStyle(){return {paddingBottom:'32px'};},
+    outlineJumpToken:0,finishOutlineJump(token){ctx.completed=token;}
   };
   vm.runInNewContext(fn[0]+'\njumpToHeading(3);',ctx);
   assert.equal(preview.scrolled.top,700);
-  assert.equal(preview.scrolled.behavior,'smooth');
+  assert.equal(preview.scrolled.behavior,'instant');
   assert.equal(body.style.paddingBottom,'234px');
   assert.equal(editor.selectionStart,'# Top\n## First\n### Nested\n'.length);
   assert.match(fn[0],/if \(!readingMode\) scrollTextareaToCaret\(target\)/);
+  assert.equal(ctx.completed,1);
   assert.doesNotMatch(fn[0],/\.scrollIntoView\s*\(/);
 });
 
@@ -581,30 +615,63 @@ test('image export success/error notifications stay in front of the blurred over
   assert.match(html,/id="export-image-preview"/);
 });
 
-test('heading caret mirror aligns editor heading to top and extends the last page if needed', () => {
-  const match=html.match(/function scrollTextareaToCaret\(ta\) \{[\s\S]*?\n    \}/);
-  assert.ok(match);
-  const ta={
-    value:'# First\ntext\n## Last',selectionStart:'# First\ntext\n'.length,
-    clientHeight:280,scrollHeight:700,scrollTop:0,
-    style:{paddingBottom:'',fontSize:'',width:''},
-    scrollTo(options){this.scrolled=options;this.scrollTop=options.top;}
-  };
-  const mirror={style:{},appendChild(child){this.child=child;},textContent:''};
+test('textarea measurement uses its actual client width, accounting for scrollbar wrapping', () => {
+  const fn=html.match(/function measureTextareaHeadingTop\(ta\) \{[\s\S]*?\n    \}/);
+  assert.ok(fn);
   const marker={offsetTop:660,textContent:''};
-  const doc={createElement(tag){return tag==='span'?marker:mirror;},
-    body:{appendChild(){},removeChild(){}}};
-  const style={paddingTop:'28px',paddingBottom:'28px',fontSize:'16px',width:'460px'};
-  const ctx={document:doc,getComputedStyle(){return style;}};
-  vm.runInNewContext(match[0]+'\nthis.align=scrollTextareaToCaret;',ctx);
+  const mirror={style:{},appendChild(child){this.marker=child;},textContent:''};
+  const doc={
+    createElement(type){return type==='span'?marker:mirror;},
+    body:{appendChild(){},removeChild(){}}
+  };
+  const ta={value:'a\n'.repeat(1000),selectionStart:100,clientWidth:441};
+  const ctx={document:doc,getComputedStyle(){return {
+    paddingTop:'28px',paddingBottom:'28px',fontSize:'16px',
+    lineHeight:'28.8px',fontFamily:'monospace'
+  };}};
+  vm.runInNewContext(fn[0]+'\nthis.measure=measureTextareaHeadingTop;',ctx);
+  assert.equal(ctx.measure(ta),632);
+  assert.equal(mirror.style.width,'441px');
+  assert.equal(mirror.style.whiteSpace,'pre-wrap');
+  assert.equal(mirror.style.wordBreak,'break-all');
+  assert.equal(mirror.style.overflowWrap,'break-word');
+  assert.equal(mirror.textContent,ta.value.substring(0,100));
+  assert.match(fn[0],/mirror\.style\.width = ta\.clientWidth/);
+  assert.doesNotMatch(fn[0],/mirror\.style\.width = style\.width/);
+});
+
+test('deep and last editor headings can always be brought to top with verified scroll room', () => {
+  const fn=html.match(/function scrollTextareaToCaret\(ta\) \{[\s\S]*?\n    \}/);
+  assert.ok(fn);
+  let currentTarget=632;
+  const ta={style:{paddingBottom:''},clientHeight:280,
+    get scrollHeight() {
+      const padding=parseFloat(this.style.paddingBottom)||28;
+      return 700+(padding-28);
+    },
+    scrollTop:0,
+    scrollTo(opts) {
+      this.scrolled=opts;
+      this.scrollTop=Math.min(opts.top,Math.max(0,this.scrollHeight-this.clientHeight));
+    }
+  };
+  const ctx={
+    measureTextareaHeadingTop(){return currentTarget;},
+    getComputedStyle(){return {paddingBottom:ta.style.paddingBottom||'28px'};}
+  };
+  const max=html.match(/function maxPaneScroll\(pane\) \{[\s\S]*?\n    \}/);
+  vm.runInNewContext(max[0]+'\n'+fn[0]+'\nthis.align=scrollTextareaToCaret;',ctx);
   ctx.align(ta);
-  assert.equal(ta.scrolled.top,632);
-  assert.equal(ta.scrolled.behavior,'smooth');
-  assert.equal(ta.style.paddingBottom,'242px');
-  marker.offsetTop=75;
-  ta.scrollHeight=700;
+  assert.equal(ta.scrollTop,632);
+  assert.equal(ta.scrolled.behavior,'instant');
+  assert.equal(ta.style.paddingBottom,'244px');
+  currentTarget=4400;
   ctx.align(ta);
-  assert.equal(ta.scrolled.top,47);
+  assert.equal(ta.scrollTop,4400);
+  assert.ok(ta.scrollHeight-ta.clientHeight>=4400);
+  currentTarget=47;
+  ctx.align(ta);
+  assert.equal(ta.scrollTop,47);
   assert.equal(ta.style.paddingBottom,'');
 });
 
@@ -615,14 +682,15 @@ test('dead proportional sync and orphan Standard/fullscreen handlers have been r
     'setLayoutMode(', 'onFullscreenChange']) {
     assert.equal(html.includes(obsolete),false,obsolete);
   }
-  for(const required of ['function wheelDeltaPixels(', 'function mirrorWheelAction(',
-    "editor.addEventListener('wheel'", "preview.addEventListener('wheel'"]) {
+  for(const required of ['function maxPaneScroll(', 'function directionalScrollMovement(',
+    'function trackPaneScroll(', 'function measureTextareaHeadingTop(',
+    "editor.addEventListener('scroll'", "preview.addEventListener('scroll'"]) {
     assert.equal(html.includes(required),true,required);
   }
   assert.doesNotMatch(i18n,/^    viewStandard:/m);
 });
 
-test('standard-mode outline aligns both headings independently, without a scroll lock', () => {
+test('standard-mode outline aligns both headings without cross-pane correction', () => {
   const fn=html.match(/function jumpToHeading\(index\) \{[\s\S]*?\n    \}/);
   assert.ok(fn);
   const headings=[{level:1,line:0},{level:2,line:2},{level:2,line:4}];
@@ -638,13 +706,14 @@ test('standard-mode outline aligns both headings independently, without a scroll
     scrollTo(args){this.scrolled=args;}
   };
   const raw='# Heading\np\n## Mid\np\n## Final';
-  const editor={selectionStart:0,setSelectionRange(start){this.selectionStart=start;},focus(){}};
+  const editor={selectionStart:0,setSelectionRange(start){this.selectionStart=start;},focus(opts){this.focusOptions=opts;}};
   const ctx={
     outlineHeadings:headings,readingMode:false,editor,preview,imageDataCollapsed:false,
     getMarkdown(){return raw;},
     document:{querySelectorAll(){return headings.map(()=>({classList:{toggle(){}}}));}},
     scrollTextareaToCaret(ta){assert.equal(ta,editor);ctx.editorAlignmentCalls++;},
     editorAlignmentCalls:0,
+    outlineJumpToken:0,finishOutlineJump(token){ctx.completed=token;},
     getComputedStyle(){return {paddingBottom:'24px'};}
   };
   vm.runInNewContext(fn[0]+'\njumpToHeading(2);',ctx);
@@ -652,6 +721,8 @@ test('standard-mode outline aligns both headings independently, without a scroll
   assert.equal(preview.scrolled.top,410);
   assert.equal(preview.scrolled.behavior,'smooth');
   assert.equal(ctx.editorAlignmentCalls,1);
+  assert.equal(editor.focusOptions.preventScroll,true);
+  assert.equal(ctx.completed,1);
   assert.doesNotMatch(fn[0],/\.scrollIntoView\s*\(/);
   assert.doesNotMatch(fn[0],/suppressScrollSync|waitForOutlineNavigation|outlineNavigationActive/);
 });
