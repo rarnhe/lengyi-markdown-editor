@@ -441,7 +441,7 @@ test('Reading mode translations, refresh restore and outline navigation remain f
   assert.match(html,/localStorage\.getItem\(READING_OUTLINE_POS_KEY\)/);
   assert.match(html,/if \(!outlineVisible && !readingMode\) return;/);
   assert.match(html,/if \(!readingMode\) target\.focus\(\)/);
-  assert.match(html,/if \(!readingMode\) scrollTextareaToCaret\(target\)/);
+  assert.match(html,/const editorTop = readingMode \? null : scrollTextareaToCaret\(target, true\)/);
 });
 
 
@@ -516,7 +516,7 @@ test('missing scroll-sync suppression helper exists and prevents navigation inte
   const suppress=html.match(/function suppressScrollSync\(duration\) \{[\s\S]*?\n    \}/);
   const sync=html.match(/function syncScroll\(source, target\) \{[\s\S]*?\n    \}/);
   assert.ok(suppress && sync);
-  const ctx={isSyncingScroll:false,now:500,Date:{now(){return ctx.now;}}};
+  const ctx={isSyncingScroll:false,outlineNavigationActive:false,now:500,Date:{now(){return ctx.now;}}};
   vm.runInNewContext('let syncSuppressUntil=0;\n'+suppress[0]+'\n'+sync[0]+
     '\nthis.suppress=suppressScrollSync;this.sync=syncScroll;',ctx);
   const source={scrollHeight:500,clientHeight:100,scrollTop:150};
@@ -560,6 +560,7 @@ test('outline jumps to the correct heading level and scrolls only the preview to
     outlineHeadings,readingMode:true,editor,preview,imageDataCollapsed:false,
     getMarkdown(){return '# Top\n## First\n### Nested\n## Second';},
     suppressScrollSync(duration){ctx.suppressed=duration;},
+    waitForOutlineNavigation(editorTop,previewTop){ctx.waited=[editorTop,previewTop];},
     document:{querySelectorAll(){return Array.from({length:4},()=>({classList:{toggle(){}}}));}},
     getComputedStyle(){return {paddingBottom:'32px'};}
   };
@@ -569,6 +570,164 @@ test('outline jumps to the correct heading level and scrolls only the preview to
   assert.equal(body.style.paddingBottom,'234px');
   assert.equal(editor.selectionStart,'# Top\n## First\n### Nested\n'.length);
   assert.equal(ctx.suppressed,1400);
+  assert.equal(ctx.waited[0],null);
+  assert.equal(ctx.waited[1],700);
+  assert.equal(ctx.outlineNavigationActive,true);
   assert.doesNotMatch(fn[0],/\.scrollIntoView\s*\(/);
   assert.match(fn[0],/preview\.scrollTo\(\{ top, behavior: 'smooth' \}\)/);
+});
+
+
+test('image export success/error notifications stay in front of the blurred overlay', () => {
+  assert.match(html,/\.modal-overlay \{[\s\S]*?backdrop-filter: blur\(4px\);[\s\S]*?z-index: 200;/);
+  const toast=html.match(/\.toast \{([\s\S]*?)\n    \}/);
+  assert.ok(toast);
+  assert.match(toast[1],/z-index: 400;/);
+  assert.match(html,/function renderExportImagePreview\(\) \{/);
+  assert.match(html,/showToast\(t\('toastPreviewGenerated'\)\)/);
+  assert.match(html,/showToast\(t\('toastImageGenFailed', err\.message\)\)/);
+  assert.match(html,/id="export-image-modal"/);
+  assert.match(html,/id="export-image-preview"/);
+});
+
+test('heading caret positioning scrolls editor to top, even for last heading', () => {
+  const match=html.match(/function scrollTextareaToCaret\(ta, alignToTop = false\) \{[\s\S]*?\n    \}/);
+  assert.ok(match);
+  const ta={
+    value:'# First\ntext\n## Last',selectionStart:'# First\ntext\n'.length,
+    clientHeight:280,scrollHeight:700,scrollTop:0,
+    style:{paddingBottom:'',fontSize:'',width:''},
+    scrollTo(options){this.scrolled=options;this.scrollTop=options.top;}
+  };
+  const mirror={style:{},appendChild(child){this.child=child;},textContent:''};
+  const marker={offsetTop:660,textContent:''};
+  const doc={
+    createElement(tag){return tag==='span'?marker:mirror;},
+    body:{appendChild(){},removeChild(){}}
+  };
+  const style={
+    paddingTop:'28px',paddingBottom:'28px',fontSize:'16px',width:'460px'
+  };
+  const ctx={
+    document:doc, getComputedStyle(){return style;}
+  };
+  vm.runInNewContext(match[0]+'\nthis.go=scrollTextareaToCaret;',ctx);
+  const top=ctx.go(ta,true);
+  assert.equal(top,632);
+  assert.equal(ta.scrollTop,632);
+  assert.equal(ta.scrolled.behavior,'smooth');
+  assert.equal(ta.style.paddingBottom,'242px');
+  // No expansion needed for an earlier heading.
+  marker.offsetTop=75;
+  ta.scrollHeight=700;
+  ta.style.paddingBottom='242px';
+  const earlier=ctx.go(ta,true);
+  assert.equal(earlier,47);
+  assert.equal(ta.style.paddingBottom,'');
+  assert.equal(ta.scrolled.top,47);
+  // Non-navigation behavior still places the cursor one third into the viewport.
+  marker.offsetTop=330;
+  ctx.go(ta);
+  assert.equal(ta.scrollTop,Math.max(0,330-280/3));
+});
+
+test('scroll coupling stays paused during navigation and resumes when both panes settle', () => {
+  const wait=html.match(/function waitForOutlineNavigation\(editorTop, previewTop\) \{[\s\S]*?\n    \}/);
+  const sync=html.match(/function syncScroll\(source, target\) \{[\s\S]*?\n    \}/);
+  assert.ok(wait&&sync);
+  const frames=[];
+  const editor={scrollTop:10,clientHeight:300,scrollHeight:1200};
+  const preview={scrollTop:20,clientHeight:300,scrollHeight:1500};
+  const ctx={
+    outlineNavigationId:0,outlineNavigationActive:true,syncSuppressUntil:3000,
+    readingMode:false,isSyncingScroll:false,now:100,
+    editor,preview,
+    Date:{now(){return ctx.now;}},
+    requestAnimationFrame(fn){frames.push(fn);}
+  };
+  vm.runInNewContext(wait[0]+'\n'+sync[0]+'\nthis.wait=waitForOutlineNavigation;this.sync=syncScroll;',ctx);
+  ctx.wait(400,620);
+  assert.equal(ctx.outlineNavigationId,1);
+  ctx.sync(editor,preview);
+  assert.equal(preview.scrollTop,20);
+  function frame(){ctx.now+=33;const fn=frames.shift();assert.ok(fn);fn();}
+  editor.scrollTop=400;
+  preview.scrollTop=500;
+  frame();
+  assert.equal(ctx.outlineNavigationActive,true);
+  preview.scrollTop=620;
+  frame();
+  frame();
+  frame();
+  assert.equal(ctx.outlineNavigationActive,false);
+  assert.equal(ctx.syncSuppressUntil,0);
+  editor.scrollTop=0;
+  ctx.sync(editor,preview);
+  assert.equal(preview.scrollTop,0);
+});
+
+test('repeated outline jumps do not let a stale animation restore coupling', () => {
+  const wait=html.match(/function waitForOutlineNavigation\(editorTop, previewTop\) \{[\s\S]*?\n    \}/);
+  assert.ok(wait);
+  const frames=[],editor={scrollTop:0},preview={scrollTop:0};
+  const ctx={
+    outlineNavigationId:0,outlineNavigationActive:true,syncSuppressUntil:1400,
+    readingMode:false,editor,preview,now:0,
+    Date:{now(){return ctx.now;}},
+    requestAnimationFrame(fn){frames.push(fn);}
+  };
+  vm.runInNewContext(wait[0]+'\nthis.wait=waitForOutlineNavigation;',ctx);
+  ctx.wait(100,100);
+  ctx.wait(200,200);
+  assert.equal(ctx.outlineNavigationId,2);
+  ctx.now+=16;
+  frames.shift()(); // stale navigation ID 1
+  assert.equal(ctx.outlineNavigationActive,true);
+  editor.scrollTop=200;
+  preview.scrollTop=200;
+  ctx.now+=16;
+  frames.shift()();
+  ctx.now+=16;
+  frames.shift()();
+  ctx.now+=16;
+  frames.shift()();
+  assert.equal(ctx.outlineNavigationActive,false);
+});
+
+test('outline navigation still targets the correct preview heading and now aligns editor', () => {
+  const fn=html.match(/function jumpToHeading\(index\) \{[\s\S]*?\n    \}/);
+  assert.ok(fn);
+  const headings=[{level:1,line:0},{level:2,line:2},{level:2,line:4}];
+  const body={style:{}};
+  const preview={
+    scrollTop:10,clientHeight:300,scrollHeight:900,clientTop:0,
+    getBoundingClientRect(){return {top:100};},
+    querySelectorAll(selector){assert.equal(selector,'.markdown-body h2');return [
+      {getBoundingClientRect(){return {top:200};}},
+      {getBoundingClientRect(){return {top:500};}}
+    ];},
+    querySelector(){return body;},
+    scrollTo(args){this.scrolled=args;}
+  };
+  const raw='# Heading\np\n## Mid\np\n## Final';
+  const editor={
+    selectionStart:0,
+    setSelectionRange(start){this.selectionStart=start;},
+    focus(){}
+  };
+  const ctx={
+    outlineHeadings:headings,readingMode:false,editor,preview,imageDataCollapsed:false,
+    getMarkdown(){return raw;},
+    document:{querySelectorAll(){return headings.map(()=>({classList:{toggle(){}}}));}},
+    suppressScrollSync(){},scrollTextareaToCaret(ta,top){assert.equal(top,true);return 285;},
+    waitForOutlineNavigation(editorTop,previewTop){ctx.waited=[editorTop,previewTop];},
+    getComputedStyle(){return {paddingBottom:'24px'};}
+  };
+  vm.runInNewContext(fn[0]+'\njumpToHeading(2);',ctx);
+  assert.equal(editor.selectionStart,raw.indexOf('## Final'));
+  assert.equal(preview.scrolled.top,410);
+  assert.equal(ctx.waited[0],285);
+  assert.equal(ctx.waited[1],410);
+  assert.equal(ctx.outlineNavigationActive,true);
+  assert.doesNotMatch(fn[0],/\.scrollIntoView\s*\(/);
 });
