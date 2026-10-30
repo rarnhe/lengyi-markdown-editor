@@ -10,7 +10,7 @@ const i18n = {
 <p><b>调整视图</b></p>
 <ul>
   <li>拖动中间分隔线调整左右宽度；点击标题栏的折叠按钮收起或展开区域。</li>
-  <li>工具栏「视图」可切换“编辑 + 预览 / 仅编辑 / 仅预览”。</li>
+  <li>「视图」可开启阅读模式或系统全屏。鼠标在任一栏滚动时另一栏接收同样的滚动增量，两栏位置独立；点击大纲标题可分别将两栏的标题置顶。</li>
 </ul>
 <p><b>保存、导入与导出</b></p>
 <ul>
@@ -198,7 +198,7 @@ const i18n = {
 <p><b>調整檢視</b></p>
 <ul>
   <li>拖曳中間分隔線調整左右寬度；點擊標題列的折疊按鈕收起或展開區域。</li>
-  <li>工具列「檢視」可切換「編輯 + 預覽 / 僅編輯 / 僅預覽」。</li>
+  <li>「檢視」可開啟閱讀模式或系統全螢幕。滑鼠在任一欄捲動時另一欄會接收相同的捲動增量，但位置獨立；點擊大綱標題可使兩欄分別將標題置頂。</li>
 </ul>
 <p><b>儲存、匯入與匯出</b></p>
 <ul>
@@ -386,7 +386,7 @@ const i18n = {
 <p><b>Adjust the view</b></p>
 <ul>
   <li>Drag the divider to resize panes; click the collapse buttons on the headers to collapse or expand a pane.</li>
-  <li>The toolbar “View” menu switches between Edit + Preview / Edit only / Preview only.</li>
+  <li>The View menu offers Reading Mode and System Fullscreen. Wheel scrolling either pane forwards the same scroll delta to the other without synchronizing positions; clicking an outline heading aligns that heading at the top of each pane.</li>
 </ul>
 <p><b>Save, import & export</b></p>
 <ul>
@@ -574,7 +574,7 @@ const i18n = {
 <p><b>表示を調整する</b></p>
 <ul>
   <li>中央の区切り線をドラッグして左右の幅を調整；ヘッダーの「⟨」/「⟩」でエリアを折りたたみ/展開。</li>
-  <li>ツールバーの「表示」で「編集 + プレビュー / 編集のみ / プレビューのみ」を切り替え。</li>
+  <li>「表示」メニューから閲覧モードやシステム全画面に切り替えられます。片方のペインでホイールスクロールすると、もう片方にも同じ移動量が反映され、位置は独立します。目次の見出しをクリックすると両方のペインで見出しが先頭に移動します。</li>
 </ul>
 <p><b>保存、インポート、エクスポート</b></p>
 <ul>
@@ -762,7 +762,7 @@ const i18n = {
 <p><b>보기 조정</b></p>
 <ul>
   <li>가운데 구분선을 드래그하여 좌우 너비 조절; 헤더의「⟨」/「⟩」버튼으로 영역 접기/펼치기.</li>
-  <li>도구 모음「보기」에서「편집 + 미리보기 / 편집만 / 미리보기만」전환.</li>
+  <li>「보기」 메뉴에서 읽기 모드 또는 시스템 전체 화면을 선택합니다. 한 창에서 휠을 스크롤하면 다른 창에도 같은 이동량이 적용되지만 위치는 독립적입니다. 목차 제목을 클릭하면 양쪽 창의 해당 제목이 맨 위로 이동합니다.</li>
 </ul>
 <p><b>저장, 가져오기 및 내보내기</b></p>
 <ul>
@@ -950,7 +950,7 @@ const i18n = {
 <p><b>Ajustar la vista</b></p>
 <ul>
   <li>Arrastra la barra divisoria para cambiar el tamaño; pulsa los botones “⟨” / “⟩” en los encabezados para contraer o expandir.</li>
-  <li>El menú “Vista” de la barra cambia entre Editar + Previsualizar / Solo editar / Solo previsualizar.</li>
+  <li>El menú Vista ofrece Modo lectura y Pantalla completa. La rueda desplaza ambas áreas con el mismo incremento, sin igualar sus posiciones; pulsar un título del índice sitúa ese título arriba en cada área.</li>
 </ul>
 <p><b>Guardar, importar y exportar</b></p>
 <ul>
@@ -1138,7 +1138,7 @@ const i18n = {
 <p><b>Ajuster l’affichage</b></p>
 <ul>
   <li>Faites glisser le séparateur pour redimensionner ; cliquez sur les boutons « ⟨ » / « ⟩ » pour réduire ou développer un volet.</li>
-  <li>Le menu « Affichage » de la barre permet de passer entre Édition + Aperçu / Édition seule / Aperçu seul.</li>
+  <li>Le menu Affichage propose le mode lecture et le plein écran. La molette applique le même déplacement aux deux volets sans aligner leurs positions ; un clic sur un titre du plan le place en haut de chaque volet.</li>
 </ul>
 <p><b>Enregistrer, importer et exporter</b></p>
 <ul>
@@ -1326,7 +1326,7 @@ const i18n = {
 <p><b>Ansicht anpassen</b></p>
 <ul>
   <li>Ziehe den Trennbalken, um die Bereiche zu skalieren; klicke auf die „⟨“ / „⟩“ Buttons in den Kopfzeilen, um einen Bereich ein- oder auszuklappen.</li>
-  <li>Das Menü „Ansicht“ in der Toolbar schaltet zwischen Bearbeiten + Vorschau / Nur bearbeiten / Nur Vorschau um.</li>
+  <li>Das Menü Ansicht bietet Lesemodus und Vollbild. Das Mausrad überträgt nur die gleiche Scrollbewegung auf beide Bereiche, nicht die relative Position. Ein Klick auf eine Gliederungsüberschrift setzt diese in beiden Bereichen nach oben.</li>
 </ul>
 <p><b>Speichern, importieren und exportieren</b></p>
 <ul>
@@ -1514,7 +1514,7 @@ const i18n = {
 <p><b>Настройка вида</b></p>
 <ul>
   <li>Перетаскивайте разделитель для изменения размеров; нажимайте кнопки «⟨» / «⟩» в заголовках, чтобы свернуть или развернуть область.</li>
-  <li>Меню «Вид» на панели переключает между Редактирование + Предпросмотр / Только редактирование / Только предпросмотр.</li>
+  <li>Меню «Вид» предлагает режим чтения и полноэкранный режим. Колёсико мыши передаёт одинаковое смещение обоим панелям без синхронизации их позиций; нажатие на заголовок структуры перемещает его к верху обеих панелей.</li>
 </ul>
 <p><b>Сохранение, импорт и экспорт</b></p>
 <ul>
@@ -1702,7 +1702,7 @@ const i18n = {
 <p><b>Ajustar a visualização</b></p>
 <ul>
   <li>Arraste o divisor para redimensionar; clique nos botões “⟨” / “⟩” nos cabeçalhos para recolher ou expandir.</li>
-  <li>O menu “Visualização” da barra alterna entre Editar + Visualizar / Somente editar / Somente visualizar.</li>
+  <li>O menu Visualização oferece Modo leitura e Tela cheia. A roda do mouse envia o mesmo deslocamento às duas áreas sem igualar suas posições; clicar em um título do índice o posiciona no topo de cada área.</li>
 </ul>
 <p><b>Salvar, importar e exportar</b></p>
 <ul>

@@ -37,7 +37,6 @@
       --radius-sm: 6px;
       --radius: 10px;
       --radius-lg: 14px;
-      --radius-xl: 18px;
     }
     [data-theme="dark"] {
       --bg: #0b0d12;
@@ -1300,7 +1299,7 @@
         <p><b>调整视图</b></p>
         <ul>
           <li>拖动中间分隔线调整左右宽度；点击标题栏的折叠按钮收起或展开区域。</li>
-          <li>工具栏「视图」可切换“编辑 + 预览 / 仅编辑 / 仅预览”。</li>
+          <li>「视图」可进入阅读模式或系统全屏；在编辑栏或预览栏滚动鼠标滚轮时，另一栏按相同增量滚动，但两栏位置独立。点击大纲标题可以使两栏各自定位到对应标题顶部。</li>
         </ul>
 
         <p><b>保存、导入与导出</b></p>
@@ -1835,7 +1834,7 @@
     }
 
     function mirrorWheelAction(event, source, counterpart) {
-      if (readingMode || event.ctrlKey || event.metaKey) return;
+      if (readingMode || editorCollapsed || event.ctrlKey || event.metaKey) return;
       const delta = wheelDeltaPixels(event, source);
       counterpart.scrollTop += delta.y;
       counterpart.scrollLeft += delta.x;
@@ -2166,8 +2165,7 @@
       historyIndex = 0;
       lastHistoryText = getMarkdown();
 
-      // Standard is the only layout: the editor and outline restore their fold states.
-      // Selecting Standard explicitly expands all three panes.
+      // Editor and outline each restore their saved fold state.
 
       if (!localStorage.getItem(HELP_SHOWN_KEY)) {
         openHelp();

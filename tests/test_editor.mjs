@@ -502,7 +502,7 @@ test('wheel actions transfer delta pixels, not proportional positions', () => {
   assert.ok(convert && mirror);
   const source={scrollTop:120,scrollLeft:0,clientHeight:400};
   const target={scrollTop:780,scrollLeft:5,clientHeight:250};
-  const ctx={readingMode:false,getComputedStyle(){return {lineHeight:'20px'};}};
+  const ctx={readingMode:false,editorCollapsed:false,getComputedStyle(){return {lineHeight:'20px'};}};
   vm.runInNewContext(convert[0]+'\n'+mirror[0]+'\nthis.mirror=mirrorWheelAction;',ctx);
   ctx.mirror({deltaY:36,deltaX:4,deltaMode:0},source,target);
   assert.equal(source.scrollTop,120);
@@ -516,6 +516,10 @@ test('wheel actions transfer delta pixels, not proportional positions', () => {
   ctx.mirror({deltaY:100,deltaX:0,deltaMode:0},source,target);
   assert.equal(target.scrollTop,1176);
   ctx.readingMode=false;
+  ctx.editorCollapsed=true;
+  ctx.mirror({deltaY:100,deltaX:0,deltaMode:0},source,target);
+  assert.equal(target.scrollTop,1176);
+  ctx.editorCollapsed=false;
   ctx.mirror({deltaY:100,deltaX:0,deltaMode:0,ctrlKey:true},source,target);
   assert.equal(target.scrollTop,1176);
   ctx.mirror({deltaY:100,deltaX:0,deltaMode:0,metaKey:true},source,target);
@@ -650,4 +654,17 @@ test('standard-mode outline aligns both headings independently, without a scroll
   assert.equal(ctx.editorAlignmentCalls,1);
   assert.doesNotMatch(fn[0],/\.scrollIntoView\s*\(/);
   assert.doesNotMatch(fn[0],/suppressScrollSync|waitForOutlineNavigation|outlineNavigationActive/);
+});
+
+test('cleaned help content and documentation reflect the current menu and wheel navigation', () => {
+  const zh=readFileSync('README.zh.md','utf8');
+  const en=readFileSync('README.md','utf8');
+  assert.doesNotMatch(zh,/视图 → 标准/);
+  assert.match(zh,/独立滚动位置|独立滚动/);
+  assert.match(en,/independent scrolling/);
+  assert.doesNotMatch(html,/--radius-xl:/);
+  for (const old of ['仅编辑 / 仅预览','Edit only / Preview only','Nur bearbeiten / Nur Vorschau']) {
+    assert.equal(i18n.includes(old),false,old);
+  }
+  assert.match(i18n,/点击大纲标题可分别将两栏的标题置顶/);
 });
