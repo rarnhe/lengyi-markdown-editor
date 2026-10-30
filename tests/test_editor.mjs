@@ -222,7 +222,7 @@ test('outline panel persists visibility and width with ten-language labels', () 
   for (const key of ['outline-pane', 'outline-resizer', 'outline-collapse-btn', 'OUTLINE_VISIBLE_KEY', 'OUTLINE_WIDTH_KEY', 'jumpToHeading', 'scrollTextareaToCaret']) {
     assert.ok(html.includes(key), key);
   }
-  for (const key of ['outlineTitle', 'viewStandard', 'outlineEmpty', 'collapseOutline', 'expandOutline']) {
+  for (const key of ['outlineTitle', 'outlineEmpty', 'collapseOutline', 'expandOutline']) {
     assert.equal((i18n.match(new RegExp('^    '+key+':', 'gm')) || []).length, 10, key);
   }
 });
@@ -268,33 +268,17 @@ test('code-block toolbar always inserts a fenced block, with an editable body', 
   assert.match(html,/onclick="insertCode\(\)"[^>]*>[\s\S]*?data-i18n="codeBlock">代码块<\/span>/);
 });
 
-test('Standard layout shows editor, preview and outline, preserving their separate fold controls', () => {
+test('Standard layout keeps independent editor and outline fold controls', () => {
   const menu=html.match(/<div class="dropdown-menu" id="view-menu">([\s\S]*?)<\/div>\s*<\/div>/);
   assert.ok(menu);
-  assert.doesNotMatch(menu[1],/setLayoutMode\('standard'\)/);
-  assert.match(html,/function setLayoutMode\(mode\) \{/);
-  assert.doesNotMatch(menu[1],/setLayoutMode\('both'|'edit'|'preview'\)|toggleOutline\(\)/);
-  assert.doesNotMatch(html,/preview-collapse-btn|previewCollapsed|PREVIEW_COLLAPSED_KEY|LAYOUT_MODE_KEY/);
-  const block=html.match(/function setLayoutMode\(mode\) \{[\s\S]*?\n    \}/);
-  assert.ok(block);
-  const stored={};
-  let paneUpdates=0, outlineUpdates=0, outlineRenders=0;
-  const ctx={
-    editorCollapsed:true, outlineVisible:false, readingMode:false,
-    EDITOR_COLLAPSED_KEY:'editor',OUTLINE_VISIBLE_KEY:'outline',
-    localStorage:{setItem(k,v){stored[k]=v;}},
-    applyPaneStates(){paneUpdates++;},
-    applyOutlineState(){outlineUpdates++;},
-    renderOutline(){outlineRenders++;}
-  };
-  vm.runInNewContext(block[0]+"\nsetLayoutMode('standard');",ctx);
-  assert.equal(ctx.editorCollapsed,false);
-  assert.equal(ctx.outlineVisible,true);
-  assert.deepEqual(stored,{editor:'false',outline:'true'});
-  assert.equal(paneUpdates,1);
-  assert.equal(outlineUpdates,1);
-  assert.equal(outlineRenders,1);
+  assert.doesNotMatch(menu[1],/setLayoutMode\(|data-i18n="viewStandard"/);
+  assert.match(menu[1],/setReadingMode\(true\)/);
+  assert.match(menu[1],/toggleFullscreen\(\)/);
+  assert.doesNotMatch(html,/function setLayoutMode\(|previewCollapsed|PREVIEW_COLLAPSED_KEY|LAYOUT_MODE_KEY/);
+  assert.match(html,/editorCollapsed = localStorage\.getItem\(EDITOR_COLLAPSED_KEY\) === 'true'/);
   assert.match(html,/outlineVisible = localStorage\.getItem\(OUTLINE_VISIBLE_KEY\) !== 'false'/);
+  assert.match(html,/function applyPaneStates\(\)/);
+  assert.match(html,/function applyOutlineState\(\)/);
 });
 
 test('outline collapse arrow moves to the left, switches direction and preserves width', () => {
@@ -331,11 +315,11 @@ test('outline collapse arrow moves to the left, switches direction and preserves
   assert.match(html,/localStorage\.setItem\(OUTLINE_WIDTH_KEY, outlineWidth\)/);
 });
 
-test('ten languages use Standard and expanded outline titles without obsolete view options', () => {
-  for(const key of ['viewStandard','expandOutline','collapseOutline']) {
+test('ten languages use outline titles without obsolete view options', () => {
+  for(const key of ['expandOutline','collapseOutline']) {
     assert.equal((i18n.match(new RegExp('^    '+key+':','gm'))||[]).length,10,key);
   }
-  for(const old of ['viewBoth','viewEdit','viewPreview','viewOutline','collapsePreview','expandPreview']) {
+  for(const old of ['viewBoth','viewEdit','viewPreview','viewOutline','viewStandard','collapsePreview','expandPreview']) {
     assert.doesNotMatch(i18n,new RegExp('^    '+old+':','m'),old);
   }
   assert.match(html,/\.editor-toolbar button span\[data-i18n="codeBlock"\] \{ display: inline; \}/);
@@ -441,7 +425,7 @@ test('Reading mode translations, refresh restore and outline navigation remain f
   assert.match(html,/localStorage\.getItem\(READING_OUTLINE_POS_KEY\)/);
   assert.match(html,/if \(!outlineVisible && !readingMode\) return;/);
   assert.match(html,/if \(!readingMode\) target\.focus\(\)/);
-  assert.match(html,/const editorTop = readingMode \? null : scrollTextareaToCaret\(target, true\)/);
+  assert.match(html,/if \(!readingMode\) scrollTextareaToCaret\(target\)/);
 });
 
 
@@ -508,28 +492,44 @@ test('language and Help exchange places, Standard disappears from UI only', () =
   assert.doesNotMatch(view[1],/setLayoutMode\('standard'\)|data-i18n="viewStandard"/);
   assert.match(view[1],/setReadingMode\(true\)/);
   assert.match(view[1],/toggleFullscreen\(\)/);
-  assert.match(html,/function setLayoutMode\(mode\) \{/);
-  assert.equal((i18n.match(/^    viewStandard:/gm)||[]).length,10);
+  assert.doesNotMatch(html,/function setLayoutMode\(mode\) \{/);
+  assert.doesNotMatch(i18n,/^    viewStandard:/m);
 });
 
-test('missing scroll-sync suppression helper exists and prevents navigation interference', () => {
-  const suppress=html.match(/function suppressScrollSync\(duration\) \{[\s\S]*?\n    \}/);
-  const sync=html.match(/function syncScroll\(source, target\) \{[\s\S]*?\n    \}/);
-  assert.ok(suppress && sync);
-  const ctx={isSyncingScroll:false,outlineNavigationActive:false,now:500,Date:{now(){return ctx.now;}}};
-  vm.runInNewContext('let syncSuppressUntil=0;\n'+suppress[0]+'\n'+sync[0]+
-    '\nthis.suppress=suppressScrollSync;this.sync=syncScroll;',ctx);
-  const source={scrollHeight:500,clientHeight:100,scrollTop:150};
-  const dest={scrollHeight:400,clientHeight:100,scrollTop:0};
-  ctx.suppress(1200);
-  ctx.sync(source,dest);
-  assert.equal(dest.scrollTop,0);
-  ctx.now=1701;
-  ctx.sync(source,dest);
-  assert.equal(dest.scrollTop,112.5);
+test('wheel actions transfer delta pixels, not proportional positions', () => {
+  const convert=html.match(/function wheelDeltaPixels\(event, source\) \{[\s\S]*?\n    \}/);
+  const mirror=html.match(/function mirrorWheelAction\(event, source, counterpart\) \{[\s\S]*?\n    \}/);
+  assert.ok(convert && mirror);
+  const source={scrollTop:120,scrollLeft:0,clientHeight:400};
+  const target={scrollTop:780,scrollLeft:5,clientHeight:250};
+  const ctx={readingMode:false,editorCollapsed:false,getComputedStyle(){return {lineHeight:'20px'};}};
+  vm.runInNewContext(convert[0]+'\n'+mirror[0]+'\nthis.mirror=mirrorWheelAction;',ctx);
+  ctx.mirror({deltaY:36,deltaX:4,deltaMode:0},source,target);
+  assert.equal(source.scrollTop,120);
+  assert.equal(target.scrollTop,816);
+  assert.equal(target.scrollLeft,9);
+  ctx.mirror({deltaY:-2,deltaX:0,deltaMode:1},source,target);
+  assert.equal(target.scrollTop,776);
+  ctx.mirror({deltaY:1,deltaX:0,deltaMode:2},source,target);
+  assert.equal(target.scrollTop,1176);
+  ctx.readingMode=true;
+  ctx.mirror({deltaY:100,deltaX:0,deltaMode:0},source,target);
+  assert.equal(target.scrollTop,1176);
+  ctx.readingMode=false;
+  ctx.editorCollapsed=true;
+  ctx.mirror({deltaY:100,deltaX:0,deltaMode:0},source,target);
+  assert.equal(target.scrollTop,1176);
+  ctx.editorCollapsed=false;
+  ctx.mirror({deltaY:100,deltaX:0,deltaMode:0,ctrlKey:true},source,target);
+  assert.equal(target.scrollTop,1176);
+  ctx.mirror({deltaY:100,deltaX:0,deltaMode:0,metaKey:true},source,target);
+  assert.equal(target.scrollTop,1176);
+  assert.match(html,/editor\.addEventListener\('wheel', event => mirrorWheelAction\(event, editor, preview\), \{ passive: true \}\)/);
+  assert.match(html,/preview\.addEventListener\('wheel', event => mirrorWheelAction\(event, preview, editor\), \{ passive: true \}\)/);
+  assert.doesNotMatch(html,/\.addEventListener\('scroll', \(\) => syncScroll/);
 });
 
-test('outline jumps to the correct heading level and scrolls only the preview to its top', () => {
+test('reading-mode outline jumps to preview without focusing or scrolling the hidden editor', () => {
   const fn=html.match(/function jumpToHeading\(index\) \{[\s\S]*?\n    \}/);
   assert.ok(fn);
   const outlineHeadings=[
@@ -544,23 +544,19 @@ test('outline jumps to the correct heading level and scrolls only the preview to
   const preview={
     scrollTop:50,clientTop:0,clientHeight:300,scrollHeight:800,
     getBoundingClientRect(){return {top:100};},
-    querySelectorAll(selector) {
-      assert.equal(selector,'.markdown-body h2');
-      return [first,second];
-    },
-    querySelector(selector) {assert.equal(selector,'.markdown-body');return body;},
+    querySelectorAll(selector){assert.equal(selector,'.markdown-body h2');return [first,second];},
+    querySelector(){return body;},
     scrollTo(options){this.scrolled=options;}
   };
   const editor={
-    value:'',selectionStart:0,
-    setSelectionRange(a,b){this.selectionStart=a;this.selectionEnd=b;},
-    focus(){throw Error('reading mode must not focus the editor');}
+    selectionStart:0,
+    setSelectionRange(a){this.selectionStart=a;},
+    focus(){throw Error('reading mode must not focus the hidden editor');}
   };
   const ctx={
     outlineHeadings,readingMode:true,editor,preview,imageDataCollapsed:false,
     getMarkdown(){return '# Top\n## First\n### Nested\n## Second';},
-    suppressScrollSync(duration){ctx.suppressed=duration;},
-    waitForOutlineNavigation(editorTop,previewTop){ctx.waited=[editorTop,previewTop];},
+    scrollTextareaToCaret(){throw Error('reading mode must not scroll hidden editor');},
     document:{querySelectorAll(){return Array.from({length:4},()=>({classList:{toggle(){}}}));}},
     getComputedStyle(){return {paddingBottom:'32px'};}
   };
@@ -569,14 +565,9 @@ test('outline jumps to the correct heading level and scrolls only the preview to
   assert.equal(preview.scrolled.behavior,'smooth');
   assert.equal(body.style.paddingBottom,'234px');
   assert.equal(editor.selectionStart,'# Top\n## First\n### Nested\n'.length);
-  assert.equal(ctx.suppressed,1400);
-  assert.equal(ctx.waited[0],null);
-  assert.equal(ctx.waited[1],700);
-  assert.equal(ctx.outlineNavigationActive,true);
+  assert.match(fn[0],/if \(!readingMode\) scrollTextareaToCaret\(target\)/);
   assert.doesNotMatch(fn[0],/\.scrollIntoView\s*\(/);
-  assert.match(fn[0],/preview\.scrollTo\(\{ top, behavior: 'smooth' \}\)/);
 });
-
 
 test('image export success/error notifications stay in front of the blurred overlay', () => {
   assert.match(html,/\.modal-overlay \{[\s\S]*?backdrop-filter: blur\(4px\);[\s\S]*?z-index: 200;/);
@@ -590,8 +581,8 @@ test('image export success/error notifications stay in front of the blurred over
   assert.match(html,/id="export-image-preview"/);
 });
 
-test('heading caret positioning scrolls editor to top, even for last heading', () => {
-  const match=html.match(/function scrollTextareaToCaret\(ta, alignToTop = false\) \{[\s\S]*?\n    \}/);
+test('heading caret mirror aligns editor heading to top and extends the last page if needed', () => {
+  const match=html.match(/function scrollTextareaToCaret\(ta\) \{[\s\S]*?\n    \}/);
   assert.ok(match);
   const ta={
     value:'# First\ntext\n## Last',selectionStart:'# First\ntext\n'.length,
@@ -601,100 +592,37 @@ test('heading caret positioning scrolls editor to top, even for last heading', (
   };
   const mirror={style:{},appendChild(child){this.child=child;},textContent:''};
   const marker={offsetTop:660,textContent:''};
-  const doc={
-    createElement(tag){return tag==='span'?marker:mirror;},
-    body:{appendChild(){},removeChild(){}}
-  };
-  const style={
-    paddingTop:'28px',paddingBottom:'28px',fontSize:'16px',width:'460px'
-  };
-  const ctx={
-    document:doc, getComputedStyle(){return style;}
-  };
-  vm.runInNewContext(match[0]+'\nthis.go=scrollTextareaToCaret;',ctx);
-  const top=ctx.go(ta,true);
-  assert.equal(top,632);
-  assert.equal(ta.scrollTop,632);
+  const doc={createElement(tag){return tag==='span'?marker:mirror;},
+    body:{appendChild(){},removeChild(){}}};
+  const style={paddingTop:'28px',paddingBottom:'28px',fontSize:'16px',width:'460px'};
+  const ctx={document:doc,getComputedStyle(){return style;}};
+  vm.runInNewContext(match[0]+'\nthis.align=scrollTextareaToCaret;',ctx);
+  ctx.align(ta);
+  assert.equal(ta.scrolled.top,632);
   assert.equal(ta.scrolled.behavior,'smooth');
   assert.equal(ta.style.paddingBottom,'242px');
-  // No expansion needed for an earlier heading.
   marker.offsetTop=75;
   ta.scrollHeight=700;
-  ta.style.paddingBottom='242px';
-  const earlier=ctx.go(ta,true);
-  assert.equal(earlier,47);
-  assert.equal(ta.style.paddingBottom,'');
+  ctx.align(ta);
   assert.equal(ta.scrolled.top,47);
-  // Non-navigation behavior still places the cursor one third into the viewport.
-  marker.offsetTop=330;
-  ctx.go(ta);
-  assert.equal(ta.scrollTop,Math.max(0,330-280/3));
+  assert.equal(ta.style.paddingBottom,'');
 });
 
-test('scroll coupling stays paused during navigation and resumes when both panes settle', () => {
-  const wait=html.match(/function waitForOutlineNavigation\(editorTop, previewTop\) \{[\s\S]*?\n    \}/);
-  const sync=html.match(/function syncScroll\(source, target\) \{[\s\S]*?\n    \}/);
-  assert.ok(wait&&sync);
-  const frames=[];
-  const editor={scrollTop:10,clientHeight:300,scrollHeight:1200};
-  const preview={scrollTop:20,clientHeight:300,scrollHeight:1500};
-  const ctx={
-    outlineNavigationId:0,outlineNavigationActive:true,syncSuppressUntil:3000,
-    readingMode:false,isSyncingScroll:false,now:100,
-    editor,preview,
-    Date:{now(){return ctx.now;}},
-    requestAnimationFrame(fn){frames.push(fn);}
-  };
-  vm.runInNewContext(wait[0]+'\n'+sync[0]+'\nthis.wait=waitForOutlineNavigation;this.sync=syncScroll;',ctx);
-  ctx.wait(400,620);
-  assert.equal(ctx.outlineNavigationId,1);
-  ctx.sync(editor,preview);
-  assert.equal(preview.scrollTop,20);
-  function frame(){ctx.now+=33;const fn=frames.shift();assert.ok(fn);fn();}
-  editor.scrollTop=400;
-  preview.scrollTop=500;
-  frame();
-  assert.equal(ctx.outlineNavigationActive,true);
-  preview.scrollTop=620;
-  frame();
-  frame();
-  frame();
-  assert.equal(ctx.outlineNavigationActive,false);
-  assert.equal(ctx.syncSuppressUntil,0);
-  editor.scrollTop=0;
-  ctx.sync(editor,preview);
-  assert.equal(preview.scrollTop,0);
+test('dead proportional sync and orphan Standard/fullscreen handlers have been removed', () => {
+  for(const obsolete of ['function syncScroll(', 'function suppressScrollSync(',
+    'function waitForOutlineNavigation(', 'outlineNavigationActive',
+    'outlineNavigationId', 'syncSuppressUntil', 'isSyncingScroll',
+    'setLayoutMode(', 'onFullscreenChange']) {
+    assert.equal(html.includes(obsolete),false,obsolete);
+  }
+  for(const required of ['function wheelDeltaPixels(', 'function mirrorWheelAction(',
+    "editor.addEventListener('wheel'", "preview.addEventListener('wheel'"]) {
+    assert.equal(html.includes(required),true,required);
+  }
+  assert.doesNotMatch(i18n,/^    viewStandard:/m);
 });
 
-test('repeated outline jumps do not let a stale animation restore coupling', () => {
-  const wait=html.match(/function waitForOutlineNavigation\(editorTop, previewTop\) \{[\s\S]*?\n    \}/);
-  assert.ok(wait);
-  const frames=[],editor={scrollTop:0},preview={scrollTop:0};
-  const ctx={
-    outlineNavigationId:0,outlineNavigationActive:true,syncSuppressUntil:1400,
-    readingMode:false,editor,preview,now:0,
-    Date:{now(){return ctx.now;}},
-    requestAnimationFrame(fn){frames.push(fn);}
-  };
-  vm.runInNewContext(wait[0]+'\nthis.wait=waitForOutlineNavigation;',ctx);
-  ctx.wait(100,100);
-  ctx.wait(200,200);
-  assert.equal(ctx.outlineNavigationId,2);
-  ctx.now+=16;
-  frames.shift()(); // stale navigation ID 1
-  assert.equal(ctx.outlineNavigationActive,true);
-  editor.scrollTop=200;
-  preview.scrollTop=200;
-  ctx.now+=16;
-  frames.shift()();
-  ctx.now+=16;
-  frames.shift()();
-  ctx.now+=16;
-  frames.shift()();
-  assert.equal(ctx.outlineNavigationActive,false);
-});
-
-test('outline navigation still targets the correct preview heading and now aligns editor', () => {
+test('standard-mode outline aligns both headings independently, without a scroll lock', () => {
   const fn=html.match(/function jumpToHeading\(index\) \{[\s\S]*?\n    \}/);
   assert.ok(fn);
   const headings=[{level:1,line:0},{level:2,line:2},{level:2,line:4}];
@@ -710,24 +638,33 @@ test('outline navigation still targets the correct preview heading and now align
     scrollTo(args){this.scrolled=args;}
   };
   const raw='# Heading\np\n## Mid\np\n## Final';
-  const editor={
-    selectionStart:0,
-    setSelectionRange(start){this.selectionStart=start;},
-    focus(){}
-  };
+  const editor={selectionStart:0,setSelectionRange(start){this.selectionStart=start;},focus(){}};
   const ctx={
     outlineHeadings:headings,readingMode:false,editor,preview,imageDataCollapsed:false,
     getMarkdown(){return raw;},
     document:{querySelectorAll(){return headings.map(()=>({classList:{toggle(){}}}));}},
-    suppressScrollSync(){},scrollTextareaToCaret(ta,top){assert.equal(top,true);return 285;},
-    waitForOutlineNavigation(editorTop,previewTop){ctx.waited=[editorTop,previewTop];},
+    scrollTextareaToCaret(ta){assert.equal(ta,editor);ctx.editorAlignmentCalls++;},
+    editorAlignmentCalls:0,
     getComputedStyle(){return {paddingBottom:'24px'};}
   };
   vm.runInNewContext(fn[0]+'\njumpToHeading(2);',ctx);
   assert.equal(editor.selectionStart,raw.indexOf('## Final'));
   assert.equal(preview.scrolled.top,410);
-  assert.equal(ctx.waited[0],285);
-  assert.equal(ctx.waited[1],410);
-  assert.equal(ctx.outlineNavigationActive,true);
+  assert.equal(preview.scrolled.behavior,'smooth');
+  assert.equal(ctx.editorAlignmentCalls,1);
   assert.doesNotMatch(fn[0],/\.scrollIntoView\s*\(/);
+  assert.doesNotMatch(fn[0],/suppressScrollSync|waitForOutlineNavigation|outlineNavigationActive/);
+});
+
+test('cleaned help content and documentation reflect the current menu and wheel navigation', () => {
+  const zh=readFileSync('README.zh.md','utf8');
+  const en=readFileSync('README.md','utf8');
+  assert.doesNotMatch(zh,/视图 → 标准/);
+  assert.match(zh,/独立滚动位置|独立滚动/);
+  assert.match(en,/independent scrolling/);
+  assert.doesNotMatch(html,/--radius-xl:/);
+  for (const old of ['仅编辑 / 仅预览','Edit only / Preview only','Nur bearbeiten / Nur Vorschau']) {
+    assert.equal(i18n.includes(old),false,old);
+  }
+  assert.match(i18n,/点击大纲标题可分别将两栏的标题置顶/);
 });
