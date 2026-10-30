@@ -539,9 +539,10 @@ test('responsive overflow moves one control at a time using actual available wid
   assert.deepEqual(fit(1500),[]);
   assert.equal(more.hidden,true);
   assert.deepEqual(inline.items.map(x=>x.id),ids);
-  assert.deepEqual(fit(980),[]);
-  assert.deepEqual(fit(930),['help-action']);
-  assert.deepEqual(fit(810),['lang-dropdown','clear-action','help-action']);
+  assert.deepEqual(fit(1050),[]);
+  assert.deepEqual(fit(980),['clear-action','help-action']);
+  assert.deepEqual(fit(920),['lang-dropdown','clear-action','help-action']);
+  assert.deepEqual(fit(810),['web-to-md-action','lang-dropdown','clear-action','help-action']);
   assert.deepEqual(fit(560),['export-dropdown','view-dropdown','theme-toggle',
     'web-to-md-action','lang-dropdown','clear-action','help-action']);
   assert.deepEqual(fit(210),ids);
