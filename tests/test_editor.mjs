@@ -130,7 +130,7 @@ test('import/export have no separate frame and share the utilities row', () => {
   const toolbar=html.match(/<div class="editor-toolbar" id="editor-toolbar">([\s\S]*?)<div class="main">/);
   assert.ok(toolbar);
   const src=toolbar[1];
-  const keys=['data-i18n="mermaid"','class="toolbar-divider"','id="toolbar-utilities"',
+  const keys=['data-i18n="mermaid"','id="toolbar-utilities"',
     'id="import-action"','id="export-dropdown"','id="view-dropdown"','id="theme-toggle"',
     'id="web-to-md-action"','id="lang-dropdown"','id="clear-action"','id="help-action"'];
   let previous=-1;
@@ -139,7 +139,7 @@ test('import/export have no separate frame and share the utilities row', () => {
     assert.ok(next>previous,'Toolbar ordering: '+key);
     previous=next;
   }
-  assert.equal((src.match(/class="toolbar-divider"/g)||[]).length,1);
+  assert.equal((src.match(/class="toolbar-divider"/g)||[]).length,0);
   assert.doesNotMatch(src,/class="import-export-group"/);
   assert.match(src,/id="more-actions" hidden/);
   assert.match(src,/id="more-menu"><\/div>/);
@@ -337,7 +337,7 @@ test('ten languages use outline titles without obsolete view options', () => {
   for(const old of ['viewBoth','viewEdit','viewPreview','viewOutline','viewStandard','collapsePreview','expandPreview']) {
     assert.doesNotMatch(i18n,new RegExp('^    '+old+':','m'),old);
   }
-  assert.match(html,/\.editor-toolbar \.format-group > button span\[data-i18n="codeBlock"\] \{ display: inline; \}/);
+  assert.match(html,/\.editor-toolbar\.format-compact \.format-group > button span\[data-i18n="codeBlock"\] \{ display: inline; \}/);
 });
 
 test('Reading mode hides editing chrome and replaces Page Fullscreen', () => {
@@ -948,6 +948,127 @@ test('Language button uses the correct chevron in inline and overflow layouts', 
   assert.ok(button);
   assert.match(button[0],/language-inline-chevron"[^]*?icon-chevron-down/);
   assert.match(button[0],/language-overflow-chevron"[^]*?icon-chevron-left/);
-  assert.match(html,/#toolbar-utilities \.language-overflow-chevron \{ display: none; \}/);
-  assert.match(html,/#more-menu \.language-inline-chevron \{ display: none; \}/);
+  assert.match(html,/#toolbar-utilities \.language-overflow-chevron,\s*#toolbar-utilities \.view-overflow-chevron \{ display: none; \}/);
+  assert.match(html,/#more-menu \.language-inline-chevron,\s*#more-menu \.view-inline-chevron \{ display: none; \}/);
+});
+
+
+test('readonly filename is measured to the visible text, leaving exactly 10px before Edit', () => {
+  assert.match(html,/\.editor-heading \{[^}]*gap: 10px;/);
+  assert.match(html,/\.editor-heading \.filename-slot \{[^}]*flex: 0 1 auto; min-width: 0; max-width: 48%;/);
+  assert.match(html,/\.filename-slot input\[type="text"\] \{[^}]*padding: 0;[^}]*border: none;/);
+  assert.match(html,/\.editor-heading \.filename-slot input \{ min-width: 0; max-width: 100%; \}/);
+  const fn=html.match(/function updateFilenameWidth\(\) \{[\s\S]*?\n    \}/);
+  assert.ok(fn);
+  const slot={style:{}};
+  const input={value:'A.md',parentElement:slot};
+  const ctx={
+    filenameInput:input,
+    document:{createElement(type){
+      assert.equal(type,'canvas');
+      return {getContext(){return {font:'',measureText(value){
+        return {width:value.length*7.5};
+      }}}};
+    }},
+    getComputedStyle(){return {font:'600 12px sans-serif'};}
+  };
+  vm.runInNewContext(fn[0]+'\nthis.measureFilename=updateFilenameWidth;',ctx);
+  ctx.measureFilename();
+  assert.equal(slot.style.width,'31px');
+  input.value='LongerName.md';
+  ctx.measureFilename();
+  assert.equal(slot.style.width,'99px');
+  assert.match(html,/function applyLanguage\(\) \{[\s\S]*?updateFilenameWidth\(\);/);
+  assert.match(html,/filenameInput\.value = name;\s*syncDocumentTitle\(\);\s*updateFilenameWidth\(\)/);
+});
+
+test('Base64 toggle is hidden and disabled except for Markdown with embedded image data', () => {
+  assert.match(html,/id="base64-toggle"[^>]*hidden disabled/);
+  const detector=html.match(/function hasEmbeddedBase64Image\(\) \{[\s\S]*?\n    \}/);
+  const updater=html.match(/function updateBase64Button\(\) \{[\s\S]*?\n    \}/);
+  assert.ok(detector&&updater);
+  const button={hidden:false,disabled:false,textContent:'',title:'',attributes:{},
+    setAttribute(k,v){this.attributes[k]=v;}};
+  const ctx={
+    content:'',
+    getMarkdown(){return ctx.content;},
+    imageDataCollapsed:true,
+    document:{getElementById(){return button;}},
+    t(x){return x;}
+  };
+  vm.runInNewContext(detector[0]+'\n'+updater[0]+'\nthis.update=updateBase64Button;',ctx);
+  ctx.update();assert.equal(button.hidden,true);assert.equal(button.disabled,true);
+  ctx.content='![ordinary](https://example.com/photo.jpg)';
+  ctx.update();assert.equal(button.hidden,true);
+  ctx.content='![embedded](data:image/png;base64,'+'Q'.repeat(220)+')';
+  ctx.update();assert.equal(button.hidden,false);assert.equal(button.disabled,false);
+  assert.equal(button.attributes['aria-pressed'],'false');
+  ctx.imageDataCollapsed=false;ctx.update();
+  assert.equal(button.textContent,'hideBase64');
+  ctx.content='plain Markdown again';ctx.update();
+  assert.equal(button.hidden,true);assert.equal(button.disabled,true);
+  const toggle=html.match(/function toggleBase64\(\) \{[\s\S]*?\n    \}/);
+  assert.match(toggle[0],/if \(!hasEmbeddedBase64Image\(\)\) return;/);
+  assert.match(html,/function updatePreview\(\) \{\s*let text = getMarkdown\(\);\s*updateBase64Button\(\);/);
+});
+
+test('View menu chevron points left in overflow while remaining down inline', () => {
+  const view=html.match(/id="view-dropdown"[\s\S]*?<button[^>]*onclick="toggleViewMenu\(\)"[\s\S]*?<\/button>/);
+  assert.ok(view);
+  assert.match(view[0],/view-inline-chevron"[^]*?icon-chevron-down/);
+  assert.match(view[0],/view-overflow-chevron"[^]*?icon-chevron-left/);
+  assert.match(html,/#more-menu \.view-overflow-chevron \{ display: inline; \}/);
+});
+
+test('Export View and Language overflow triggers are left-aligned and keep menus', () => {
+  const css=[...html.matchAll(/#more-menu > \.dropdown > button \{([\s\S]*?)\}/g)];
+  assert.ok(css.length);
+  assert.match(css[css.length-1][1],/justify-content: flex-start; text-align: left;/);
+  assert.doesNotMatch(css[css.length-1][1],/justify-content: space-between/);
+  assert.match(html,/#more-menu > #view-dropdown > \.dropdown-menu/);
+  assert.match(html,/#more-menu > #export-dropdown > \.dropdown-menu/);
+  assert.match(html,/#more-menu #lang-menu \{ left: auto; top: 0; right: calc\(100% \+ 6px\);/);
+  assert.match(html,/id="export-dropdown"[\s\S]*?id="export-menu"/);
+});
+
+test('inline Chinese Language menu opens inward at right edge without being clipped', () => {
+  assert.match(html,/#toolbar-utilities #lang-menu \{ left: auto; right: 0; top: 100%; margin-top: 8px; \}/);
+  assert.match(html,/#more-menu #lang-menu \{ left: auto; top: 0; right: calc\(100% \+ 6px\); margin-top: 0; \}/);
+  const toggler=html.match(/function toggleLangMenu\(\) \{[\s\S]*?\n    \}/);
+  const state={show:false, classList:{toggle(key){state.show=!state.show;return state.show;}}};
+  const ctx={document:{getElementById(){return state;}}};
+  vm.runInNewContext(toggler[0]+'\nthis.toggle=toggleLangMenu;',ctx);
+  ctx.toggle();assert.equal(state.show,true);
+  ctx.toggle();assert.equal(state.show,false);
+  assert.match(html,/if \(langDropdown && !langDropdown\.contains\(e\.target\)\) \{\s*closeLangMenu\(\)/);
+});
+
+
+test('clicking inline Language must not be closed by the inactive More menu', () => {
+  const click=html.match(/\/\/ 点击外部关闭下拉菜单\s*\n\s*document\.addEventListener\('click', \(e\) => \{[\s\S]*?\n    \}\);/);
+  assert.ok(click);
+  const handlers={};
+  const state={moreOpen:false,langOpen:true,moreCloses:0,langCloses:0};
+  const elements={
+    'lang-dropdown':{contains(target){return target==='inline-language';}},
+    'more-dropdown':{contains(target){return target==='more-button';}},
+    'more-menu':{classList:{contains(c){return c==='show'&&state.moreOpen;}}}
+  };
+  const ctx={
+    document:{
+      addEventListener(name,fn){handlers[name]=fn;},
+      getElementById(id){return elements[id]||null;}
+    },
+    closeLangMenu(){state.langOpen=false;state.langCloses++;},
+    closeMoreMenu(){state.moreOpen=false;state.langOpen=false;state.moreCloses++;}
+  };
+  vm.runInNewContext(click[0],ctx);
+  assert.equal(typeof handlers.click,'function');
+  handlers.click({target:'inline-language'});
+  assert.equal(state.langOpen,true,'Inline Language should remain open');
+  assert.equal(state.moreCloses,0,'Closed More menu must not be closed again');
+  state.moreOpen=true;state.langOpen=true;
+  handlers.click({target:'outside'});
+  assert.equal(state.moreCloses,1,'Open More menu closes on outside click');
+  assert.equal(state.langOpen,false);
 });
