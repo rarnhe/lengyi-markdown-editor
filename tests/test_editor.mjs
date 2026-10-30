@@ -337,7 +337,7 @@ test('ten languages use outline titles without obsolete view options', () => {
   for(const old of ['viewBoth','viewEdit','viewPreview','viewOutline','viewStandard','collapsePreview','expandPreview']) {
     assert.doesNotMatch(i18n,new RegExp('^    '+old+':','m'),old);
   }
-  assert.match(html,/\.editor-toolbar \.format-group > button span\[data-i18n="codeBlock"\] \{ display: inline; \}/);
+  assert.match(html,/\.editor-toolbar\.format-compact \.format-group > button span\[data-i18n="codeBlock"\] \{ display: inline; \}/);
 });
 
 test('Reading mode hides editing chrome and replaces Page Fullscreen', () => {
@@ -991,7 +991,7 @@ test('Base64 toggle is hidden and disabled except for Markdown with embedded ima
     setAttribute(k,v){this.attributes[k]=v;}};
   const ctx={
     content:'',
-    getMarkdown(){return this.content;},
+    getMarkdown(){return ctx.content;},
     imageDataCollapsed:true,
     document:{getElementById(){return button;}},
     t(x){return x;}
@@ -1021,10 +1021,10 @@ test('View menu chevron points left in overflow while remaining down inline', ()
 });
 
 test('Export View and Language overflow triggers are left-aligned and keep menus', () => {
-  const css=html.match(/#more-menu > \.dropdown > button \{[\s\S]*?\}/);
-  assert.ok(css);
-  assert.match(css[0],/justify-content: flex-start; text-align: left;/);
-  assert.doesNotMatch(css[0],/justify-content: space-between/);
+  const css=[...html.matchAll(/#more-menu > \.dropdown > button \{([\s\S]*?)\}/g)];
+  assert.ok(css.length);
+  assert.match(css[css.length-1][1],/justify-content: flex-start; text-align: left;/);
+  assert.doesNotMatch(css[css.length-1][1],/justify-content: space-between/);
   assert.match(html,/#more-menu > #view-dropdown > \.dropdown-menu/);
   assert.match(html,/#more-menu > #export-dropdown > \.dropdown-menu/);
   assert.match(html,/#more-menu #lang-menu \{ left: auto; top: 0; right: calc\(100% \+ 6px\);/);
