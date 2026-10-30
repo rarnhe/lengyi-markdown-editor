@@ -41,6 +41,7 @@ It is **just one HTML file**. Double-click to write. Everything is stored locall
 
 - **Drag-and-drop import**: drop files directly into the window.
 - **Live preview**: write on the left, preview on the right in real time.
+- **Compact single-row toolbar**: formatting and Mermaid tools, editable filename, View / Night–Day theme toggle, grouped Import / Export, and a right-edge ⋮ menu for Web to Markdown, Language, Clear, and Help. Saving (Ctrl+S) and finding (Ctrl+F) remain available as keyboard shortcuts.
 - **Standard and Reading modes**: Standard shows the editor, live preview, and outline. Reading mode hides editing controls and floats a draggable outline over a full-width preview; use its Exit Reading Mode button or Escape to return.
 - **File title and timestamp**: the browser tab shows the Markdown filename. The top bar displays this HTML page's opening time, or the import time after loading a `.md` / `.markdown` file. The timestamp is read-only and resets to the opening time when creating a new document.
 - **Base64 folding**: hide or show embedded image data on the left without affecting the preview.

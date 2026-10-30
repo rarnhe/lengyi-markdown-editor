@@ -126,13 +126,22 @@ test('copying hidden Base64 transfers complete Markdown, not a placeholder', () 
   assert.ok(prevented);
 });
 
-test('editable filename fills top bar and original brand label is removed', () => {
-  assert.doesNotMatch(html, /class="brand"/);
-  assert.doesNotMatch(html, /class="spacer"/);
-  assert.match(html, /\.top-bar input\[type="text"\] \{[\s\S]*?flex: 1 1 260px/);
-  const header = html.match(/<div class="top-bar">([\s\S]*?)<div class="top-actions">/);
-  assert.ok(header);
-  assert.match(header[1], /id="filename"/);
+test('single toolbar places format, filename, view/theme, import/export and More in order', () => {
+  assert.doesNotMatch(html, /class="top-bar"|class="top-actions"|class="brand"/);
+  const toolbar=html.match(/<div class="editor-toolbar">([\s\S]*?)<div class="main">/);
+  assert.ok(toolbar);
+  const ui=toolbar[1];
+  const ids=['class="format-group"','class="filename-slot"','class="editor-actions"',
+    'class="import-export-group"','class="more-actions"'];
+  const positions=ids.map(key=>ui.indexOf(key));
+  assert.ok(positions.every(index=>index>=0));
+  assert.deepEqual(positions,[...positions].sort((a,b)=>a-b));
+  assert.match(ui,/id="filename"/);
+  assert.match(ui,/id="heading-menu"[\s\S]*?id="table-menu"[\s\S]*?data-i18n="mermaid"/);
+  assert.match(ui,/class="import-export-group"[\s\S]*?for="importFile"[\s\S]*?id="export-dropdown"/);
+  assert.match(html,/\.editor-toolbar \{[\s\S]*?flex-wrap: nowrap;/);
+  assert.match(html,/\.editor-toolbar \.filename-slot \{[^}]*min-width: 110px;/);
+  assert.match(html,/@media \(max-width: 1040px\) \{/);
 });
 
 test('filename edits and imports synchronize browser tab title', () => {
@@ -284,7 +293,7 @@ test('Standard layout keeps independent editor and outline fold controls', () =>
 test('outline collapse arrow moves to the left, switches direction and preserves width', () => {
   const paneHeader=html.match(/<div class="pane outline-pane" id="outline-pane">([\s\S]*?)<div class="outline-list"/);
   assert.ok(paneHeader);
-  assert.match(paneHeader[1],/id="outline-collapse-btn"[\s\S]*?icon-chevron-left/);
+  assert.match(paneHeader[1],/id="outline-collapse-btn"[\s\S]*?icon-chevron-right/);
   assert.match(html,/\.outline-pane\.collapsed \.outline-list \{ display: none; \}/);
   assert.match(html,/\.outline-pane \.pane-header > \.collapse-btn \{ position: absolute; left: 12px; \}/);
   const block=html.match(/function applyOutlineState\(\) \{[\s\S]*?\n    \}/);
@@ -303,14 +312,14 @@ test('outline collapse arrow moves to the left, switches direction and preserves
   ctx.syncOutline();
   assert.equal(pane.style.flex,'0 0 320px');
   assert.equal(pane.classList.states.collapsed,false);
-  assert.match(button.innerHTML,/icon-chevron-left/);
+  assert.match(button.innerHTML,/icon-chevron-right/);
   assert.equal(button.attributes['aria-expanded'],'true');
   ctx.outlineVisible=false;
   ctx.syncOutline();
   assert.equal(pane.style.flex,'');
   assert.equal(pane.classList.states.collapsed,true);
   assert.equal(resizer.classList.states.hidden,true);
-  assert.match(button.innerHTML,/icon-chevron-right/);
+  assert.match(button.innerHTML,/icon-chevron-left/);
   assert.equal(button.attributes['aria-expanded'],'false');
   assert.match(html,/localStorage\.setItem\(OUTLINE_WIDTH_KEY, outlineWidth\)/);
 });
@@ -322,7 +331,7 @@ test('ten languages use outline titles without obsolete view options', () => {
   for(const old of ['viewBoth','viewEdit','viewPreview','viewOutline','viewStandard','collapsePreview','expandPreview']) {
     assert.doesNotMatch(i18n,new RegExp('^    '+old+':','m'),old);
   }
-  assert.match(html,/\.editor-toolbar button span\[data-i18n="codeBlock"\] \{ display: inline; \}/);
+  assert.match(html,/\.editor-toolbar \.format-group > button span\[data-i18n="codeBlock"\] \{ display: inline; \}/);
 });
 
 test('Reading mode hides editing chrome and replaces Page Fullscreen', () => {
@@ -334,7 +343,7 @@ test('Reading mode hides editing chrome and replaces Page Fullscreen', () => {
   for(const obsolete of ['togglePageFullscreen','PAGE_FULLSCREEN_KEY','.app.page-fullscreen','page-fullscreen-active']) {
     assert.equal(html.includes(obsolete),false,obsolete);
   }
-  for(const hidden of ['.top-bar','.editor-toolbar','.statusbar','.editor-pane','#resizer','#outline-resizer','.preview-pane .pane-header']) {
+  for(const hidden of ['.editor-toolbar','.statusbar','.editor-pane','#resizer','#outline-resizer','.preview-pane .pane-header']) {
     assert.ok(html.includes('.app.reading-mode '+hidden),hidden);
   }
   assert.match(html,/\.app\.reading-mode \.main \{ flex-direction: row; \}/);
@@ -441,7 +450,9 @@ test('preview header centers the title beside a blue word count', () => {
 });
 
 test('document timestamp shows HTML opening time, then successful Markdown import time', () => {
-  assert.match(html, /<time id="document-time" aria-live="polite"><\/time>/);
+  assert.match(html, /class="editor-heading"[\s\S]*?<time id="document-time" aria-live="polite"><\/time>[\s\S]*?data-i18n="editorPaneTitle"/);
+  assert.match(html, /#document-time \{[^}]*border: none; background: transparent; padding: 0;/);
+  assert.match(html, /\.editor-pane\.collapsed #document-time \{ display: none; \}/);
   assert.doesNotMatch(html, /id="file-path"|filePathInput|setFilePath|FILE_PATH_KEY/);
   const formatter=html.match(/function formatDocumentTime\(date\) \{[\s\S]*?\n    \}/);
   const render=html.match(/function updateDocumentTime\(\) \{[\s\S]*?\n    \}/);
@@ -479,21 +490,26 @@ test('document timestamp shows HTML opening time, then successful Markdown impor
   }
 });
 
-test('language and Help exchange places, Standard disappears from UI only', () => {
-  const header=html.match(/<div class="top-actions">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="editor-toolbar">/);
-  assert.ok(header);
-  const area=header[1];
-  const language=area.indexOf('id="lang-dropdown"');
-  const help=area.indexOf('onclick="openHelp()"');
-  const clear=area.indexOf('onclick="clearDoc()"');
-  assert.ok(language>0 && language<clear && clear<help);
-  const view=html.match(/<div class="dropdown-menu" id="view-menu">([\s\S]*?)<\/div>\s*<\/div>/);
-  assert.ok(view);
-  assert.doesNotMatch(view[1],/setLayoutMode\('standard'\)|data-i18n="viewStandard"/);
-  assert.match(view[1],/setReadingMode\(true\)/);
-  assert.match(view[1],/toggleFullscreen\(\)/);
-  assert.doesNotMatch(html,/function setLayoutMode\(mode\) \{/);
-  assert.doesNotMatch(i18n,/^    viewStandard:/m);
+test('More menu contains web conversion, nested language, Clear and Help in order', () => {
+  const area=html.match(/<div class="dropdown-menu" id="more-menu">([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>\s*<\/div>\s*<div class="main">/);
+  assert.ok(area);
+  const keys=['openUrlModal(); closeMoreMenu();','id="lang-dropdown"',
+    'closeMoreMenu(); clearDoc();','openHelp(); closeMoreMenu();'];
+  const positions=keys.map(x=>area[1].indexOf(x));
+  assert.ok(positions.every(x=>x>=0));
+  assert.deepEqual(positions,[...positions].sort((a,b)=>a-b));
+  assert.match(area[1], /id="lang-menu"[\s\S]*?setLanguage\('pt'\); closeLangMenu\(\); closeMoreMenu\(\)/);
+  assert.match(html, /#more-dropdown > \.dropdown-menu \{[^}]*overflow: visible;/);
+  assert.match(html, /#lang-menu \{[^}]*right: calc\(100% \+ 6px\)/);
+  assert.doesNotMatch(html,/onclick="saveToLocal\(\)"|onclick="openFindModal\(\)"/);
+  assert.match(html,/function saveToLocal\(\)/);
+  assert.match(html,/function openFindModal\(/);
+  const handler=html.match(/function handleEditorKeydown\(e\) \{[\s\S]*?\n    \}/);
+  assert.ok(handler);
+  assert.match(handler[0], /e\.key === 's'[\s\S]*?saveToLocal\(\)/);
+  assert.match(handler[0], /e\.key === 'f'[\s\S]*?openFindModal\(\)/);
+  assert.match(html, /function closeMoreMenu\(\)/);
+  assert.match(html, /if \(moreDropdown && !moreDropdown\.contains\(e\.target\)\) \{\s*closeMoreMenu\(\)/);
 });
 
 test('directional movement converges at both edges without forcing intermediate positions', () => {
@@ -738,4 +754,60 @@ test('cleaned help content and documentation reflect the current menu and wheel 
     assert.equal(i18n.includes(old),false,old);
   }
   assert.match(i18n,/点击大纲标题可分别将两栏的标题置顶/);
+});
+
+
+test('More menu toggles, closes on outside click, and cleans up language submenu', () => {
+  const start=html.match(/function toggleMoreMenu\(\) \{[\s\S]*?\n    \}/);
+  const end=html.match(/function closeMoreMenu\(\) \{[\s\S]*?\n    \}/);
+  assert.ok(start && end);
+  const open={state:false,classList:{
+    toggle(key){open.state=!open.state;return open.state;},
+    remove(){open.state=false;}
+  }};
+  const attrs={};
+  const toggle={setAttribute(k,v){attrs[k]=v;}};
+  const dom={getElementById(id){return id==='more-menu'?open:toggle;}};
+  const ctx={document:dom,closeLangMenu(){ctx.closedLanguages++;},closedLanguages:0};
+  vm.runInNewContext(start[0]+'\n'+end[0]+'\nthis.toggle=toggleMoreMenu;this.close=closeMoreMenu;',ctx);
+  ctx.toggle();assert.equal(open.state,true);assert.equal(attrs['aria-expanded'],'true');
+  ctx.toggle();assert.equal(open.state,false);assert.equal(attrs['aria-expanded'],'false');
+  assert.equal(ctx.closedLanguages,1);
+  ctx.toggle();ctx.close();
+  assert.equal(open.state,false);assert.equal(attrs['aria-expanded'],'false');
+  assert.equal(ctx.closedLanguages,2);
+});
+
+test('theme action swaps 夜间 and 日间 on click, language change and stored dark theme', () => {
+  const update=html.match(/function updateThemeButton\(\) \{[\s\S]*?\n    \}/);
+  assert.ok(update);
+  const themeSpan={textContent:''};
+  const icon={href:'',setAttribute(k,v){this[k]=v;}};
+  const attrs={};
+  const button={
+    title:'',querySelector(q){return q==='#theme-label'?themeSpan:icon;},
+    setAttribute(k,v){attrs[k]=v;}
+  };
+  const body={theme:'light',getAttribute(){return this.theme;},setAttribute(k,v){this.theme=v;}};
+  const ctx={
+    document:{body,getElementById(){return button;}},
+    t(key){return key==='themeDark'?'夜间':'日间';}
+  };
+  vm.runInNewContext(update[0]+'\nthis.update=updateThemeButton;',ctx);
+  ctx.update();
+  assert.equal(themeSpan.textContent,'夜间');
+  assert.equal(icon.href,'#icon-moon');
+  assert.equal(button.title,'夜间');
+  body.theme='dark';ctx.update();
+  assert.equal(themeSpan.textContent,'日间');
+  assert.equal(icon.href,'#icon-sun');
+  assert.equal(attrs['aria-label'],'日间');
+  assert.match(html,/function toggleTheme\(\) \{[\s\S]*?updateThemeButton\(\);/);
+  assert.match(html,/function applyLanguage\(\) \{[\s\S]*?updateThemeButton\(\);/);
+  assert.match(html,/id="theme-toggle" onclick="toggleTheme\(\)"/);
+  for (const key of ['themeDark','themeLight','moreMenu']) {
+    assert.equal((i18n.match(new RegExp('^    '+key+':','gm'))||[]).length,10,key);
+  }
+  assert.match(i18n,/themeDark: '夜间'/);
+  assert.match(i18n,/themeLight: '日间'/);
 });

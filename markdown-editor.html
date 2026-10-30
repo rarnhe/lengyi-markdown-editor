@@ -94,86 +94,54 @@
     .icon-sm { width: 14px; height: 14px; }
     .icon-lg { width: 18px; height: 18px; }
 
-    /* 顶部栏 */
-    .top-bar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 14px;
-      background: var(--panel-bg);
-      border-bottom: 1px solid var(--border);
-      box-shadow: var(--shadow-sm);
-      flex-wrap: wrap;
-      z-index: 10;
+    /* 单行合并工具栏 */
+    .editor-toolbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 8px 12px; background: var(--panel-bg); border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow-sm); flex-wrap: nowrap; position: relative; z-index: 10;
     }
-    .top-bar input[type="text"] {
-      flex: 1 1 260px;
-      min-width: 0;
-      padding: 6px 12px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      background: var(--bg);
-      color: var(--text);
-      font-size: 14px;
-      font-weight: 500;
-      outline: none;
-      transition: border-color .2s ease, box-shadow .2s ease;
+    .editor-toolbar .filename-slot { flex: 1 1 165px; min-width: 110px; max-width: 200px; }
+    .filename-slot input[type="text"] {
+      box-sizing: border-box; width: 100%; min-width: 0; padding: 6px 9px;
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      background: var(--bg); color: var(--text); font-size: 13px; font-weight: 500; outline: none;
     }
-    #document-time {
-      flex: 0 0 auto;
-      padding: 6px 10px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      background: var(--surface);
-      color: var(--text-secondary);
-      font-size: 12px;
-      white-space: nowrap;
-      font-variant-numeric: tabular-nums;
-    }
-    .top-bar input[type="text"]:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-soft);
-    }
-    .top-actions {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-      flex: 0 0 auto;
-    }
-    .top-bar button, .top-bar label,
+    .filename-slot input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
     .editor-toolbar button, .editor-toolbar label {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      border: none;
-      border-radius: var(--radius-sm);
-      background: transparent;
-      color: var(--text-secondary);
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all .2s ease;
-      user-select: none;
-      white-space: nowrap;
+      display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 6px 8px;
+      border: none; border-radius: var(--radius-sm); background: transparent;
+      color: var(--text-secondary); font-size: 12px; font-weight: 500;
+      cursor: pointer; user-select: none; white-space: nowrap;
     }
-    .top-bar button:hover, .top-bar label:hover,
-    .editor-toolbar button:hover, .editor-toolbar label:hover {
-      background: var(--surface);
-      color: var(--accent);
+    .editor-toolbar button:hover, .editor-toolbar label:hover { background: var(--surface-hover); color: var(--accent); }
+    .editor-toolbar input[type="file"] { display: none; }
+    .editor-toolbar .format-group, .editor-toolbar .editor-actions,
+    .editor-toolbar .import-export-group, .editor-toolbar .more-actions {
+      display: flex; align-items: center; gap: 3px; padding: 4px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      flex-wrap: nowrap; flex-shrink: 0;
     }
-    .top-bar button.primary, .editor-toolbar button.primary {
-      background: var(--accent);
-      color: #fff;
-      box-shadow: 0 1px 2px rgba(79, 70, 229, 0.2);
+    .editor-toolbar .format-group { flex: 1 1 auto; min-width: 0; }
+    .editor-toolbar .format-group > button, .editor-toolbar .format-group > .dropdown { flex-shrink: 0; }
+    #more-toggle { font-size: 23px; line-height: 16px; font-weight: 700; padding: 5px 9px; min-width: 35px; }
+    #more-dropdown > .dropdown-menu { left: auto; right: 0; min-width: 152px; overflow: visible; }
+    #more-menu > button.dropdown-item, #more-menu > .submenu > button.dropdown-item {
+      width: 100%; justify-content: flex-start; text-align: left; font-size: 13px; padding: 9px 12px;
     }
-    .top-bar button.primary:hover, .editor-toolbar button.primary:hover {
-      background: var(--accent-hover);
-      box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25);
+    #more-menu > .submenu { display: block; width: 100%; }
+    #more-menu > .submenu > button.dropdown-item { justify-content: space-between; }
+    #lang-menu { top: 0; right: calc(100% + 6px); left: auto; margin-top: 0; }
+    @media (max-width: 1420px) {
+      .editor-toolbar .format-group > button span { display: none; }
+      .editor-toolbar .format-group > button span[data-i18n="codeBlock"] { display: inline; }
+      .editor-toolbar .filename-slot { flex-basis: 135px; max-width: 170px; }
     }
-    .top-bar input[type="file"], .editor-toolbar input[type="file"] { display: none; }
+    @media (max-width: 1040px) {
+      .editor-toolbar { flex-wrap: wrap; }
+      .editor-toolbar .format-group { flex: 1 1 100%; justify-content: flex-start; }
+      .editor-toolbar .filename-slot { flex: 1 1 140px; max-width: none; }
+      .editor-toolbar .more-actions { margin-left: auto; }
+    }
     .dropdown {
       position: relative;
       display: inline-flex;
@@ -195,10 +163,6 @@
       padding: 6px;
       animation: menuIn .2s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .top-actions .dropdown-menu {
-      left: auto;
-      right: 0;
-    }
     .dropdown-menu.show {
       display: flex;
     }
@@ -216,34 +180,7 @@
       background: var(--accent-soft);
       color: var(--accent);
     }
-    .top-bar .divider, .editor-toolbar .divider {
-      width: 1px;
-      height: 18px;
-      background: var(--border);
-      margin: 0 4px;
-    }
-    /* 编辑器工具栏 */
-    .editor-toolbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 8px 14px;
-      background: var(--bg);
-      border-bottom: 1px solid var(--border);
-      flex-wrap: wrap;
-    }
-    .editor-toolbar .format-group,
-    .editor-toolbar .editor-actions {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      flex-wrap: wrap;
-      padding: 4px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-    }
+    .editor-toolbar .divider { width: 1px; height: 18px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
     .editor-toolbar button {
       padding: 5px;
       border-radius: var(--radius-sm);
@@ -331,6 +268,12 @@
     [data-theme="dark"] #word-count { color: #60a5fa; }
     .editor-pane .pane-header { position: relative; justify-content: center; }
     .editor-heading { display: flex; align-items: center; justify-content: center; gap: 10px; }
+    #document-time {
+      color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums;
+      text-transform: none; letter-spacing: normal; white-space: nowrap;
+      border: none; background: transparent; padding: 0;
+    }
+    .editor-pane.collapsed #document-time { display: none; }
     .editor-pane .pane-header > .collapse-btn { position: absolute; right: 12px; }
     #base64-toggle {
       padding: 3px 8px;
@@ -727,12 +670,12 @@
     .modal-footer button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
     /* 移动端 */
     @media (max-width: 768px) {
-      .top-bar { padding: 8px; gap: 6px; }
-      .top-bar input[type="text"] { flex: 1 1 120px; min-width: 0; }
       .editor-toolbar { padding: 6px; gap: 8px; }
       .editor-toolbar .format-group, .editor-toolbar .editor-actions { gap: 3px; padding: 3px; }
-      .top-bar button span, .editor-toolbar button span { display: none; }
-      .editor-toolbar button span[data-i18n="codeBlock"] { display: inline; }
+      .editor-toolbar .format-group { flex-wrap: wrap; }
+      .editor-toolbar .format-group > button span { display: none; }
+      .editor-toolbar .format-group > button span[data-i18n="codeBlock"] { display: inline; }
+      #more-menu button span, #theme-label { display: inline; }
       .main { flex-direction: column; }
       .preview-pane { border-left: none; border-top: 1px solid var(--border); }
       .pane { flex: 1; height: auto; min-height: 0; }
@@ -966,7 +909,6 @@
     }
     /* 阅读模式：预览占满空间，大纲浮动且可拖动，不改标准布局状态。 */
     .reading-controls { display: none; }
-    .app.reading-mode .top-bar,
     .app.reading-mode .editor-toolbar,
     .app.reading-mode .statusbar,
     .app.reading-mode .editor-pane,
@@ -1056,7 +998,7 @@
     }
     /* 打印 / 导出 PDF */
     @media print {
-      .top-bar, .editor-toolbar, .statusbar, .editor-pane, .resizer, .outline-pane, .preview-pane .pane-header,
+      .editor-toolbar, .statusbar, .editor-pane, .resizer, .outline-pane, .preview-pane .pane-header,
       .modal-overlay, .toast, .icon-sprite {
         display: none !important;
       }
@@ -1103,6 +1045,7 @@
       <symbol id="icon-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></symbol>
       <symbol id="icon-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></symbol>
       <symbol id="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path></symbol>
+      <symbol id="icon-moon" viewBox="0 0 24 24"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5 8.5 8.5 0 1 0 20.5 14.5z"></path></symbol>
       <symbol id="icon-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></symbol>
       <symbol id="icon-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></symbol>
       <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></symbol>
@@ -1137,44 +1080,6 @@
     </defs>
   </svg>
   <div class="app">
-    <div class="top-bar">
-      <input type="text" id="filename" value="未命名文档.md" data-i18n-title="filenameTitle" title="文件名" aria-label="文件名">
-      <time id="document-time" aria-live="polite"></time>
-      <div class="top-actions">
-        <button onclick="saveToLocal()" class="primary" data-i18n-title="save"><svg class="icon"><use href="#icon-save"></use></svg> <span data-i18n="save">保存</span></button>
-        <label for="importFile"><svg class="icon"><use href="#icon-upload"></use></svg> <span data-i18n="importBtn">导入</span></label>
-        <input type="file" id="importFile" accept=".md,.markdown,.txt" onchange="importFile(this)">
-        <div class="dropdown" id="export-dropdown">
-          <button onclick="toggleExportMenu()" data-i18n-title="exportBtn"><svg class="icon"><use href="#icon-download"></use></svg> <span data-i18n="exportBtn">导出</span></button>
-          <div class="dropdown-menu" id="export-menu">
-            <div class="dropdown-item" onclick="exportFile(); closeExportMenu();" data-i18n="exportMd">导出 Markdown (.md)</div>
-            <div class="dropdown-item" onclick="exportWord(); closeExportMenu();" data-i18n="exportWord">导出 Word (.doc)</div>
-            <div class="dropdown-item" onclick="exportPDF(); closeExportMenu();" data-i18n="exportPdf">导出 PDF (.pdf)</div>
-            <div class="dropdown-item" onclick="exportHTML(); closeExportMenu();" data-i18n="exportHtml">导出 HTML (.html)</div>
-            <div class="dropdown-item" onclick="openExportImageModal(); closeExportMenu();" data-i18n="exportImage">导出图片 (.png)</div>
-          </div>
-        </div>
-        <button onclick="openUrlModal()" data-i18n-title="urlTitle"><svg class="icon"><use href="#icon-globe"></use></svg> <span data-i18n="webToMd">网页转MD</span></button>
-        <div class="dropdown" id="lang-dropdown">
-          <button onclick="toggleLangMenu()" data-i18n-title="langLabel"><svg class="icon"><use href="#icon-globe"></use></svg> <span data-i18n="langLabel">语言</span></button>
-          <div class="dropdown-menu" id="lang-menu">
-            <div class="dropdown-item" onclick="setLanguage('zh-CN'); closeLangMenu();">简体中文</div>
-            <div class="dropdown-item" onclick="setLanguage('zh-TW'); closeLangMenu();">繁體中文</div>
-            <div class="dropdown-item" onclick="setLanguage('en'); closeLangMenu();">English</div>
-            <div class="dropdown-item" onclick="setLanguage('ja'); closeLangMenu();">日本語</div>
-            <div class="dropdown-item" onclick="setLanguage('ko'); closeLangMenu();">한국어</div>
-            <div class="dropdown-item" onclick="setLanguage('es'); closeLangMenu();">Español</div>
-            <div class="dropdown-item" onclick="setLanguage('fr'); closeLangMenu();">Français</div>
-            <div class="dropdown-item" onclick="setLanguage('de'); closeLangMenu();">Deutsch</div>
-            <div class="dropdown-item" onclick="setLanguage('ru'); closeLangMenu();">Русский</div>
-            <div class="dropdown-item" onclick="setLanguage('pt'); closeLangMenu();">Português</div>
-          </div>
-        </div>
-        <button onclick="clearDoc()" data-i18n-title="clear"><svg class="icon"><use href="#icon-trash"></use></svg> <span data-i18n="clear">清空</span></button>
-        <button onclick="openHelp()" data-i18n-title="helpTitle"><svg class="icon"><use href="#icon-help"></use></svg> <span data-i18n="help">帮助</span></button>
-      </div>
-    </div>
-
     <div class="editor-toolbar">
       <div class="format-group">
         <button onclick="undo()" data-i18n-title="undoTitle" title="撤销 Ctrl+Z"><svg class="icon"><use href="#icon-undo"></use></svg></button>
@@ -1215,9 +1120,9 @@
             <div class="table-size-label" id="table-size-label">0 行 × 0 列</div>
           </div>
         </div>
-        <button onclick="openFindModal()" data-i18n-title="find" title="查找替换 Ctrl+F"><svg class="icon"><use href="#icon-search"></use></svg> <span data-i18n="find">查找</span></button>
         <button onclick="openMermaidModal()" data-i18n-title="mermaid" title="插入 Mermaid 图表"><svg class="icon"><use href="#icon-mermaid"></use></svg> <span data-i18n="mermaid">Mermaid</span></button>
       </div>
+      <div class="filename-slot"><input type="text" id="filename" value="未命名文档.md" data-i18n-title="filenameTitle" title="文件名" aria-label="文件名"></div>
       <div class="editor-actions">
         <div class="dropdown" id="view-dropdown">
           <button onclick="toggleViewMenu()" data-i18n-title="view" title="视图布局"><svg class="icon"><use href="#icon-layout"></use></svg> <span data-i18n="view">视图</span> <svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></button>
@@ -1226,7 +1131,46 @@
             <div class="dropdown-item" onclick="toggleFullscreen(); closeViewMenu();" data-i18n="systemFullscreen">系统全屏</div>
           </div>
         </div>
-        <button onclick="toggleTheme()" data-i18n-title="theme" title="切换主题"><svg class="icon"><use href="#icon-sun"></use></svg> <span data-i18n="theme">主题</span></button>
+        <button type="button" id="theme-toggle" onclick="toggleTheme()" title="夜间"><svg class="icon"><use href="#icon-moon"></use></svg> <span id="theme-label">夜间</span></button>
+      </div>
+      <div class="import-export-group">
+        <label for="importFile"><svg class="icon"><use href="#icon-upload"></use></svg> <span data-i18n="importBtn">导入</span></label>
+        <input type="file" id="importFile" accept=".md,.markdown,.txt" onchange="importFile(this)">
+        <div class="dropdown" id="export-dropdown">
+          <button onclick="toggleExportMenu()" data-i18n-title="exportBtn"><svg class="icon"><use href="#icon-download"></use></svg> <span data-i18n="exportBtn">导出</span></button>
+          <div class="dropdown-menu" id="export-menu">
+            <div class="dropdown-item" onclick="exportFile(); closeExportMenu();" data-i18n="exportMd">导出 Markdown (.md)</div>
+            <div class="dropdown-item" onclick="exportWord(); closeExportMenu();" data-i18n="exportWord">导出 Word (.doc)</div>
+            <div class="dropdown-item" onclick="exportPDF(); closeExportMenu();" data-i18n="exportPdf">导出 PDF (.pdf)</div>
+            <div class="dropdown-item" onclick="exportHTML(); closeExportMenu();" data-i18n="exportHtml">导出 HTML (.html)</div>
+            <div class="dropdown-item" onclick="openExportImageModal(); closeExportMenu();" data-i18n="exportImage">导出图片 (.png)</div>
+          </div>
+        </div>
+      </div>
+      <div class="more-actions">
+        <div class="dropdown" id="more-dropdown">
+          <button type="button" id="more-toggle" onclick="toggleMoreMenu()" aria-haspopup="true" aria-expanded="false" aria-label="更多操作" data-i18n-title="moreMenu" title="更多操作">⋮</button>
+          <div class="dropdown-menu" id="more-menu">
+            <button type="button" class="dropdown-item" onclick="openUrlModal(); closeMoreMenu();" data-i18n="webToMd">网页转MD</button>
+            <div class="dropdown submenu" id="lang-dropdown">
+              <button type="button" class="dropdown-item" onclick="toggleLangMenu()" data-i18n-title="langLabel"><span data-i18n="langLabel">语言</span><svg class="icon icon-sm"><use href="#icon-chevron-left"></use></svg></button>
+          <div class="dropdown-menu" id="lang-menu">
+            <div class="dropdown-item" onclick="setLanguage('zh-CN'); closeLangMenu(); closeMoreMenu();">简体中文</div>
+            <div class="dropdown-item" onclick="setLanguage('zh-TW'); closeLangMenu(); closeMoreMenu();">繁體中文</div>
+            <div class="dropdown-item" onclick="setLanguage('en'); closeLangMenu(); closeMoreMenu();">English</div>
+            <div class="dropdown-item" onclick="setLanguage('ja'); closeLangMenu(); closeMoreMenu();">日本語</div>
+            <div class="dropdown-item" onclick="setLanguage('ko'); closeLangMenu(); closeMoreMenu();">한국어</div>
+            <div class="dropdown-item" onclick="setLanguage('es'); closeLangMenu(); closeMoreMenu();">Español</div>
+            <div class="dropdown-item" onclick="setLanguage('fr'); closeLangMenu(); closeMoreMenu();">Français</div>
+            <div class="dropdown-item" onclick="setLanguage('de'); closeLangMenu(); closeMoreMenu();">Deutsch</div>
+            <div class="dropdown-item" onclick="setLanguage('ru'); closeLangMenu(); closeMoreMenu();">Русский</div>
+            <div class="dropdown-item" onclick="setLanguage('pt'); closeLangMenu(); closeMoreMenu();">Português</div>
+          </div>
+            </div>
+            <button type="button" class="dropdown-item" onclick="closeMoreMenu(); clearDoc();" data-i18n="clear">清空</button>
+            <button type="button" class="dropdown-item" onclick="openHelp(); closeMoreMenu();" data-i18n="help">帮助</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1234,6 +1178,7 @@
       <div class="pane editor-pane">
         <div class="pane-header">
           <div class="editor-heading">
+            <time id="document-time" aria-live="polite"></time>
             <span class="pane-title" data-i18n="editorPaneTitle">编辑</span>
             <button type="button" id="base64-toggle" onclick="toggleBase64()" aria-pressed="false" data-i18n-title="showBase64" title="显示 Base64">显示 Base64</button>
           </div>
@@ -1254,7 +1199,7 @@
       <div class="resizer" id="outline-resizer"></div>
       <div class="pane outline-pane" id="outline-pane">
         <div class="pane-header">
-          <button class="collapse-btn" id="outline-collapse-btn" onclick="toggleOutline()" data-i18n-title="collapseOutline" title="收起大纲" aria-expanded="true"><svg class="icon icon-sm"><use href="#icon-chevron-left"></use></svg></button>
+          <button class="collapse-btn" id="outline-collapse-btn" onclick="toggleOutline()" data-i18n-title="collapseOutline" title="收起大纲" aria-expanded="true"><svg class="icon icon-sm"><use href="#icon-chevron-right"></use></svg></button>
           <span class="pane-title" data-i18n="outlineTitle">大纲</span>
           <div class="reading-controls">
             <span class="reading-drag-grip" aria-hidden="true">⠿</span>
@@ -1304,7 +1249,7 @@
 
         <p><b>保存、导入与导出</b></p>
         <ul>
-          <li>按 <code>Ctrl+S</code> 或点「保存」按钮；编辑器每 500ms 自动保存一次。</li>
+          <li>按 <code>Ctrl+S</code> 保存；编辑器每 500ms 自动保存一次。按 <code>Ctrl+F</code> 可查找替换。</li>
           <li>点「导入」导入本地 .md / .txt，或直接把文件拖进窗口。</li>
           <li>点「导出」导出 Markdown、HTML、Word、PDF（打印另存为）或图片。</li>
         </ul>
@@ -1694,6 +1639,8 @@
       if (outlineVisible) renderOutline();
       syncDocumentTitle();
       updateDocumentTime();
+      updateThemeButton();
+      document.getElementById('more-toggle').setAttribute('aria-label', t('moreMenu'));
     }
 
     function updateCollapseBtnLabels() {
@@ -1708,6 +1655,19 @@
       if (statusLeft) statusLeft.textContent = t('autosaveEnabled');
       if (statusRight) statusRight.textContent = t('statusShortcuts');
       if (saveHint) saveHint.textContent = '✓ ' + t('saved');
+    }
+
+    function toggleMoreMenu() {
+      const menu = document.getElementById('more-menu');
+      const opened = menu.classList.toggle('show');
+      document.getElementById('more-toggle').setAttribute('aria-expanded', String(opened));
+      if (!opened) closeLangMenu();
+    }
+
+    function closeMoreMenu() {
+      document.getElementById('more-menu').classList.remove('show');
+      document.getElementById('more-toggle').setAttribute('aria-expanded', 'false');
+      closeLangMenu();
     }
 
     function toggleLangMenu() {
@@ -2017,8 +1977,8 @@
       pane.style.flex = expanded ? '0 0 ' + outlineWidth + 'px' : '';
       outlineResizer.classList.toggle('hidden', !outlineVisible || readingMode);
       button.innerHTML = expanded
-        ? '<svg class="icon icon-sm"><use href="#icon-chevron-left"></use></svg>'
-        : '<svg class="icon icon-sm"><use href="#icon-chevron-right"></use></svg>';
+        ? '<svg class="icon icon-sm"><use href="#icon-chevron-right"></use></svg>'
+        : '<svg class="icon icon-sm"><use href="#icon-chevron-left"></use></svg>';
       const label = t(expanded ? 'collapseOutline' : 'expandOutline');
       button.title = label;
       button.setAttribute('aria-label', label);
@@ -2709,11 +2669,23 @@ ${'</scr' + 'ipt>'}
       input.value = '';
     }
 
+    // Theme button shows the action that will be taken, not the current mode.
+    function updateThemeButton() {
+      const button = document.getElementById('theme-toggle');
+      const dark = document.body.getAttribute('data-theme') === 'dark';
+      const label = t(dark ? 'themeLight' : 'themeDark');
+      button.querySelector('#theme-label').textContent = label;
+      button.querySelector('use').setAttribute('href', dark ? '#icon-sun' : '#icon-moon');
+      button.title = label;
+      button.setAttribute('aria-label', label);
+    }
+
     // 切换主题
     function toggleTheme() {
       const current = document.body.getAttribute('data-theme');
       const next = current === 'dark' ? 'light' : 'dark';
       document.body.setAttribute('data-theme', next);
+      updateThemeButton();
       localStorage.setItem(THEME_KEY, next);
       if (typeof mermaid !== 'undefined') {
         mermaid.initialize({
@@ -3656,6 +3628,10 @@ ${'</scr' + 'ipt>'}
       const langDropdown = document.getElementById('lang-dropdown');
       if (langDropdown && !langDropdown.contains(e.target)) {
         closeLangMenu();
+      }
+      const moreDropdown = document.getElementById('more-dropdown');
+      if (moreDropdown && !moreDropdown.contains(e.target)) {
+        closeMoreMenu();
       }
     });
 

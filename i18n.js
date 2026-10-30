@@ -14,7 +14,7 @@ const i18n = {
 </ul>
 <p><b>保存、导入与导出</b></p>
 <ul>
-  <li>按 <code>Ctrl+S</code> 或点「保存」按钮；编辑器每 500ms 自动保存一次。</li>
+  <li>按 <code>Ctrl+S</code> 保存，编辑器每 500ms 自动保存一次；按 <code>Ctrl+F</code> 查找。</li>
   <li>点「导入」导入本地 .md / .txt，或直接把文件拖进窗口。</li>
   <li>点「导出」导出 Markdown、HTML、Word、PDF（打印另存为）或图片。</li>
 </ul>
@@ -81,6 +81,9 @@ const i18n = {
     exitReadingMode: '退出阅读模式',
     systemFullscreen: '系统全屏',
     theme: '主题',
+    themeDark: '夜间',
+    themeLight: '日间',
+    moreMenu: '更多操作',
     langLabel: '语言',
     editorPaneTitle: '编辑',
     editorPlaceholder: '开始输入 Markdown...',
@@ -202,7 +205,7 @@ const i18n = {
 </ul>
 <p><b>儲存、匯入與匯出</b></p>
 <ul>
-  <li>按 <code>Ctrl+S</code> 或點「儲存」按鈕；編輯器每 500ms 自動儲存一次。</li>
+  <li>按 <code>Ctrl+S</code> 儲存，編輯器每 500ms 自動儲存；按 <code>Ctrl+F</code> 尋找。</li>
   <li>點「匯入」匯入本地 .md / .txt，或直接把檔案拖進視窗。</li>
   <li>點「匯出」匯出 Markdown、HTML、Word、PDF（列印另存為 PDF）或圖片。</li>
 </ul>
@@ -269,6 +272,9 @@ const i18n = {
     exitReadingMode: '退出閱讀模式',
     systemFullscreen: '系統全螢幕',
     theme: '主題',
+    themeDark: '夜間',
+    themeLight: '日間',
+    moreMenu: '更多操作',
     langLabel: '語言',
     editorPaneTitle: '編輯',
     editorPlaceholder: '開始輸入 Markdown...',
@@ -390,7 +396,7 @@ const i18n = {
 </ul>
 <p><b>Save, import & export</b></p>
 <ul>
-  <li>Press <code>Ctrl+S</code> or click the Save button; auto-save runs every 500 ms.</li>
+  <li>Press <code>Ctrl+S</code> to save; auto-save runs every 500 ms. Use <code>Ctrl+F</code> to find.</li>
   <li>Click Import to open a local .md / .txt file, or drag a file into the window.</li>
   <li>Click Export to Markdown, HTML, Word, PDF (print to PDF), or image.</li>
 </ul>
@@ -457,6 +463,9 @@ const i18n = {
     exitReadingMode: 'Exit Reading Mode',
     systemFullscreen: 'System Fullscreen',
     theme: 'Theme',
+    themeDark: 'Night',
+    themeLight: 'Day',
+    moreMenu: 'More actions',
     langLabel: 'Language',
     editorPaneTitle: 'Edit',
     editorPlaceholder: 'Start typing Markdown...',
@@ -578,7 +587,7 @@ const i18n = {
 </ul>
 <p><b>保存、インポート、エクスポート</b></p>
 <ul>
-  <li><code>Ctrl+S</code> または 💾 保存をクリック；500ms ごとに自動保存されます。</li>
+  <li><code>Ctrl+S</code> で保存；500ms ごとに自動保存されます。検索は <code>Ctrl+F</code>。</li>
   <li>⬆ インポートでローカルの .md / .txt を開くか、ファイルをウィンドウにドラッグ。</li>
   <li>⬇ エクスポートで Markdown、HTML、Word、PDF（PDF として保存）、画像を出力。</li>
 </ul>
@@ -645,6 +654,9 @@ const i18n = {
     exitReadingMode: '閲覧モードを終了',
     systemFullscreen: 'システム全画面',
     theme: 'テーマ',
+    themeDark: '夜間',
+    themeLight: '日間',
+    moreMenu: 'その他の操作',
     langLabel: '言語',
     editorPaneTitle: '編集',
     editorPlaceholder: 'Markdown を入力...',
@@ -766,7 +778,7 @@ const i18n = {
 </ul>
 <p><b>저장, 가져오기 및 내보내기</b></p>
 <ul>
-  <li><code>Ctrl+S</code> 또는 💾 저장 클릭; 500ms마다 자동 저장됩니다.</li>
+  <li><code>Ctrl+S</code>로 저장하고 500ms마다 자동 저장됩니다. 찾기는 <code>Ctrl+F</code>.</li>
   <li>⬆ 가져오기로 로컬 .md / .txt를 열거나 파일을 창으로 드래그하세요.</li>
   <li>⬇ 내보내기로 Markdown, HTML, Word, PDF(PDF로 저장), 이미지 출력.</li>
 </ul>
@@ -833,6 +845,9 @@ const i18n = {
     exitReadingMode: '읽기 모드 종료',
     systemFullscreen: '시스템 전체 화면',
     theme: '테마',
+    themeDark: '야간',
+    themeLight: '주간',
+    moreMenu: '추가 작업',
     langLabel: '언어',
     editorPaneTitle: '편집',
     editorPlaceholder: 'Markdown을 입력하세요...',
@@ -954,7 +969,7 @@ const i18n = {
 </ul>
 <p><b>Guardar, importar y exportar</b></p>
 <ul>
-  <li>Pulsa <code>Ctrl+S</code> o haz clic en 💾 Guardar; el guardado automático se ejecuta cada 500 ms.</li>
+  <li>Pulsa <code>Ctrl+S</code> para guardar; el guardado automático se ejecuta cada 500 ms. Usa <code>Ctrl+F</code> para buscar.</li>
   <li>Haz clic en ⬆ Importar para abrir un archivo .md / .txt local, o arrastra un archivo a la ventana.</li>
   <li>Haz clic en ⬇ Exportar a Markdown, HTML, Word, PDF (imprimir como PDF) o imagen.</li>
 </ul>
@@ -1021,6 +1036,9 @@ const i18n = {
     exitReadingMode: 'Salir del modo lectura',
     systemFullscreen: 'Pantalla completa del sistema',
     theme: 'Tema',
+    themeDark: 'Noche',
+    themeLight: 'Día',
+    moreMenu: 'Más acciones',
     langLabel: 'Idioma',
     editorPaneTitle: 'Editar',
     editorPlaceholder: 'Escribe Markdown...',
@@ -1142,7 +1160,7 @@ const i18n = {
 </ul>
 <p><b>Enregistrer, importer et exporter</b></p>
 <ul>
-  <li>Appuyez sur <code>Ctrl+S</code> ou cliquez sur 💾 Enregistrer ; la sauvegarde automatique s’exécute toutes les 500 ms.</li>
+  <li>Appuyez sur <code>Ctrl+S</code> pour enregistrer ; la sauvegarde automatique s’exécute toutes les 500 ms. Utilisez <code>Ctrl+F</code> pour rechercher.</li>
   <li>Cliquez sur ⬆ Importer pour ouvrir un fichier .md / .txt local, ou glissez-déposez un fichier dans la fenêtre.</li>
   <li>Cliquez sur ⬇ Exporter vers Markdown, HTML, Word, PDF (enregistrer en PDF) ou image.</li>
 </ul>
@@ -1209,6 +1227,9 @@ const i18n = {
     exitReadingMode: 'Quitter le mode lecture',
     systemFullscreen: 'Plein écran système',
     theme: 'Thème',
+    themeDark: 'Nuit',
+    themeLight: 'Jour',
+    moreMenu: 'Plus d’actions',
     langLabel: 'Langue',
     editorPaneTitle: 'Éditer',
     editorPlaceholder: 'Saisissez du Markdown...',
@@ -1330,7 +1351,7 @@ const i18n = {
 </ul>
 <p><b>Speichern, importieren und exportieren</b></p>
 <ul>
-  <li>Drücke <code>Ctrl+S</code> oder klicke auf 💾 Speichern; automatisches Speichern läuft alle 500 ms.</li>
+  <li>Drücke <code>Ctrl+S</code> zum Speichern; automatisches Speichern läuft alle 500 ms. Suche mit <code>Ctrl+F</code>.</li>
   <li>Klicke auf ⬆ Importieren, um eine lokale .md / .txt Datei zu öffnen, oder ziehe eine Datei ins Fenster.</li>
   <li>Klicke auf ⬇ Exportieren nach Markdown, HTML, Word, PDF (als PDF speichern) oder Bild.</li>
 </ul>
@@ -1397,6 +1418,9 @@ const i18n = {
     exitReadingMode: 'Lesemodus verlassen',
     systemFullscreen: 'System-Vollbild',
     theme: 'Thema',
+    themeDark: 'Nacht',
+    themeLight: 'Tag',
+    moreMenu: 'Weitere Aktionen',
     langLabel: 'Sprache',
     editorPaneTitle: 'Bearbeiten',
     editorPlaceholder: 'Markdown eingeben...',
@@ -1518,7 +1542,7 @@ const i18n = {
 </ul>
 <p><b>Сохранение, импорт и экспорт</b></p>
 <ul>
-  <li>Нажмите <code>Ctrl+S</code> или кликните 💾 Сохранить; автосохранение работает каждые 500 мс.</li>
+  <li>Нажмите <code>Ctrl+S</code> для сохранения; автосохранение работает каждые 500 мс. Для поиска используйте <code>Ctrl+F</code>.</li>
   <li>Кликните ⬆ Импорт, чтобы открыть локальный файл .md / .txt, или перетащите файл в окно.</li>
   <li>Кликните ⬇ Экспорт в Markdown, HTML, Word, PDF (сохранить как PDF) или изображение.</li>
 </ul>
@@ -1585,6 +1609,9 @@ const i18n = {
     exitReadingMode: 'Выйти из режима чтения',
     systemFullscreen: 'Системный полноэкранный режим',
     theme: 'Тема',
+    themeDark: 'Ночь',
+    themeLight: 'День',
+    moreMenu: 'Другие действия',
     langLabel: 'Язык',
     editorPaneTitle: 'Редактирование',
     editorPlaceholder: 'Введите Markdown...',
@@ -1706,7 +1733,7 @@ const i18n = {
 </ul>
 <p><b>Salvar, importar e exportar</b></p>
 <ul>
-  <li>Pressione <code>Ctrl+S</code> ou clique em 💾 Salvar; o salvamento automático ocorre a cada 500 ms.</li>
+  <li>Pressione <code>Ctrl+S</code> para salvar; o salvamento automático ocorre a cada 500 ms. Use <code>Ctrl+F</code> para localizar.</li>
   <li>Clique em ⬆ Importar para abrir um arquivo .md / .txt local, ou arraste um arquivo para a janela.</li>
   <li>Clique em ⬇ Exportar para Markdown, HTML, Word, PDF (salvar como PDF) ou imagem.</li>
 </ul>
@@ -1773,6 +1800,9 @@ const i18n = {
     exitReadingMode: 'Sair do modo leitura',
     systemFullscreen: 'Tela cheia do sistema',
     theme: 'Tema',
+    themeDark: 'Noite',
+    themeLight: 'Dia',
+    moreMenu: 'Mais ações',
     langLabel: 'Idioma',
     editorPaneTitle: 'Editar',
     editorPlaceholder: 'Digite Markdown...',
