@@ -922,3 +922,13 @@ test('responsive toolbar remains configurable when reading mode hides its width'
   assert.match(html,/\.app\.reading-mode \.editor-toolbar[, ]/);
   assert.match(html,/id="more-actions" hidden/);
 });
+
+
+test('Language button uses the correct chevron in inline and overflow layouts', () => {
+  const button=html.match(/id="lang-dropdown"[^]*?<button type="button"[^]*?<\/button>/);
+  assert.ok(button);
+  assert.match(button[0],/language-inline-chevron"[^]*?icon-chevron-down/);
+  assert.match(button[0],/language-overflow-chevron"[^]*?icon-chevron-left/);
+  assert.match(html,/#toolbar-utilities \.language-overflow-chevron \{ display: none; \}/);
+  assert.match(html,/#more-menu \.language-inline-chevron \{ display: none; \}/);
+});
