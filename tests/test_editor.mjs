@@ -530,7 +530,7 @@ test('outline jumps to the correct heading level and scrolls only the preview to
   const ctx={
     outlineHeadings,readingMode:true,editor,preview,imageDataCollapsed:false,
     getMarkdown(){return '# Top\n## First\n### Nested\n## Second';},
-    suppressScrollSync(duration){this.suppressed=duration;},
+    suppressScrollSync(duration){ctx.suppressed=duration;},
     document:{querySelectorAll(){return Array.from({length:4},()=>({classList:{toggle(){}}}));}},
     getComputedStyle(){return {paddingBottom:'32px'};}
   };
