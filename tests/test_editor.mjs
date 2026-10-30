@@ -906,3 +906,19 @@ test('link editing uses a standard modal and captures the selected text before f
     assert.equal((i18n.match(new RegExp('^    '+key+':','gm'))||[]).length,10,key);
   }
 });
+
+
+test('main inline JavaScript and translations parse without new runtime dependencies', () => {
+  const first=html.indexOf('  <script>');
+  const last=html.lastIndexOf('  </script>');
+  assert.ok(first>0 && last>first);
+  const source=html.slice(first+'  <script>'.length,last);
+  assert.doesNotThrow(()=>new vm.Script(source,{filename:'markdown-editor.html'}));
+  assert.doesNotThrow(()=>new vm.Script(i18n,{filename:'i18n.js'}));
+});
+
+test('responsive toolbar remains configurable when reading mode hides its width', () => {
+  assert.match(html,/const width = document\.getElementById\('editor-toolbar'\)\.clientWidth \|\| window\.innerWidth;/);
+  assert.match(html,/\.app\.reading-mode \.editor-toolbar \{/);
+  assert.match(html,/id="more-actions" hidden/);
+});

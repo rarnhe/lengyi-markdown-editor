@@ -1709,7 +1709,7 @@
     // Move the original controls (not copies) between inline toolbar and overflow.
     // Two width thresholds preserve one line on desktop without changing handlers.
     function applyToolbarOverflow() {
-      const width = document.getElementById('editor-toolbar').clientWidth;
+      const width = document.getElementById('editor-toolbar').clientWidth || window.innerWidth;
       const utilities = document.getElementById('toolbar-utilities');
       const menu = document.getElementById('more-menu');
       const more = document.getElementById('more-actions');
