@@ -1391,6 +1391,27 @@
     </div>
   </div>
 
+  <!-- 插入链接：与图片、Mermaid 共用标准模态框视觉样式 -->
+  <div class="modal-overlay" id="link-modal">
+    <div class="modal" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3><svg class="icon icon-lg"><use href="#icon-link"></use></svg> <span data-i18n="linkModalTitle">插入链接</span></h3>
+        <button type="button" onclick="closeLinkModal()" aria-label="Close"><svg class="icon"><use href="#icon-close"></use></svg></button>
+      </div>
+      <div class="modal-body">
+        <label for="link-text-input" data-i18n="linkTextLabel">链接文字</label>
+        <input type="text" id="link-text-input" data-i18n-placeholder="linkTextPlaceholder" placeholder="链接">
+        <label for="link-url-input" data-i18n="linkUrlLabel">链接地址</label>
+        <input type="url" id="link-url-input" data-i18n-placeholder="linkUrlPlaceholder" placeholder="https://example.com"
+          onkeydown="if(event.key === 'Enter') { event.preventDefault(); confirmLinkInsert(); }">
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="closeLinkModal()" data-i18n="cancel">取消</button>
+        <button type="button" onclick="confirmLinkInsert()" class="primary" data-i18n="insert">插入</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 插入图片模态框 -->
   <div class="modal-overlay" id="image-modal">
     <div class="modal" style="max-width: 520px;">
@@ -1684,6 +1705,32 @@
       if (statusRight) statusRight.textContent = t('statusShortcuts');
       if (saveHint) saveHint.textContent = '✓ ' + t('saved');
     }
+
+    // Move the original controls (not copies) between inline toolbar and overflow.
+    // Two width thresholds preserve one line on desktop without changing handlers.
+    function applyToolbarOverflow() {
+      const width = document.getElementById('editor-toolbar').clientWidth;
+      const utilities = document.getElementById('toolbar-utilities');
+      const menu = document.getElementById('more-menu');
+      const more = document.getElementById('more-actions');
+      const ids = ['view-dropdown', 'theme-toggle', 'web-to-md-action',
+        'lang-dropdown', 'clear-action', 'help-action'];
+      const hidden = width < 1260 ? ids :
+        width < 1720 ? ids.slice(2) : [];
+      closeMoreMenu();
+      ids.forEach(id => {
+        const node = document.getElementById(id);
+        if (hidden.includes(id)) {
+          menu.appendChild(node);
+          if (node.tagName === 'BUTTON') node.classList.add('dropdown-item');
+        } else {
+          utilities.appendChild(node);
+          node.classList.remove('dropdown-item');
+        }
+      });
+      more.hidden = hidden.length === 0;
+    }
+    window.addEventListener('resize', applyToolbarOverflow);
 
     function toggleMoreMenu() {
       const menu = document.getElementById('more-menu');
@@ -2208,6 +2255,7 @@
         openHelp();
       }
       applyLanguage();
+      applyToolbarOverflow();
     }
 
     // 渲染预览
@@ -2903,19 +2951,53 @@ ${'</scr' + 'ipt>'}
       document.getElementById('heading-menu').classList.remove('show');
     }
 
-    function insertLink() {
+    let linkSelection = null;
+
+    function openLinkModal() {
+      // Keep the selection even when the dialog takes keyboard focus.
+      linkSelection = { start: editor.selectionStart, end: editor.selectionEnd };
+      const selected = editor.value.slice(linkSelection.start, linkSelection.end);
+      document.getElementById('link-text-input').value = selected || t('link');
+      document.getElementById('link-url-input').value = '';
+      const dialog = document.getElementById('link-modal');
+      dialog.style.display = 'flex';
+      void dialog.offsetWidth;
+      dialog.classList.add('show');
+      document.getElementById('link-url-input').focus();
+    }
+
+    function closeLinkModal() {
+      const dialog = document.getElementById('link-modal');
+      dialog.classList.remove('show');
+      setTimeout(() => { if (!dialog.classList.contains('show')) dialog.style.display = 'none'; }, 200);
+      linkSelection = null;
+    }
+
+    function confirmLinkInsert() {
+      const url = document.getElementById('link-url-input').value.trim();
+      if (!url) {
+        showToast(t('promptLinkUrl'));
+        document.getElementById('link-url-input').focus();
+        return;
+      }
+      const label = document.getElementById('link-text-input').value.trim() || t('link');
+      const selection = linkSelection;
+      if (!selection) return;
       pushHistory();
-      const el = editor;
-      const start = el.selectionStart;
-      const end = el.selectionEnd;
-      const selected = el.value.slice(start, end) || t('link');
-      const url = prompt(t('promptLinkUrl'), t('promptLinkDefault'));
-      if (!url) return;
-      el.setRangeText('[' + selected + '](' + url + ')', start, end, 'end');
+      // Escape Markdown link punctuation without changing the underlying URL.
+      const safeLabel = label.replace(/\\/g, '\\\\').replace(/\]/g, '\\]');
+      const safeUrl = url.replace(/\\/g, '\\\\').replace(/\)/g, '\\)');
+      editor.setRangeText('[' + safeLabel + '](' + safeUrl + ')', selection.start, selection.end, 'end');
       updatePreview();
       updateCount();
       autoSave();
-      el.focus();
+      closeLinkModal();
+      editor.focus();
+    }
+
+    // Ctrl+K retains its existing handler while using the same modal as the toolbar.
+    function insertLink() {
+      openLinkModal();
     }
 
     function insertImageMarkdown(alt, url) {
@@ -3569,6 +3651,14 @@ ${'</scr' + 'ipt>'}
     filenameInput.addEventListener('input', () => {
       syncDocumentTitle();
       autoSave();
+    });
+    filenameInput.addEventListener('keydown', event => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      filenameInput.value = filenameInput.value.trim() || t('filenameDefault');
+      syncDocumentTitle();
+      autoSave();
+      filenameInput.blur();
     });
     editor.addEventListener('beforeinput', protectBase64Marker);
     editor.addEventListener('copy', copyExpandedBase64);
