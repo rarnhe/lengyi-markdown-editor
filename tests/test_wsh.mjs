@@ -48,7 +48,7 @@ test('existing editor delegates optional dynamic rendering to local WSH proxy', 
   assert.match(html, /id="browser-render-row"/);
   assert.match(html, /data-i18n="browserRender"/);
   assert.match(html, /document\.getElementById\('browser-render'\)\.checked \? '&mode=browser' : ''/);
-  assert.match(html, /id="proxy-url" value="http:\/\/localhost:8765\/fetch"/);
+  assert.match(html, /id="proxy-url" value="http:\/\/127.0.0.1:8765\/fetch"/);
   assert.equal((i18n.match(/^    browserRender:/gm)||[]).length, 10);
   assert.doesNotMatch(html, /web-to-md-proxy\.py/);
 });
