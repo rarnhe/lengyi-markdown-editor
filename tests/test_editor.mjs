@@ -493,7 +493,7 @@ test('browser tab title shows opening time and updates to saved time', () => {
   assert.match(html,/function saveToLocal\(\) \{[\s\S]*?markDocumentSaved\(\)/);
   assert.match(html,/function exportFile\(\) \{[\s\S]*?markDocumentSaved\(\)/);
   assert.doesNotMatch(html,/id="document-time"|function updateDocumentTime\(/);
-  assert.match(html,/setDocumentImportTime\(\/\.\(md\|markdown\)\$\/i\.test\(file\.name\)\)/);
+  assert.ok(html.includes('setDocumentImportTime(/\\.(md|markdown)$/i.test(file.name))'));
   for(const k of ['openTime','saveTime']) {
     assert.equal((i18n.match(new RegExp('^    '+k+':','gm'))||[]).length,10,k);
   }
@@ -565,7 +565,7 @@ test('responsive overflow moves one control at a time using actual available wid
   assert.match(html,/applyLanguage\(\);\s*applyToolbarOverflow\(\);/);
   assert.match(html,/function saveToLocal\(\)/);
   assert.match(html,/function openFindModal\(/);
-  assert.match(html,/e\.key === 's'[\s\S]*?exportFile\(\)/);
+  assert.match(html,/e\.key\.toLowerCase\(\) === 's'[\s\S]*?exportFile\(\)/);
   assert.match(html,/e\.key === 'f'[\s\S]*?openFindModal\(\)/);
 });
 
