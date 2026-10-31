@@ -1257,7 +1257,7 @@
     <div class="statusbar">
       <span id="status-left">自动保存已启用</span>
       <span class="save-hint" id="save-hint">✓ 已保存</span>
-      <span id="status-right">Ctrl+S 保存 · Ctrl+B 加粗 · Ctrl+I 斜体 · Ctrl+U 下划线 · Ctrl+Z 撤销 · Ctrl+Y 重做</span>
+      <span id="status-right">Ctrl+S 下载 Markdown · Ctrl+B 加粗 · Ctrl+I 斜体 · Ctrl+U 下划线 · Ctrl+Z 撤销 · Ctrl+Y 重做</span>
     </div>
 
     <!-- 拖放文件提示遮罩 -->
@@ -1293,7 +1293,7 @@
 
         <p><b>保存、导入与导出</b></p>
         <ul>
-          <li>按 <code>Ctrl+S</code> 保存；编辑器每 500ms 自动保存一次。按 <code>Ctrl+F</code> 可查找替换。</li>
+          <li>在编辑栏按 <code>Ctrl+S</code> 下载 Markdown；编辑器每 500ms 自动保存到浏览器。按 <code>Ctrl+F</code> 可查找替换。</li>
           <li>点「导入」导入本地 .md / .txt，或直接把文件拖进窗口。</li>
           <li>点「导出」导出 Markdown、HTML、Word、PDF（打印另存为）或图片。</li>
         </ul>
@@ -1311,7 +1311,7 @@
           <li>需要登录的页面，可运行 <code>python web-to-md-proxy.py --bookmark</code> 生成书签小工具提取。</li>
         </ul>
 
-        <p><b>常用快捷键</b>：<code>Ctrl+S</code> 保存，<code>Ctrl+Z</code> 撤销，<code>Ctrl+Y / Ctrl+Shift+Z</code> 重做，<code>Ctrl+B</code> 加粗，<code>Ctrl+I</code> 斜体，<code>Ctrl+U</code> 下划线，<code>Ctrl+K</code> 链接，<code>Ctrl+Shift+K</code> 图片，<code>Ctrl+F</code> 查找，<code>Ctrl+H</code> 替换，<code>Tab</code> 插入 4 空格缩进。</p>
+        <p><b>常用快捷键</b>：<code>Ctrl+S</code> 下载 Markdown，<code>Ctrl+Z</code> 撤销，<code>Ctrl+Y / Ctrl+Shift+Z</code> 重做，<code>Ctrl+B</code> 加粗，<code>Ctrl+I</code> 斜体，<code>Ctrl+U</code> 下划线，<code>Ctrl+K</code> 链接，<code>Ctrl+Shift+K</code> 图片，<code>Ctrl+F</code> 查找，<code>Ctrl+H</code> 替换，<code>Tab</code> 插入 4 空格缩进。</p>
 
         <p style="color:var(--text-muted);font-size:12px;">本编辑器由「沃垠AI」主理人冷逸开发，功能建议请联系微信：lengcp2013</p>
       </div>
@@ -2056,6 +2056,22 @@
       ).join('');
     }
 
+    // Translate offsets from expanded Markdown to the exact live textarea markers.
+    // Never regenerate Base64 placeholders: their numeric IDs can have different widths.
+    function textareaPositionForMarkdown(position) {
+      if (!imageDataCollapsed) return position;
+      let removed = 0;
+      for (const match of editor.value.matchAll(IMAGE_MARKER_RE)) {
+        const full = imageDataMap.get(match[0]);
+        if (!full) continue;
+        const originalStart = match.index + removed;
+        if (position <= originalStart) break;
+        if (position < originalStart + full.length) return match.index;
+        removed += full.length - match[0].length;
+      }
+      return position - removed;
+    }
+
     function jumpToHeading(index) {
       const h = outlineHeadings[index];
       if (!h) return;
@@ -2076,9 +2092,8 @@
       let pos = 0;
       for (let i = 0; i < h.line && i < lines.length; i++) pos += lines[i].length + 1;
       if (!readingMode) target.focus({ preventScroll: true });
-      const raw = getMarkdown();
-      const folded = imageDataCollapsed ? collapseImageData(raw.slice(0, pos)).text.length : pos;
-      target.setSelectionRange(folded, folded);
+      const displayPos = imageDataCollapsed ? textareaPositionForMarkdown(pos) : pos;
+      target.setSelectionRange(displayPos, displayPos);
       if (!readingMode) scrollTextareaToCaret(target);
       // 仅滚动预览区域，不使用 scrollIntoView（它可能滚动整个页面/其他祖先）。
       const top = Math.max(0, preview.scrollTop +
@@ -2097,7 +2112,41 @@
     }
 
     // 与 textarea 的真实内容视口同宽，消除滚动条占宽带来的长文档换行累积误差。
+    // Native textarea wrapping is essential for long unbroken Base64 data URLs:
+    // a div mirror can accumulate line-height/wrap differences for each image.
+    function measureExpandedTextareaHeadingTop(ta) {
+      const style = getComputedStyle(ta);
+      const mirror = ta.cloneNode(false);
+      mirror.removeAttribute('id');
+      mirror.setAttribute('aria-hidden', 'true');
+      mirror.tabIndex = -1;
+      mirror.value = ta.value.slice(0, ta.selectionStart) + 'X';
+      ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'lineHeight',
+       'letterSpacing', 'wordSpacing', 'tabSize', 'padding',
+       'textAlign', 'textIndent', 'direction', 'whiteSpace', 'wordBreak',
+       'overflowWrap'].forEach(p => { mirror.style[p] = style[p]; });
+      mirror.style.position = 'absolute';
+      mirror.style.top = '0';
+      mirror.style.left = '-99999px';
+      mirror.style.visibility = 'hidden';
+      mirror.style.boxSizing = 'border-box';
+      mirror.style.width = ta.clientWidth + 'px';
+      mirror.style.height = '0';
+      mirror.style.minHeight = '0';
+      mirror.style.border = 'none';
+      mirror.style.overflow = 'hidden';
+      mirror.style.resize = 'none';
+      document.body.appendChild(mirror);
+      const top = mirror.scrollHeight -
+        (parseFloat(style.paddingTop) || 0) -
+        (parseFloat(style.paddingBottom) || 0) -
+        (parseFloat(style.lineHeight) || 0);
+      document.body.removeChild(mirror);
+      return Math.max(0, top);
+    }
+
     function measureTextareaHeadingTop(ta) {
+      if (!imageDataCollapsed) return measureExpandedTextareaHeadingTop(ta);
       const style = getComputedStyle(ta);
       const mirror = document.createElement('div');
       ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'lineHeight',
@@ -3868,7 +3917,8 @@ ${'</scr' + 'ipt>'}
       if (e.ctrlKey || e.metaKey) {
         if (e.key === 's') {
           e.preventDefault();
-          saveToLocal();
+          // Auto-save already covers localStorage; Ctrl/Cmd+S downloads the .md.
+          exportFile();
         } else if (e.key === 'z' && !e.shiftKey) {
           e.preventDefault();
           undo();
