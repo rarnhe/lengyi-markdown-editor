@@ -191,6 +191,8 @@ netsh http add urlacl url=http://127.0.0.1:8765/ user=%USERNAME%
 cscript //nologo dist\web-to-md.js --bookmark
 ```
 
+**安全提示：** 当前脚本只用于本机受控抓取，不是面向不可信网页的通用代理。虽然限制了本地 Origin、URL 和部分内网地址，WinHTTP 自动重定向及 DNS 重绑定等边界仍需进一步加固；请勿向局域网或公网开放 8765 端口。
+
 ### 开发者构建（Node.js 仅编译/测试时使用）
 
 ```bat
