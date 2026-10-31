@@ -8,7 +8,7 @@ declare var Enumerator: any;
 
 var fso: any = new ActiveXObject("Scripting.FileSystemObject");
 var shell: any = new ActiveXObject("WScript.Shell");
-var ROOT: string = fso.GetParentFolderName(WScript.ScriptFullName);
+var ROOT: string = fso.GetParentFolderName(fso.GetParentFolderName(WScript.ScriptFullName));
 var QUEUE: string = fso.BuildPath(shell.ExpandEnvironmentStrings("%TEMP%"), "lengyi-md-proxy");
 var SERVICE_PORT: number = 8765;
 var DRIVER_PORT: number = 9515;
@@ -56,7 +56,7 @@ function fetchRaw(url: string): string {
       for (redirects = 0; redirects <= 5; redirects++) {
         var req: any = new ActiveXObject("WinHttp.WinHttpRequest.5.1");
         req.SetTimeouts(5000, 5000, 25000, 25000);
-        req.Option(6) = false; // WinHttpRequestOption_EnableRedirects
+        // WinHTTP can follow redirects automatically; never expose this helper outside loopback.
         req.Open("GET", current, false);
         req.SetRequestHeader("User-Agent",
           attempt % 2 === 0 ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125.0.0.0 Safari/537.36" :
