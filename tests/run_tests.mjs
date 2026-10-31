@@ -25,6 +25,9 @@ try {
       check('Inline JavaScript syntax #' + (i + 1), ['--check', file]);
     });
   }
+  check('Extension background syntax', ['--check', 'extension/background.js']);
+  check('Extension content bridge syntax', ['--check', 'extension/editor-bridge.js']);
+  check('Extension runtime + isolation tests', ['--test', 'tests/test_extension.mjs']);
   check('Regression tests', ['--test', 'tests/test_editor.mjs']);
 } finally {
   rmSync(tmp, { recursive: true, force: true });
