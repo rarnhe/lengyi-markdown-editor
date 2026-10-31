@@ -24,6 +24,24 @@ If hosted elsewhere, explicitly add the trusted editor origin to
 `content_scripts.matches` and reload the extension. Do **not** use `<all_urls>`
 for the editor message bridge.
 
+## Troubleshooting: "extension not connected"
+
+1. Open the editor in the **same Chrome/Edge browser profile** where the unpacked
+   extension was installed.
+2. On the editor tab, click the extension toolbar icon. The new popup checks
+   whether the URL is supported, whether file URL access is permitted, and
+   whether the content-script bridge was injected.
+3. For `file://` pages, enable **Allow access to file URLs**. For
+   `http://localhost:8080/markdown-editor.html`, confirm the extension's
+   site-access settings allow the page.
+4. Reload the extension in `chrome://extensions`, then **refresh the editor tab**.
+   Updating extension files does not refresh already-open editor tabs.
+5. If the popup reports "bridge injected" but the editor fails, open F12 Console
+   and inspect extension errors. The editor distinguishes un-injected extensions
+   from a non-responsive messaging bridge.
+
+Make sure the unpacked folder is the latest PR branch and not an older copy.
+
 ## Modes
 
 - **Browser render (default)**: opens a visible target tab and waits for article
