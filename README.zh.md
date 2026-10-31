@@ -111,7 +111,7 @@ AI 时代，Markdown 这件事，本该足够简单。
 - **数学公式**：`KaTeX`（支持 `$...$` 行内公式和 `$$...$$` 块级公式）
 - **图表渲染**：`Mermaid 10`支持思维导图和流程图
 - **图片导出**：`dom-to-image-more`
-- **本地代理**：`Python 3` + `http.server`（可选，用于网页转 Markdown）
+- **网页转 Markdown 扩展**：Chrome/Edge Manifest V3（可选安装；无本地 HTTP 代理、无 Python/Node.js 后台依赖）
 
 ### 核心设计
 
@@ -131,8 +131,8 @@ AI 时代，Markdown 这件事，本该足够简单。
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
-                   web-to-md-proxy.py (可选)
-                    网页抓取 + 反爬绕过
+                   extension/ (可选)
+                   浏览器抓取 + 动态 DOM 提取
 ```
 ---
 
@@ -142,7 +142,7 @@ AI 时代，Markdown 这件事，本该足够简单。
 .
 ├── markdown-editor.html    # 主编辑器（单文件应用）
 ├── i18n.js                 # 多语言字典（10 种语言）
-├── web-to-md-proxy.py      # 本地代理脚本（可选）
+├── extension/             # Chrome / Edge MV3 扩展（可选，无需本地服务）
 └── README.md               # 本文件
 ```
 
@@ -160,33 +160,37 @@ git clone https://github.com/woyin2024/lengyi-markdown-editor.git
 markdown-editor.html
 ```
 
-### 方式二：本地服务器（推荐）
+### 方式二：安装浏览器扩展（网页转 Markdown）
+
+浏览器扩展通过消息通信直接抓取网页并读取已渲染 DOM，不使用本地 8765 端口、
+Python、Node.js、cscript 或 PowerShell 服务。
+
+1. 打开 Chrome 的 `chrome://extensions` 或 Edge 的 `edge://extensions`，启用「开发者模式」。
+2. 点击「加载已解压的扩展程序」，选择仓库中的 **extension** 文件夹。
+3. 直接双击 `markdown-editor.html`（`file://`）使用时，还需在扩展详情开启「允许访问文件网址」，随后刷新编辑器。
+4. 打开「网页转MD」，输入目标网址，选择「浏览器动态渲染」或「直接获取 HTML」，点击「尝试获取」，再点击「转换并插入」。
+
+也可以把编辑器部署到 `http://localhost:8080/markdown-editor.html`，
+但这是**可选的网页预览服务**，不是抓取代理：扩展仍不使用任何本地 API 端口。
+扩展的编辑器注入地址默认仅包括 `file://`、`http://localhost`、
+`http://127.0.0.1` 和 `https://rarnhe.github.io`。
+在其他域部署时需要调整 `extension/manifest.json` 的 `content_scripts.matches` 并重新加载扩展。
+
+**动态模式**会打开一个新的浏览器标签页并等待网页 JavaScript 渲染，再提取可见正文。
+如果网站要求登录或验证码，请在新标签页完成操作后回到编辑器重试。
+浏览器访问权限由扩展管理：安装时需要读取目标网页权限；不保证绕过反爬、验证码或其他访问控制。
+**静态模式**从扩展后台直接获取 HTML，不会加载网站 JavaScript，也不会携带登录 Cookie。
+网页数据只返回到编辑器，不发送给公共 CORS 代理。
+
+如不安装扩展，编辑器的手动粘贴 HTML、Markdown 编辑、预览和导出功能仍可使用。
+
+### 测试（仅 Node.js 自带测试工具，无 npm 安装）
 
 ```bash
-cd markdown-editor
-
-# Python 3
-python -m http.server 8080
-
-# 或 Node.js
-npx serve .
-
-# 打开浏览器访问
-open http://localhost:8080/markdown-editor.html
+node tests/run_tests.mjs
 ```
 
-### 方式三：使用本地代理（网页转 Markdown）
-
-```bash
-# 安装 requests（可选，推荐）
-pip install requests
-
-# 启动代理
-python web-to-md-proxy.py
-
-# 默认端口 8765
-# 在编辑器中勾选「使用本地代理」即可
-```
+参见 [extension/README.md](extension/README.md) 了解安装、浏览器权限和限制。
 
 ---
 
