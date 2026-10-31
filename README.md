@@ -184,6 +184,17 @@ If login or CAPTCHA is required, complete it in the new tab and retry.
 Static mode uses extension-side `fetch` without authentication cookies.
 The extension requests access to HTTP(S) sites and does not circumvent authentication,
 CAPTCHA or site policies. No content is sent to public CORS proxy services.
+### Troubleshooting extension connectivity
+
+When "extension not connected" is shown, keep the editor tab active and click
+the Lengyi extension toolbar icon. The popup diagnoses the current URL,
+`file://` access and whether the bridge script was injected. Make sure the
+editor and extension are in the **same browser profile**, check site access,
+then reload the extension and **refresh the editor**. Messages from privileged
+extension worlds may have a null source; the new bridge accepts these while
+checking origin and request correlation. Missing injection and bridge timeouts
+now produce different messages.
+
 Without the extension, the editor's manual HTML paste and Markdown tools still work.
 
 Run checks using only built-in Node.js test tools (for development, not runtime):
