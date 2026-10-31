@@ -29,9 +29,11 @@ test('translations remain available in all 10 existing languages', () => {
   }
 });
 
-test('no npm toolchain or added runtime dependencies', () => {
-  assert.equal(existsSync('package.json'), false);
-  assert.equal(existsSync('node_modules'), false);
+test('editor remains standalone; WSH toolchain has development-only dependencies', () => {
+  const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+  assert.equal(pkg.dependencies, undefined);
+  assert.deepEqual(Object.keys(pkg.devDependencies).sort(), ['esbuild', 'typescript']);
+  assert.match(html, /<script src="i18n\.js"><\/script>/);
 });
 
 
