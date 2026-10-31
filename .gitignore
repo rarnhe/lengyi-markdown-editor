@@ -1,0 +1,4 @@
+node_modules/
+.wsh-build/
+dist/
+test_report_wsh.md
