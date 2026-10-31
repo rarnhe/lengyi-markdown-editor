@@ -44,7 +44,7 @@ It is **just one HTML file**. Double-click to write. Everything is stored locall
 - **Live preview**: write on the left, preview on the right in real time.
 - **Width-aware single-row toolbar**: formatting and Mermaid tools, then Import, Export, View, Night/Day, Web to Markdown, Language, Clear and Help, with **no extra separator** between formatting and Import. It measures the browser toolbar's actual available width and moves controls into ⋮ only as needed. Formatting and ⋮ stay in one row even on narrow windows. Overflow menus (Export, View and Language) have consistent left-aligned entries, and inline Language opens inward when near the right edge. Ctrl+S and Ctrl+F remain available.
 - **Standard and Reading modes**: Standard shows the editor, live preview, and outline. Reading mode hides editing controls and floats a draggable outline over a full-width preview; use its Exit Reading Mode button or Escape to return.
-- **Read-only filename and timestamp**: the full imported filename (including its extension) now appears in bold, immediately before the HTML-open/Markdown-import time in the Live Preview header, using the same font and size as the time. The filename remains available for the browser tab, local autosave and exported files. Standard browser file input/drag-and-drop cannot rename the original file on disk; use your operating system to rename it, or export a new copy with another name.
+- **Editable filename and save-as download**: the full filename appears in bold immediately to the left of the opening/import timestamp in the Live Preview header. It grows to the left, with its right edge held 10px from the time, and never extends past the left edge of the rendered Markdown text. Edit the name and press Enter or click elsewhere to download the current Markdown under its new name (Escape cancels); unchanged names do not download again. Whether a Save As dialog appears or the file downloads automatically depends on browser settings. This does **not** rename or silently overwrite the original file on disk.
 - **Base64 folding**: the Show/Hide Base64 button appears and is enabled only if the Markdown contains an embedded Base64 image; it disappears again when the image is removed, without affecting the preview.
 - **Draggable split and independent scrolling**: resize the panes while keeping each pane's scroll position independent. Collapsing the editor hides its scrollable textarea completely, just as collapsing the outline hides its list. Mouse-wheel, trackpad, and direct scrollbar dragging all mirror the movement to the other pane. The amount is scaled by each pane's remaining distance to the top or bottom, so both can reach that edge together while retaining independent intermediate positions; selecting an outline heading aligns both headings to the top.
 
@@ -55,7 +55,7 @@ It is **just one HTML file**. Double-click to write. Everything is stored locall
 | Headings | Quick H1-H6 insertion |
 | Text styles | Bold, italic, underline, strikethrough, superscript, subscript |
 | Lists | Unordered, ordered, and task lists |
-| Quotes & code | Blockquotes, inline code, fenced code blocks |
+| Quotes & code | Blockquotes, inline code, fenced code blocks; fenced language tags appear at the upper right when provided (empty by default) |
 | Links & images | URL insertion and local image Base64 embedding |
 | Tables | Visual 8×8 table picker |
 | Find & replace | Find next, replace, replace all |

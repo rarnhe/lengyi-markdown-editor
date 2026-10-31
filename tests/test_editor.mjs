@@ -149,7 +149,7 @@ test('import/export have no separate frame and share the utilities row', () => {
   assert.doesNotMatch(html,/class="top-bar"/);
 });
 
-test('read-only filename preserves imported name, browser title and export behavior', () => {
+test('editable filename preserves imported name, browser title and export behavior', () => {
   const fn=html.match(/function syncDocumentTitle\(\) \{[\s\S]*?\n    \}/);
   assert.ok(fn);
   const ctx={filenameInput:{value:'Report.md'},document:{title:'before'},t:()=> 'Untitled.md'};
@@ -159,10 +159,13 @@ test('read-only filename preserves imported name, browser title and export behav
   assert.equal(ctx.document.title,'Imported.md');
   const header=html.match(/<div class="preview-title-group">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="preview-content"/);
   assert.ok(header);
-  assert.match(header[1],/<input type="text" id="filename"[^>]*readonly aria-readonly="true"/);
+  assert.match(header[1],/<input type="text" id="filename"[^>]*value="未命名文档.md"/);
+  assert.doesNotMatch(header[1],/readonly|aria-readonly/);
   assert.match(header[1],/id="filename"[\s\S]*?id="document-time"/);
-  assert.doesNotMatch(html,/filenameInput\.addEventListener\('input'|filenameInput\.addEventListener\('keydown'/);
-  assert.match(html,/filenameInput\.value = name;\s*syncDocumentTitle\(\)/);
+  assert.match(html,/filenameInput\.addEventListener\('input', updateFilenameWidth\)/);
+  assert.match(html,/filenameInput\.addEventListener\('keydown'/);
+  assert.match(html,/filenameInput\.addEventListener\('blur', commitFilenameChange\)/);
+  assert.match(html,/filenameInput\.value = name;\s*committedFilename = name;\s*syncDocumentTitle\(\)/);
   assert.match(html,/localStorage\.setItem\(FILENAME_KEY, filenameInput\.value\)/);
   assert.match(html,/let name = filenameInput\.value\.trim\(\)/);
   assert.match(html,/function applyLanguage\(\) \{[\s\S]*?syncDocumentTitle\(\)/);
@@ -869,12 +872,13 @@ test('theme action swaps 夜间 and 日间 on click, language change and stored 
 });
 
 
-test('filename is displayed before preview time but cannot be edited or confirmed by Enter', () => {
+test('filename is editable before preview time and commits on Enter or blur', () => {
   const heading=html.match(/<div class="preview-title-group">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="preview-content"/);
   assert.ok(heading);
-  assert.match(heading[1],/id="filename"[^>]*readonly aria-readonly="true"[\s\S]*?id="document-time"/);
-  assert.doesNotMatch(html,/filenameInput\.addEventListener\('keydown'/);
-  assert.doesNotMatch(html,/filenameInput\.addEventListener\('input'/);
+  assert.match(heading[1],/id="filename"[\s\S]*?id="document-time"/);
+  assert.doesNotMatch(heading[1],/readonly|aria-readonly/);
+  assert.match(html,/filenameInput\.addEventListener\('keydown'/);
+  assert.match(html,/filenameInput\.addEventListener\('blur', commitFilenameChange\)/);
   assert.match(html,/filenameInput\.value = localStorage\.getItem\(FILENAME_KEY\)/);
   assert.match(html,/function loadFile\(file\)[\s\S]*?filenameInput\.value = name;/);
 });
@@ -953,11 +957,12 @@ test('Language button uses the correct chevron in inline and overflow layouts', 
 });
 
 
-test('full readonly filename retains its suffix in preview with time-sized bold typography', () => {
+test('editable filename grows left and remains bounded by preview text', () => {
   assert.match(html,/\.preview-title-group \{[^}]*gap: 10px/);
   assert.match(html,/#document-time, \.preview-title-group #filename \{[^}]*font-family: inherit; font-size: 11px;/);
-  assert.match(html,/\.preview-title-group \.filename-slot \{[^}]*flex: 0 0 auto; min-width: 0;/);
-  assert.match(html,/\.preview-title-group #filename \{ font-weight: 700; text-align: left; \}/);
+  assert.match(html,/\.preview-title-group \{[^}]*position: relative;/);
+  assert.match(html,/\.preview-title-group \.filename-slot \{[^}]*position: absolute; right: calc\(100% \+ 10px\);/);
+  assert.match(html,/\.preview-title-group #filename \{ font-weight: 700; text-align: right;/);
   assert.match(html,/\.preview-title-group #document-time \{ font-weight: 400; \}/);
   assert.match(html,/\.filename-slot input\[type="text"\] \{[^}]*padding: 0;[^}]*border: none;/);
   const fn=html.match(/function updateFilenameWidth\(\) \{[\s\S]*?\n    \}/);
@@ -981,7 +986,7 @@ test('full readonly filename retains its suffix in preview with time-sized bold 
   ctx.measureFilename();
   assert.equal(slot.style.width,'99px');
   assert.match(html,/function applyLanguage\(\) \{[\s\S]*?updateFilenameWidth\(\);/);
-  assert.match(html,/filenameInput\.value = name;\s*syncDocumentTitle\(\);\s*updateFilenameWidth\(\)/);
+  assert.match(html,/filenameInput\.value = name;\s*committedFilename = name;\s*syncDocumentTitle\(\);\s*updateFilenameWidth\(\)/);
 });
 
 test('Base64 toggle is hidden and disabled except for Markdown with embedded image data', () => {
@@ -1107,6 +1112,95 @@ test('preview title order preserves full filename, timestamp, preview label and 
   assert.doesNotMatch(editorHeader[1],/id="filename"/);
   assert.equal((html.match(/id="filename"/g)||[]).length,1);
   assert.equal((html.match(/id="document-time"/g)||[]).length,1);
-  assert.match(html,/filenameInput\.value = name;\s*syncDocumentTitle\(\);\s*updateFilenameWidth\(\);/);
+  assert.match(html,/filenameInput\.value = name;\s*committedFilename = name;\s*syncDocumentTitle\(\);\s*updateFilenameWidth\(\);/);
   assert.match(html,/localStorage\.setItem\(FILENAME_KEY, filenameInput\.value\)/);
+});
+
+
+test('right-top code label follows fenced language and is empty without one', () => {
+  assert.match(html,/\.preview-content pre\[data-language\]:not\(\[data-language=""\]\)::before \{/);
+  assert.match(html,/content: attr\(data-language\)/);
+  assert.match(html,/right: 12px/);
+  const section=html.match(/preview\.querySelectorAll\('pre > code\[class\*="language-"\]'\)\.forEach\(code => \{[\s\S]*?\n      \}\);/);
+  assert.ok(section,'non-invasive language label post-processing present');
+  const python={classList:['language-python'],parentElement:{dataset:{}}};
+  const javascript={classList:['hljs','language-javascript'],parentElement:{dataset:{}}};
+  const noLanguage={classList:[],parentElement:{dataset:{}}};
+  const ctx={preview:{querySelectorAll(){return [python,javascript,noLanguage];}}};
+  vm.runInNewContext(section[0],ctx);
+  assert.equal(python.parentElement.dataset.language,'python');
+  assert.equal(javascript.parentElement.dataset.language,'javascript');
+  assert.equal(noLanguage.parentElement.dataset.language,undefined);
+  // Existing fenced-code insertion and other formatting buttons are unchanged.
+  assert.match(html,/onclick="insertCode\(\)"[^>]*data-i18n-title="codeBlock"/);
+  assert.match(html,/function updatePreview\(\) \{[\s\S]*?preview\.innerHTML =/);
+});
+
+test('filename max-width ends at the rendered Markdown text left edge', () => {
+  const fn=html.match(/function updateFilenameLimit\(\) \{[\s\S]*?\n    \}/);
+  assert.ok(fn);
+  const slot={style:{}};
+  const markdown={getBoundingClientRect(){return {left:100};}};
+  const ctx={
+    filenameInput:{parentElement:slot},
+    preview:{querySelector(){return markdown;}},
+    documentTime:{getBoundingClientRect(){return {left:380};}},
+    getComputedStyle(){return {paddingLeft:'40px'};}
+  };
+  vm.runInNewContext(fn[0]+'\nthis.limit=updateFilenameLimit;',ctx);
+  ctx.limit();assert.equal(slot.style.maxWidth,'230px');
+  ctx.documentTime.getBoundingClientRect=()=>({left:120});
+  ctx.limit();assert.equal(slot.style.maxWidth,'0px');
+  assert.match(html,/window\.addEventListener\('resize', updateFilenameLimit\)/);
+  assert.match(html,/function applySplit\(\) \{[\s\S]*?updateFilenameLimit\(\);/);
+});
+
+test('Enter or blur exports a new filename once; Escape and unchanged name do not', () => {
+  const fn=html.match(/function commitFilenameChange\(\) \{[\s\S]*?\n    \}/);
+  assert.ok(fn);
+  const ctx={
+    filenameInput:{value:'original.md'},
+    committedFilename:'original.md',
+    FILENAME_KEY:'filename',
+    localStorage:{written:[],setItem(k,v){this.written.push([k,v]);}},
+    updateFilenameWidth(){ctx.sizes++;},
+    syncDocumentTitle(){ctx.titles++;},
+    autoSave(){ctx.saves++;},
+    exportFile(){ctx.downloads++;},
+    sizes:0,titles:0,saves:0,downloads:0
+  };
+  vm.runInNewContext(fn[0]+'\nthis.commit=commitFilenameChange;',ctx);
+  ctx.commit();assert.equal(ctx.downloads,0);
+  ctx.filenameInput.value='new-name';
+  ctx.commit();
+  assert.equal(ctx.filenameInput.value,'new-name.md');
+  assert.equal(ctx.committedFilename,'new-name.md');
+  assert.equal(ctx.downloads,1);
+  assert.deepEqual(ctx.localStorage.written,[['filename','new-name.md']]);
+  ctx.commit();assert.equal(ctx.downloads,1);
+  ctx.filenameInput.value='another.markdown';ctx.commit();
+  assert.equal(ctx.filenameInput.value,'another.markdown');
+  assert.equal(ctx.downloads,2);
+  ctx.filenameInput.value='';ctx.commit();
+  assert.equal(ctx.filenameInput.value,'another.markdown');
+  assert.equal(ctx.downloads,2);
+  const registration=html.match(/filenameInput\.addEventListener\('keydown', event => \{[\s\S]*?\n    \}\);/);
+  assert.ok(registration);
+  const events={};
+  ctx.filenameInput.addEventListener=(key,cb)=>{events[key]=cb;};
+  ctx.filenameInput.blur=()=>{events.blur?.();};
+  vm.runInNewContext(registration[0],{...ctx,commitFilenameChange:()=>ctx.commit(),
+    updateFilenameWidth:()=>ctx.updateFilenameWidth(),
+    get committedFilename(){return ctx.committedFilename;}});
+  // Blur registration is separate in the source; simulate the actual browser flow.
+  events.blur=()=>ctx.commit();
+  ctx.filenameInput.value='third.md';
+  events.keydown({key:'Enter',preventDefault(){}});
+  assert.equal(ctx.downloads,3,'Enter followed by blur is a single download');
+  ctx.filenameInput.value='temporary.md';
+  events.keydown({key:'Escape',preventDefault(){}});
+  assert.equal(ctx.filenameInput.value,'third.md');
+  assert.equal(ctx.downloads,3,'Escape cancels without download');
+  assert.match(html,/function exportFile\(\) \{\s*const blob = new Blob\(\[getMarkdown\(\)\]/);
+  assert.match(html,/a\.download = name;/);
 });
