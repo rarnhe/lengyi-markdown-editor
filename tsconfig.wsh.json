@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES5",
+    "module": "none",
+    "lib": [
+      "ES5"
+    ],
+    "strict": true,
+    "skipLibCheck": true,
+    "removeComments": false,
+    "outFile": ".wsh-build/web-to-md.es5.js",
+    "newLine": "lf",
+    "noEmitOnError": true
+  },
+  "files": [
+    "src/wsh/web-to-md.ts"
+  ]
+}
