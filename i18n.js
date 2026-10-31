@@ -26,8 +26,8 @@ const i18n = {
 <p><b>网页转 Markdown</b></p>
 <ul>
   <li>点「网页转 MD」输入网页链接，可自动提取正文。</li>
-  <li>知乎、微信公众号等建议勾选「使用本地代理」，先运行同目录的 <code>web-to-md-proxy.py</code>。</li>
-  <li>需要登录的页面，可运行 <code>python web-to-md-proxy.py --bookmark</code> 生成书签小工具提取。</li>
+  <li>网页转 MD 使用 Chrome/Edge 扩展直接提取网页，不需要 Python、Node.js 或本地代理。</li>
+  <li>请安装仓库中的 extension 扩展；选择浏览器模式可获取动态网页，登录后可重试。</li>
 </ul>
 <p><b>常用快捷键</b>：<code>Ctrl+S</code> 下载 Markdown，<code>Ctrl+Z</code> 撤销，<code>Ctrl+Y / Ctrl+Shift+Z</code> 重做，<code>Ctrl+B</code> 加粗，<code>Ctrl+I</code> 斜体，<code>Ctrl+U</code> 下划线，<code>Ctrl+K</code> 链接，<code>Ctrl+Shift+K</code> 图片，<code>Ctrl+F</code> 查找，<code>Ctrl+H</code> 替换，<code>Tab</code> 插入 4 空格缩进。</p>
 <p style="color:var(--text-muted);font-size:12px;">本编辑器由「沃垠AI」主理人冷逸开发，功能建议请联系微信：lengcp2013</p>`,
@@ -103,9 +103,14 @@ const i18n = {
     urlTitle: '网页转 Markdown',
     urlLabel: '网页地址',
     urlPlaceholder: 'https://example.com/article',
-    useProxy: '使用本地代理（推荐，可解决知乎/微信公众号）',
-    proxyPlaceholder: '本地代理地址',
     fetchBtn: '尝试获取',
+    extensionModeLabel: '网页抓取方式',
+    extensionModeBrowser: '浏览器动态渲染（推荐，可处理登录网页）',
+    extensionModeStatic: '直接获取 HTML（仅静态页面）',
+    extensionHint: '需要先安装 Chrome/Edge 扩展；不需要本地 HTTP 服务。',
+    urlStatusExtensionSuccess: '✓ 扩展已获取网页，点击「转换并插入」即可导入',
+    urlStatusExtensionFailed: '× 浏览器扩展抓取失败：{0}',
+    urlStatusExtensionMissing: '× 未连接浏览器扩展。请在 chrome://extensions 加载 extension 文件夹；如使用本地 HTML，开启「允许访问文件网址」。',
     manualLabel: '网页 HTML 源码（手动粘贴）',
     manualPlaceholder: '在浏览器中打开目标网页 → 右键「查看网页源代码」→ 全选复制 → 粘贴到此处',
     cancel: '取消',
@@ -173,11 +178,7 @@ const i18n = {
     statusNoMatch: '未找到匹配内容',
     statusReplacedCount: '已替换 {0} 处',
     urlStatusFetching: '正在获取…',
-    urlStatusLocalSuccess: '✓ 本地代理获取成功，点击「转换并插入」即可导入',
-    urlStatusPublicSuccess: '✓ 获取成功，点击「转换并插入」即可导入',
     urlStatusEmptyUrl: '请输入网页地址',
-    urlStatusLocalFailed: '× 本地代理获取失败：{0}',
-    urlStatusPublicFailed: '× 自动获取失败（{0}），请手动粘贴网页 HTML 源码，或勾选「使用本地代理」',
     tableSizeLabel: '{0} 行 × {1} 列',
     imageLargeWarning: '图片较大（{0}MB），嵌入 Base64 会显著增大文档体积，是否继续？',
     mermaid: 'Mermaid',
@@ -218,8 +219,8 @@ const i18n = {
 <p><b>網頁轉 Markdown</b></p>
 <ul>
   <li>點「網頁轉 MD」輸入網頁連結，可自動提取正文。</li>
-  <li>知乎、微信公眾號等建議勾選「使用本機代理」，先執行同目錄的 <code>web-to-md-proxy.py</code>。</li>
-  <li>需要登入的頁面，可執行 <code>python web-to-md-proxy.py --bookmark</code> 生成書籤小工具提取。</li>
+  <li>網頁轉 MD 使用 Chrome/Edge 擴充功能，不需要 Python、Node.js 或本機代理。</li>
+  <li>請安裝 extension 資料夾；選擇瀏覽器模式可讀取動態網頁，登入後可重試。</li>
 </ul>
 <p><b>常用快捷鍵</b>：<code>Ctrl+S</code> 下載 Markdown，<code>Ctrl+Z</code> 復原，<code>Ctrl+Y / Ctrl+Shift+Z</code> 重做，<code>Ctrl+B</code> 粗體，<code>Ctrl+I</code> 斜體，<code>Ctrl+U</code> 底線，<code>Ctrl+K</code> 連結，<code>Ctrl+Shift+K</code> 圖片，<code>Ctrl+F</code> 尋找，<code>Ctrl+H</code> 取代，<code>Tab</code> 插入 4 空格縮排。</p>
 <p style="color:var(--text-muted);font-size:12px;">本編輯器由「沃垠AI」主理人冷逸開發，功能建議請聯繫微信：lengcp2013</p>`,
@@ -295,9 +296,14 @@ const i18n = {
     urlTitle: '網頁轉 Markdown',
     urlLabel: '網頁地址',
     urlPlaceholder: 'https://example.com/article',
-    useProxy: '使用本機代理（建議，可解決知乎/微信公眾號）',
-    proxyPlaceholder: '本機代理地址',
     fetchBtn: '嘗試取得',
+    extensionModeLabel: '網頁擷取方式',
+    extensionModeBrowser: '瀏覽器動態渲染（建議，可處理登入網頁）',
+    extensionModeStatic: '直接取得 HTML（僅靜態網頁）',
+    extensionHint: '請先安裝 Chrome/Edge 擴充功能；不需要本機 HTTP 服務。',
+    urlStatusExtensionSuccess: '✓ 擴充功能已取得網頁，點選「轉換並插入」即可匯入',
+    urlStatusExtensionFailed: '× 瀏覽器擴充功能取得失敗：{0}',
+    urlStatusExtensionMissing: '× 未連接擴充功能，請安裝 extension 資料夾；本機 HTML 需啟用允許存取檔案網址。',
     manualLabel: '網頁 HTML 原始碼（手動貼上）',
     manualPlaceholder: '在瀏覽器中開啟目標網頁 → 右鍵「檢視網頁原始碼」→ 全選複製 → 貼到此处',
     cancel: '取消',
@@ -365,11 +371,7 @@ const i18n = {
     statusNoMatch: '未找到匹配內容',
     statusReplacedCount: '已取代 {0} 處',
     urlStatusFetching: '正在取得…',
-    urlStatusLocalSuccess: '✓ 本機代理取得成功，點擊「轉換並插入」即可匯入',
-    urlStatusPublicSuccess: '✓ 取得成功，點擊「轉換並插入」即可匯入',
     urlStatusEmptyUrl: '請輸入網頁地址',
-    urlStatusLocalFailed: '× 本機代理取得失敗：{0}',
-    urlStatusPublicFailed: '× 自動取得失敗（{0}），請手動貼上網頁 HTML 原始碼，或勾選「使用本機代理」',
     tableSizeLabel: '{0} 行 × {1} 列',
     imageLargeWarning: '圖片較大（{0}MB），嵌入 Base64 會顯著增大文件體積，是否繼續？',
     mermaid: 'Mermaid',
@@ -410,8 +412,8 @@ const i18n = {
 <p><b>Web to Markdown</b></p>
 <ul>
   <li>Click “Web → MD” and enter a URL to extract the article body.</li>
-  <li>For Zhihu, WeChat articles, etc., enable “Use local proxy” and run <code>web-to-md-proxy.py</code> in the same folder first.</li>
-  <li>For pages that require login, run <code>python web-to-md-proxy.py --bookmark</code> to generate a bookmarklet.</li>
+  <li>Web to MD uses a Chrome/Edge extension instead of Python, Node.js or a local HTTP proxy.</li>
+  <li>Load the extension folder. Browser mode renders JavaScript pages and allows manual login before retrying.</li>
 </ul>
 <p><b>Common shortcuts</b>: <code>Ctrl+S</code> Download Markdown, <code>Ctrl+Z</code> Undo, <code>Ctrl+Y / Ctrl+Shift+Z</code> Redo, <code>Ctrl+B</code> Bold, <code>Ctrl+I</code> Italic, <code>Ctrl+U</code> Underline, <code>Ctrl+K</code> Link, <code>Ctrl+Shift+K</code> Image, <code>Ctrl+F</code> Find, <code>Ctrl+H</code> Replace, <code>Tab</code> insert 4-space indent.</p>
 <p style="color:var(--text-muted);font-size:12px;">Developed by Leng Yi of Woyin AI. Feedback via WeChat: lengcp2013</p>`,
@@ -487,9 +489,14 @@ const i18n = {
     urlTitle: 'Web to Markdown',
     urlLabel: 'Web Address',
     urlPlaceholder: 'https://example.com/article',
-    useProxy: 'Use local proxy (recommended for Zhihu/WeChat articles)',
-    proxyPlaceholder: 'Local proxy address',
     fetchBtn: 'Fetch',
+    extensionModeLabel: 'Web capture method',
+    extensionModeBrowser: 'Render in browser (recommended for logged-in pages)',
+    extensionModeStatic: 'Fetch raw HTML (static pages only)',
+    extensionHint: 'Install the Chrome/Edge extension first; no local HTTP server is needed.',
+    urlStatusExtensionSuccess: '✓ Browser extension fetched the page. Click Convert & Insert to import.',
+    urlStatusExtensionFailed: '× Browser extension failed: {0}',
+    urlStatusExtensionMissing: '× Extension not connected. Load the extension folder in chrome://extensions; enable Allow access to file URLs if opening HTML directly.',
     manualLabel: 'Page HTML source (paste manually)',
     manualPlaceholder: 'Open the target page in browser → right-click “View page source” → select all and copy → paste here',
     cancel: 'Cancel',
@@ -557,11 +564,7 @@ const i18n = {
     statusNoMatch: 'No matches found',
     statusReplacedCount: '{0} matches replaced',
     urlStatusFetching: 'Fetching…',
-    urlStatusLocalSuccess: '✓ Fetched via local proxy, click “Convert & Insert” to import',
-    urlStatusPublicSuccess: '✓ Fetched successfully, click “Convert & Insert” to import',
     urlStatusEmptyUrl: 'Please enter a web address',
-    urlStatusLocalFailed: '× Local proxy failed: {0}',
-    urlStatusPublicFailed: '× Auto fetch failed ({0}). Paste page HTML manually or enable local proxy',
     tableSizeLabel: '{0} rows × {1} cols',
     imageLargeWarning: 'The image is large ({0}MB). Embedding it as Base64 will significantly increase document size. Continue?',
     mermaid: 'Mermaid',
@@ -602,8 +605,8 @@ const i18n = {
 <p><b>Web を Markdown に</b></p>
 <ul>
   <li>🌐 をクリックして Web ページのリンクを入力すると、本文を自動抽出します。</li>
-  <li>知乎、微信公众号などは「ローカルプロキシを使用」にチェックし、同じフォルダの <code>web-to-md-proxy.py</code> を事前に実行してください。</li>
-  <li>ログインが必要なページは、<code>python web-to-md-proxy.py --bookmark</code> を実行してブックマークレットを生成して抽出します。</li>
+  <li>ウェブ変換は Chrome/Edge 拡張機能を使用します。Python、Node.js、ローカルプロキシは不要です。</li>
+  <li>extension フォルダーを読み込んでください。ブラウザモードでは動的ページとログインに対応します。</li>
 </ul>
 <p><b>よく使うショートカット</b>：<code>Ctrl+S</code> Markdown をダウンロード、<code>Ctrl+Z</code> 元に戻す、<code>Ctrl+Y / Ctrl+Shift+Z</code> やり直す、<code>Ctrl+B</code> 太字、<code>Ctrl+I</code> 斜体、<code>Ctrl+U</code> 下線、<code>Ctrl+K</code> リンク、<code>Ctrl+Shift+K</code> 画像、<code>Ctrl+F</code> 検索、<code>Ctrl+H</code> 置換、<code>Tab</code> 4 スペース字下げ。</p>
 <p style="color:var(--text-muted);font-size:12px;">本エディタは「沃垠AI」の主理人である冷逸（Leng Yi）によって開発されました。機能提案は WeChat: lengcp2013 まで</p>`,
@@ -679,9 +682,14 @@ const i18n = {
     urlTitle: 'Web を Markdown に',
     urlLabel: 'Web アドレス',
     urlPlaceholder: 'https://example.com/article',
-    useProxy: 'ローカルプロキシを使用（推奨、知乎/WeChat 記事対応）',
-    proxyPlaceholder: 'ローカルプロキシアドレス',
     fetchBtn: '取得を試す',
+    extensionModeLabel: 'ウェブ取得方式',
+    extensionModeBrowser: 'ブラウザで動的レンダリング（ログイン対応）',
+    extensionModeStatic: 'HTML を直接取得（静的ページのみ）',
+    extensionHint: 'Chrome/Edge 拡張機能が必要です。ローカル HTTP サーバーは不要です。',
+    urlStatusExtensionSuccess: '✓ 拡張機能で取得しました。変換して挿入をクリックしてください。',
+    urlStatusExtensionFailed: '× 拡張機能での取得に失敗：{0}',
+    urlStatusExtensionMissing: '× 拡張機能に接続できません。extension フォルダーをインストールし、ローカル HTML ではファイル URL へのアクセスを許可してください。',
     manualLabel: 'Web HTML ソース（手動貼り付け）',
     manualPlaceholder: 'ブラウザで対象ページを開く → 右クリック「ページのソースを表示」→ 全選択してコピー → ここに貼り付け',
     cancel: 'キャンセル',
@@ -749,11 +757,7 @@ const i18n = {
     statusNoMatch: '一致するものが見つかりません',
     statusReplacedCount: '{0} 件を置換しました',
     urlStatusFetching: '取得中…',
-    urlStatusLocalSuccess: '✓ ローカルプロキシから取得しました。「変換して挿入」をクリックしてください',
-    urlStatusPublicSuccess: '✓ 取得しました。「変換して挿入」をクリックしてください',
     urlStatusEmptyUrl: 'Web アドレスを入力してください',
-    urlStatusLocalFailed: '× ローカルプロキシの取得に失敗しました：{0}',
-    urlStatusPublicFailed: '× 自動取得に失敗しました（{0}）。Web HTML ソースを手動で貼り付けるか、ローカルプロキシを有効にしてください',
     tableSizeLabel: '{0} 行 × {1} 列',
     imageLargeWarning: '画像が大きいです（{0}MB）。Base64 で埋め込むと文書が大きくなります。続行しますか？',
     mermaid: 'Mermaid',
@@ -794,8 +798,8 @@ const i18n = {
 <p><b>Web을 Markdown으로</b></p>
 <ul>
   <li>🌐을 클릭하고 웹 페이지 링크를 입력하면 본문을 자동으로 추출합니다.</li>
-  <li>知乎, 微信公众号 등은「로컬 프록시 사용」을 체크하고 같은 폴더의 <code>web-to-md-proxy.py</code>를 미리 실행하세요.</li>
-  <li>로그인이 필요한 페이지는 <code>python web-to-md-proxy.py --bookmark</code>를 실행해 북마크릿을 생성해 추출하세요.</li>
+  <li>웹 변환에는 Chrome/Edge 확장 프로그램을 사용하며 Python, Node.js, 로컬 프록시는 필요 없습니다.</li>
+  <li>extension 폴더를 설치하세요. 브라우저 모드는 동적 페이지와 로그인 후 재시도를 지원합니다.</li>
 </ul>
 <p><b>자주 사용하는 단축키</b>: <code>Ctrl+S</code> Markdown 다운로드, <code>Ctrl+Z</code> 실행 취소, <code>Ctrl+Y / Ctrl+Shift+Z</code> 다시 실행, <code>Ctrl+B</code> 굵게, <code>Ctrl+I</code> 기울임, <code>Ctrl+U</code> 밑줄, <code>Ctrl+K</code> 링크, <code>Ctrl+Shift+K</code> 이미지, <code>Ctrl+F</code> 찾기, <code>Ctrl+H</code> 바꾸기, <code>Tab</code> 4칸 들여쓰기.</p>
 <p style="color:var(--text-muted);font-size:12px;">본 편집기는 「沃垠AI」대표 랭이(Leng Yi)가 개발했습니다. 기능 제안은 WeChat: lengcp2013</p>`,
@@ -871,9 +875,14 @@ const i18n = {
     urlTitle: 'Web을 Markdown으로',
     urlLabel: '웹 주소',
     urlPlaceholder: 'https://example.com/article',
-    useProxy: '로컬 프록시 사용 (추천, Zhihu/WeChat 기사 지원)',
-    proxyPlaceholder: '로컬 프록시 주소',
     fetchBtn: '가져오기 시도',
+    extensionModeLabel: '웹 캡처 방식',
+    extensionModeBrowser: '브라우저 동적 렌더링 (로그인 페이지 권장)',
+    extensionModeStatic: 'HTML 직접 가져오기 (정적 페이지만)',
+    extensionHint: 'Chrome/Edge 확장 프로그램을 설치하세요. 로컬 HTTP 서버는 필요 없습니다.',
+    urlStatusExtensionSuccess: '✓ 확장 프로그램이 페이지를 가져왔습니다. 변환 후 삽입하세요.',
+    urlStatusExtensionFailed: '× 브라우저 확장 프로그램 오류: {0}',
+    urlStatusExtensionMissing: '× 확장 프로그램에 연결할 수 없습니다. extension 폴더를 설치하고 로컬 HTML이면 파일 URL 액세스를 허용하세요.',
     manualLabel: '웹 HTML 소스 (수동 붙여넣기)',
     manualPlaceholder: '브라우저에서 대상 페이지 열기 → 오른쪽 클릭「페이지 소스 보기」→ 모두 선택 후 복사 → 여기에 붙여넣기',
     cancel: '취소',
@@ -941,11 +950,7 @@ const i18n = {
     statusNoMatch: '일치하는 내용 없음',
     statusReplacedCount: '{0}개를 바꿨습니다',
     urlStatusFetching: '가져오는 중…',
-    urlStatusLocalSuccess: '✓ 로컬 프록시로 가져오기 성공, 「변환 및 삽입」을 클릭하세요',
-    urlStatusPublicSuccess: '✓ 가져오기 성공, 「변환 및 삽입」을 클릭하세요',
     urlStatusEmptyUrl: '웹 주소를 입력하세요',
-    urlStatusLocalFailed: '× 로컬 프록시 가져오기 실패: {0}',
-    urlStatusPublicFailed: '× 자동 가져오기 실패 ({0}). 웹 HTML 소스를 수동으로 붙여넣거나 로컬 프록시를 사용하세요',
     tableSizeLabel: '{0} 행 × {1} 열',
     imageLargeWarning: '이미지가 큽니다 ({0}MB). Base64로 포함하면 문서 크기가 크게 늘어납니다. 계속하시겠습니까?',
     mermaid: 'Mermaid',
@@ -986,8 +991,8 @@ const i18n = {
 <p><b>Web a Markdown</b></p>
 <ul>
   <li>Haz clic en 🌐 e introduce una URL para extraer el cuerpo del artículo.</li>
-  <li>Para Zhihu, artículos de WeChat, etc., activa “Usar proxy local” y ejecuta <code>web-to-md-proxy.py</code> en la misma carpeta primero.</li>
-  <li>Para páginas que requieren inicio de sesión, ejecuta <code>python web-to-md-proxy.py --bookmark</code> para generar un bookmarklet.</li>
+  <li>Web a MD usa una extensión de Chrome/Edge, sin Python, Node.js ni proxy local.</li>
+  <li>Instala la carpeta extension. El modo navegador captura páginas dinámicas y permite iniciar sesión.</li>
 </ul>
 <p><b>Atajos comunes</b>: <code>Ctrl+S</code> Descargar Markdown, <code>Ctrl+Z</code> Deshacer, <code>Ctrl+Y / Ctrl+Shift+Z</code> Rehacer, <code>Ctrl+B</code> Negrita, <code>Ctrl+I</code> Cursiva, <code>Ctrl+U</code> Subrayado, <code>Ctrl+K</code> Enlace, <code>Ctrl+Shift+K</code> Imagen, <code>Ctrl+F</code> Buscar, <code>Ctrl+H</code> Reemplazar, <code>Tab</code> insertar sangría de 4 espacios.</p>
 <p style="color:var(--text-muted);font-size:12px;">Desarrollado por Leng Yi de Woyin AI. Sugerencias por WeChat: lengcp2013</p>`,
@@ -1063,9 +1068,14 @@ const i18n = {
     urlTitle: 'Web a Markdown',
     urlLabel: 'Dirección web',
     urlPlaceholder: 'https://example.com/article',
-    useProxy: 'Usar proxy local (recomendado para Zhihu/WeChat)',
-    proxyPlaceholder: 'Dirección del proxy local',
     fetchBtn: 'Intentar obtener',
+    extensionModeLabel: 'Método de captura',
+    extensionModeBrowser: 'Renderizar en el navegador (recomendado para páginas con sesión)',
+    extensionModeStatic: 'Obtener HTML directamente (solo páginas estáticas)',
+    extensionHint: 'Instala la extensión de Chrome/Edge; no necesitas servidor HTTP local.',
+    urlStatusExtensionSuccess: '✓ Página capturada por la extensión. Pulsa Convertir e insertar.',
+    urlStatusExtensionFailed: '× Error de la extensión: {0}',
+    urlStatusExtensionMissing: '× Extensión no conectada. Carga la carpeta extension y permite acceso a archivos si abres HTML local.',
     manualLabel: 'Fuente HTML de la página (pegar manualmente)',
     manualPlaceholder: 'Abre la página de destino en el navegador → clic derecho “Ver código fuente” → seleccionar todo y copiar → pegar aquí',
     cancel: 'Cancelar',
@@ -1133,11 +1143,7 @@ const i18n = {
     statusNoMatch: 'No se encontraron coincidencias',
     statusReplacedCount: 'Se reemplazaron {0} coincidencias',
     urlStatusFetching: 'Obteniendo…',
-    urlStatusLocalSuccess: '✓ Obtenido mediante proxy local, haz clic en “Convertir e insertar” para importar',
-    urlStatusPublicSuccess: '✓ Obtenido correctamente, haz clic en “Convertir e insertar” para importar',
     urlStatusEmptyUrl: 'Introduce una dirección web',
-    urlStatusLocalFailed: '× Fallo del proxy local: {0}',
-    urlStatusPublicFailed: '× Fallo al obtener automáticamente ({0}). Pega el HTML manualmente o habilita el proxy local',
     tableSizeLabel: '{0} filas × {1} columnas',
     imageLargeWarning: 'La imagen es grande ({0} MB). Incrustarla como Base64 aumentará mucho el tamaño del documento. ¿Continuar?',
     mermaid: 'Mermaid',
@@ -1178,8 +1184,8 @@ const i18n = {
 <p><b>Web vers Markdown</b></p>
 <ul>
   <li>Cliquez sur 🌐 et saisissez une URL pour extraire le corps de l’article.</li>
-  <li>Pour Zhihu, les articles WeChat, etc., activez « Utiliser le proxy local » et exécutez d’abord <code>web-to-md-proxy.py</code> dans le même dossier.</li>
-  <li>Pour les pages nécessitant une connexion, exécutez <code>python web-to-md-proxy.py --bookmark</code> pour générer un bookmarklet.</li>
+  <li>La conversion web utilise l’extension Chrome/Edge sans Python, Node.js ni proxy local.</li>
+  <li>Chargez le dossier extension. Le mode navigateur prend en charge les pages dynamiques et la connexion.</li>
 </ul>
 <p><b>Raccourcis courants</b> : <code>Ctrl+S</code> Télécharger Markdown, <code>Ctrl+Z</code> Annuler, <code>Ctrl+Y / Ctrl+Shift+Z</code> Rétablir, <code>Ctrl+B</code> Gras, <code>Ctrl+I</code> Italique, <code>Ctrl+U</code> Souligné, <code>Ctrl+K</code> Lien, <code>Ctrl+Shift+K</code> Image, <code>Ctrl+F</code> Rechercher, <code>Ctrl+H</code> Remplacer, <code>Tab</code> insérer une indentation de 4 espaces.</p>
 <p style="color:var(--text-muted);font-size:12px;">Développé par Leng Yi de Woyin AI. Suggestions via WeChat : lengcp2013</p>`,
@@ -1255,9 +1261,14 @@ const i18n = {
     urlTitle: 'Web vers Markdown',
     urlLabel: 'Adresse Web',
     urlPlaceholder: 'https://example.com/article',
-    useProxy: 'Utiliser le proxy local (recommandé pour Zhihu/WeChat)',
-    proxyPlaceholder: 'Adresse du proxy local',
     fetchBtn: 'Essayer de récupérer',
+    extensionModeLabel: 'Méthode de capture',
+    extensionModeBrowser: 'Rendu dans le navigateur (pages connectées)',
+    extensionModeStatic: 'Récupérer le HTML (pages statiques)',
+    extensionHint: 'Installez l’extension Chrome/Edge ; aucun serveur HTTP local nécessaire.',
+    urlStatusExtensionSuccess: '✓ Page récupérée par l’extension. Cliquez sur Convertir et insérer.',
+    urlStatusExtensionFailed: '× Échec de l’extension : {0}',
+    urlStatusExtensionMissing: '× Extension non connectée. Chargez le dossier extension et autorisez les URL de fichiers pour le HTML local.',
     manualLabel: 'Source HTML de la page (coller manuellement)',
     manualPlaceholder: 'Ouvrez la page cible dans le navigateur → clic droit “Afficher le code source” → tout sélectionner et copier → coller ici',
     cancel: 'Annuler',
@@ -1325,11 +1336,7 @@ const i18n = {
     statusNoMatch: 'Aucune correspondance trouvée',
     statusReplacedCount: '{0} correspondances remplacées',
     urlStatusFetching: 'Récupération en cours…',
-    urlStatusLocalSuccess: '✓ Récupéré via le proxy local, cliquez sur « Convertir et insérer » pour importer',
-    urlStatusPublicSuccess: '✓ Récupéré, cliquez sur « Convertir et insérer » pour importer',
     urlStatusEmptyUrl: 'Veuillez saisir une adresse web',
-    urlStatusLocalFailed: '× Échec du proxy local : {0}',
-    urlStatusPublicFailed: '× Échec de la récupération automatique ({0}). Collez le HTML manuellement ou activez le proxy local',
     tableSizeLabel: '{0} lignes × {1} colonnes',
     imageLargeWarning: 'L’image est grande ({0} Mo). L’intégrer en Base64 augmentera considérablement la taille du document. Continuer ?',
     mermaid: 'Mermaid',
@@ -1370,8 +1377,8 @@ const i18n = {
 <p><b>Web zu Markdown</b></p>
 <ul>
   <li>Klicke auf 🌐 und gib eine URL ein, um den Artikeltext zu extrahieren.</li>
-  <li>Für Zhihu, WeChat-Artikel usw. aktiviere „Lokalen Proxy verwenden“ und führe zuerst <code>web-to-md-proxy.py</code> im selben Ordner aus.</li>
-  <li>Für Seiten mit Anmeldung führe <code>python web-to-md-proxy.py --bookmark</code> aus, um ein Bookmarklet zu erzeugen.</li>
+  <li>Web zu MD nutzt eine Chrome/Edge-Erweiterung ohne Python, Node.js oder lokalen Proxy.</li>
+  <li>Ordner extension installieren. Der Browsermodus unterstützt dynamische Seiten und Anmeldung.</li>
 </ul>
 <p><b>Häufige Tastenkürzel</b>: <code>Ctrl+S</code> Markdown herunterladen, <code>Ctrl+Z</code> Rückgängig, <code>Ctrl+Y / Ctrl+Shift+Z</code> Wiederherstellen, <code>Ctrl+B</code> Fett, <code>Ctrl+I</code> Kursiv, <code>Ctrl+U</code> Unterstrichen, <code>Ctrl+K</code> Link, <code>Ctrl+Shift+K</code> Bild, <code>Ctrl+F</code> Suchen, <code>Ctrl+H</code> Ersetzen, <code>Tab</code> 4 Leerzeichen Einzug einfügen.</p>
 <p style="color:var(--text-muted);font-size:12px;">Entwickelt von Leng Yi von Woyin AI. Feedback über WeChat: lengcp2013</p>`,
@@ -1447,9 +1454,14 @@ const i18n = {
     urlTitle: 'Web zu Markdown',
     urlLabel: 'Web-Adresse',
     urlPlaceholder: 'https://example.com/article',
-    useProxy: 'Lokalen Proxy verwenden (empfohlen für Zhihu/WeChat)',
-    proxyPlaceholder: 'Adresse des lokalen Proxys',
     fetchBtn: 'Abrufen',
+    extensionModeLabel: 'Abrufmethode',
+    extensionModeBrowser: 'Im Browser rendern (für angemeldete Seiten)',
+    extensionModeStatic: 'HTML direkt abrufen (nur statische Seiten)',
+    extensionHint: 'Chrome/Edge-Erweiterung installieren; kein lokaler HTTP-Server nötig.',
+    urlStatusExtensionSuccess: '✓ Seite über Erweiterung geladen. Auf Konvertieren & Einfügen klicken.',
+    urlStatusExtensionFailed: '× Erweiterungsfehler: {0}',
+    urlStatusExtensionMissing: '× Erweiterung nicht verbunden. Ordner extension laden; für lokale HTML-Dateien Dateizugriff erlauben.',
     manualLabel: 'HTML-Quelle der Seite (manuell einfügen)',
     manualPlaceholder: 'Zielseite im Browser öffnen → Rechtsklick „Seitenquelltext anzeigen“ → alles auswählen und kopieren → hier einfügen',
     cancel: 'Abbrechen',
@@ -1517,11 +1529,7 @@ const i18n = {
     statusNoMatch: 'Keine Treffer gefunden',
     statusReplacedCount: '{0} Treffer ersetzt',
     urlStatusFetching: 'Wird abgerufen…',
-    urlStatusLocalSuccess: '✓ Über lokalen Proxy abgerufen, klicke auf „Konvertieren & einfügen“ zum Importieren',
-    urlStatusPublicSuccess: '✓ Erfolgreich abgerufen, klicke auf „Konvertieren & einfügen“ zum Importieren',
     urlStatusEmptyUrl: 'Bitte Web-Adresse eingeben',
-    urlStatusLocalFailed: '× Lokaler Proxy-Fehler: {0}',
-    urlStatusPublicFailed: '× Automatisches Abrufen fehlgeschlagen ({0}). Füge den HTML-Quelltext manuell ein oder aktiviere den lokalen Proxy',
     tableSizeLabel: '{0} Zeilen × {1} Spalten',
     imageLargeWarning: 'Das Bild ist groß ({0} MB). Als Base64 eingebettet wird das Dokument deutlich größer. Fortfahren?',
     mermaid: 'Mermaid',
@@ -1562,8 +1570,8 @@ const i18n = {
 <p><b>Web в Markdown</b></p>
 <ul>
   <li>Кликните 🌐 и введите URL, чтобы извлечь тело статьи.</li>
-  <li>Для Zhihu, статей WeChat и т. п. включите «Использовать локальный прокси» и заранее запустите <code>web-to-md-proxy.py</code> из той же папки.</li>
-  <li>Для страниц, требующих входа, запустите <code>python web-to-md-proxy.py --bookmark</code>, чтобы создать букмарклет.</li>
+  <li>Преобразование веб-страниц использует расширение Chrome/Edge без Python, Node.js и локального прокси.</li>
+  <li>Установите папку extension. Режим браузера поддерживает динамические страницы и авторизацию.</li>
 </ul>
 <p><b>Частые горячие клавиши</b>: <code>Ctrl+S</code> Скачать Markdown, <code>Ctrl+Z</code> Отменить, <code>Ctrl+Y / Ctrl+Shift+Z</code> Повторить, <code>Ctrl+B</code> Жирный, <code>Ctrl+I</code> Курсив, <code>Ctrl+U</code> Подчеркнутый, <code>Ctrl+K</code> Ссылка, <code>Ctrl+Shift+K</code> Изображение, <code>Ctrl+F</code> Найти, <code>Ctrl+H</code> Заменить, <code>Tab</code> вставить отступ в 4 пробела.</p>
 <p style="color:var(--text-muted);font-size:12px;">Разработано Лэн И (Leng Yi) из Woyin AI. Предложения по WeChat: lengcp2013</p>`,
@@ -1639,9 +1647,14 @@ const i18n = {
     urlTitle: 'Web в Markdown',
     urlLabel: 'Адрес страницы',
     urlPlaceholder: 'https://example.com/article',
-    useProxy: 'Использовать локальный прокси (рекомендуется для Zhihu/WeChat)',
-    proxyPlaceholder: 'Адрес локального прокси',
     fetchBtn: 'Попробовать получить',
+    extensionModeLabel: 'Способ получения',
+    extensionModeBrowser: 'Открыть в браузере (включая страницы с авторизацией)',
+    extensionModeStatic: 'Получить HTML (только статические страницы)',
+    extensionHint: 'Установите расширение Chrome/Edge; локальный HTTP-сервер не нужен.',
+    urlStatusExtensionSuccess: '✓ Расширение получило страницу. Нажмите Преобразовать и вставить.',
+    urlStatusExtensionFailed: '× Ошибка расширения: {0}',
+    urlStatusExtensionMissing: '× Расширение не подключено. Загрузите папку extension и разрешите доступ к файловым URL для локального HTML.',
     manualLabel: 'Исходный HTML страницы (вставить вручную)',
     manualPlaceholder: 'Откройте целевую страницу в браузере → правый клик «Просмотреть исходный код» → выделить всё и скопировать → вставить сюда',
     cancel: 'Отмена',
@@ -1709,11 +1722,7 @@ const i18n = {
     statusNoMatch: 'Совпадений не найдено',
     statusReplacedCount: 'Заменено совпадений: {0}',
     urlStatusFetching: 'Получение…',
-    urlStatusLocalSuccess: '✓ Получено через локальный прокси, нажмите «Преобразовать и вставить» для импорта',
-    urlStatusPublicSuccess: '✓ Получено успешно, нажмите «Преобразовать и вставить» для импорта',
     urlStatusEmptyUrl: 'Введите адрес страницы',
-    urlStatusLocalFailed: '× Ошибка локального прокси: {0}',
-    urlStatusPublicFailed: '× Ошибка автоматического получения ({0}). Вставьте HTML вручную или включите локальный прокси',
     tableSizeLabel: '{0} строк × {1} столбцов',
     imageLargeWarning: 'Изображение большое ({0} МБ). Встраивание как Base64 существенно увеличит документ. Продолжить?',
     mermaid: 'Mermaid',
@@ -1754,8 +1763,8 @@ const i18n = {
 <p><b>Web para Markdown</b></p>
 <ul>
   <li>Clique em 🌐 e insira uma URL para extrair o corpo do artigo.</li>
-  <li>Para Zhihu, artigos do WeChat etc., ative “Usar proxy local” e execute <code>web-to-md-proxy.py</code> na mesma pasta primeiro.</li>
-  <li>Para páginas que exigem login, execute <code>python web-to-md-proxy.py --bookmark</code> para gerar um bookmarklet.</li>
+  <li>Web para MD usa extensão Chrome/Edge sem Python, Node.js ou proxy local.</li>
+  <li>Instale a pasta extension. O modo navegador suporta páginas dinâmicas e login.</li>
 </ul>
 <p><b>Atalhos comuns</b>: <code>Ctrl+S</code> Baixar Markdown, <code>Ctrl+Z</code> Desfazer, <code>Ctrl+Y / Ctrl+Shift+Z</code> Refazer, <code>Ctrl+B</code> Negrito, <code>Ctrl+I</code> Itálico, <code>Ctrl+U</code> Sublinhado, <code>Ctrl+K</code> Link, <code>Ctrl+Shift+K</code> Imagem, <code>Ctrl+F</code> Localizar, <code>Ctrl+H</code> Substituir, <code>Tab</code> inserir recuo de 4 espaços.</p>
 <p style="color:var(--text-muted);font-size:12px;">Desenvolvido por Leng Yi da Woyin AI. Sugestões pelo WeChat: lengcp2013</p>`,
@@ -1831,9 +1840,14 @@ const i18n = {
     urlTitle: 'Web para Markdown',
     urlLabel: 'Endereço web',
     urlPlaceholder: 'https://example.com/article',
-    useProxy: 'Usar proxy local (recomendado para Zhihu/WeChat)',
-    proxyPlaceholder: 'Endereço do proxy local',
     fetchBtn: 'Tentar obter',
+    extensionModeLabel: 'Método de captura',
+    extensionModeBrowser: 'Renderizar no navegador (páginas com login)',
+    extensionModeStatic: 'Obter HTML diretamente (páginas estáticas)',
+    extensionHint: 'Instale a extensão Chrome/Edge; não precisa de servidor HTTP local.',
+    urlStatusExtensionSuccess: '✓ Extensão capturou a página. Clique em Converter e inserir.',
+    urlStatusExtensionFailed: '× Falha da extensão: {0}',
+    urlStatusExtensionMissing: '× Extensão desconectada. Carregue a pasta extension e permita acesso a URLs de arquivo para HTML local.',
     manualLabel: 'Fonte HTML da página (colar manualmente)',
     manualPlaceholder: 'Abra a página de destino no navegador → clique direito “Ver código-fonte” → selecionar tudo e copiar → colar aqui',
     cancel: 'Cancelar',
@@ -1901,11 +1915,7 @@ const i18n = {
     statusNoMatch: 'Nenhuma correspondência encontrada',
     statusReplacedCount: '{0} correspondências substituídas',
     urlStatusFetching: 'Obtendo…',
-    urlStatusLocalSuccess: '✓ Obtido via proxy local, clique em “Converter e inserir” para importar',
-    urlStatusPublicSuccess: '✓ Obtido com sucesso, clique em “Converter e inserir” para importar',
     urlStatusEmptyUrl: 'Insira um endereço web',
-    urlStatusLocalFailed: '× Falha no proxy local: {0}',
-    urlStatusPublicFailed: '× Falha ao obter automaticamente ({0}). Cole o HTML manualmente ou ative o proxy local',
     tableSizeLabel: '{0} linhas × {1} colunas',
     imageLargeWarning: 'A imagem é grande ({0} MB). Incorporá-la como Base64 aumentará muito o tamanho do documento. Continuar?',
     mermaid: 'Mermaid',
