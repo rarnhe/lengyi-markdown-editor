@@ -32,7 +32,7 @@
       return;
     }
     if (command !== "FETCH" || !payload || typeof payload.url !== "string" ||
-        !["browser","static"].includes(payload.mode)) return;
+        !["browser","existing","static"].includes(payload.mode)) return;
     chrome.runtime.sendMessage({
       channel:CHANNEL,type:"FETCH",requestId,url:payload.url,mode:payload.mode
     }).then(reply).catch(error => {
