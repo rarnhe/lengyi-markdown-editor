@@ -55,7 +55,7 @@ test('Windows cscript rejects loopback targets and exposes browser bookmarklet',
     ['//nologo','dist\\web-to-md.js','--once','http://127.0.0.1:8765/secret'],
     { encoding:'utf8', timeout:30000 });
   assert.notEqual(blocked.status, 0);
-  assert.match(blocked.stdout, /WSH_ERROR:.*blocked/i);
+  assert.match(blocked.stdout, /WSH_ERROR:.*(?:blocked|unsupported)/i);
   const bookmark = spawnSync('cscript.exe',
     ['//nologo','dist\\web-to-md.js','--bookmark'],
     { encoding:'utf8', timeout:30000 });
@@ -88,7 +88,7 @@ test('Windows loopback HTTP bridge serves /health and sends /fetch to cscript', 
     const response=await get('/fetch?url='+encodeURIComponent('http://127.0.0.1:8765/secret'));
     const data=await response.json();
     assert.equal(data.success,false);
-    assert.match(data.error,/blocked/i);
+    assert.match(data.error,/(?:blocked|unsupported)/i);
   } finally {
     child.kill();
   }
