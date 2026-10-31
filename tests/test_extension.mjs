@@ -205,6 +205,39 @@ test('Editor extensionRequest rejects cross-window and cross-origin forged repli
   await assert.rejects(request('PING',{},45),/EXTENSION_TIMEOUT/);
 });
 
+
+test('Extension popup diagnoses file access and editor bridge injection',async()=>{
+  const popup=readFileSync('extension/popup.html','utf8');
+  const source=readFileSync('extension/popup.js','utf8');
+  assert.match(popup, /<script src="popup\.js"><\/script>/);
+  async function run({url,allowed=true,injected=true}) {
+    const elements={status:{textContent:''},details:{textContent:''}};
+    const chrome={
+      tabs:{query:async()=>[{id:5,url}]},
+      extension:{isAllowedFileSchemeAccess:fn=>fn(allowed)},
+      scripting:{executeScript:async()=>[{result:injected}]}
+    };
+    const context={
+      chrome,URL,
+      document:{getElementById:key=>elements[key]},
+      Promise
+    };
+    vm.runInNewContext(source,context,{filename:'extension/popup.js'});
+    for(let i=0;i<12 && !elements.status.textContent;i++){
+      await new Promise(resolve=>setImmediate(resolve));
+    }
+    return elements;
+  }
+  const fileOff=await run({url:'file:///C:/my/markdown-editor.html',allowed:false});
+  assert.match(fileOff.status.textContent,/本地文件/);
+  const injected=await run({url:'http://localhost:8080/markdown-editor.html',injected:true});
+  assert.match(injected.status.textContent,/已注入/);
+  const absent=await run({url:'http://127.0.0.1:8080/markdown-editor.html',injected:false});
+  assert.match(absent.status.textContent,/未注入/);
+  const unsupported=await run({url:'http://192.168.1.2:8080/markdown-editor.html'});
+  assert.match(unsupported.status.textContent,/未被扩展授权/);
+});
+
 test('Content script replies to editor PING/FETCH through bounded message bridge',async()=>{
   const sent=[];
   let listener;
