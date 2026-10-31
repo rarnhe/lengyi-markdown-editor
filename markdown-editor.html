@@ -1352,10 +1352,12 @@
         <input type="url" id="url-input" data-i18n-placeholder="urlPlaceholder" placeholder="https://example.com/article">
         <label for="web-fetch-mode" data-i18n="extensionModeLabel">网页抓取方式</label>
         <select id="web-fetch-mode" style="width:100%;margin-bottom:8px;">
-          <option value="browser" data-i18n="extensionModeBrowser">浏览器动态渲染（推荐，可处理登录网页）</option>
+          <option value="browser" data-i18n="extensionModeBrowser">浏览器动态渲染（优先复用已打开网页）</option>
+          <option value="existing" data-i18n="extensionModeExisting">提取已打开的网页（不新建标签页）</option>
           <option value="static" data-i18n="extensionModeStatic">直接获取 HTML（仅静态页面）</option>
         </select>
         <p style="margin:0 0 10px;font-size:12px;color:var(--text-muted);" data-i18n="extensionHint">需要先安装 Chrome/Edge 扩展；不需要本地 HTTP 服务。</p>
+        <p style="margin:0 0 10px;font-size:12px;color:var(--text-muted);" data-i18n="extensionNetworkHint">若新标签页出现网络错误，请先确认相同浏览器能正常打开目标网址；也可选择提取已打开的网页。</p>
         <button onclick="fetchUrl()" class="primary" data-i18n="fetchBtn">尝试获取</button>
         <div id="url-status" style="margin-top:10px;font-size:13px;color:var(--text-muted);"></div>
         <div id="manual-area" style="display:none;margin-top:14px;">
