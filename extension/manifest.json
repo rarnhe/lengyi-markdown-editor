@@ -5,7 +5,8 @@
   "description": "Capture static or browser-rendered article HTML directly from Chrome/Edge without a local proxy.",
   "permissions": [
     "tabs",
-    "scripting"
+    "scripting",
+    "webNavigation"
   ],
   "host_permissions": [
     "http://*/*",
