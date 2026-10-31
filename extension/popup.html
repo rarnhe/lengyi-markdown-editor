@@ -5,17 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lengyi Web to MD</title>
   <style>
-    body { width: 290px; padding: 16px; font: 13px/1.55 system-ui,sans-serif; color:#1d2531; }
+    body { width: 328px; padding: 16px; font: 13px/1.55 system-ui,sans-serif; color:#1d2531; }
     h1 { font-size:16px; margin:0 0 8px; }
     p { margin:8px 0; }
     code { background:#f0f2f6; padding:2px 4px; border-radius:4px; }
+    #status { font-weight:600; }
+    .instructions { border-top:1px solid #d9e0e8; padding-top:8px; }
     small { color:#646d78; }
   </style>
 </head>
 <body>
   <h1>Lengyi Markdown · 网页转 MD</h1>
-  <p>扩展已安装。打开仓库的 <code>markdown-editor.html</code>，使用工具栏「网页转 MD」即可抓取动态网页。</p>
-  <p>若直接双击打开 HTML，请在扩展详情中开启「允许访问文件网址」，然后刷新编辑器。</p>
-  <small>无需本地 HTTP 代理、Python、Node.js 或后台服务。抓取网页时会打开一个标签页。</small>
+  <p id="status" role="status">正在检查编辑器连接…</p>
+  <p id="details"></p>
+  <div class="instructions">
+    <p>先打开 <code>markdown-editor.html</code>，再点击扩展图标查看状态。</p>
+    <p>如果使用 <code>file://</code>，请在扩展详情启用「允许访问文件网址」，修改权限或更新扩展后刷新编辑器页面。</p>
+    <small>无需本地 HTTP 代理、Python、Node.js 或后台服务。</small>
+  </div>
+  <script src="popup.js"></script>
 </body>
 </html>
