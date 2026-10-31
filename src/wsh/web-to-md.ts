@@ -106,8 +106,8 @@ function driverRequest(method: string, endpoint: string, body: any): any {
   req.setTimeouts(5000, 5000, 25000, 25000);
   req.open(method, "http://127.0.0.1:" + DRIVER_PORT + endpoint, false);
   req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
-  req.send(body === null ? "" : JSON.stringify(body));
-  var response: any = JSON.parse(String(req.responseText));
+  req.send(body === null ? "" : jsonStringify(body));
+  var response: any = jsonParse(String(req.responseText));
   if (req.status >= 400 || (response.value && response.value.error)) {
     throw new Error("WebDriver: " + (response.value ? response.value.message || response.value.error : req.status));
   }
@@ -184,12 +184,12 @@ function processQueue(): void {
     var responsePath: string = joinPath(QUEUE, name.replace(/\.req$/i, ".res"));
     var data: any;
     try {
-      data = JSON.parse(utf8Read(requestPath));
+      data = jsonParse(utf8Read(requestPath));
       var html: string = fetchTarget(String(data.url), String(data.mode || "static"));
-      utf8Write(responsePath, JSON.stringify({ success: true, html: html, length: html.length }));
+      utf8Write(responsePath, jsonStringify({ success: true, html: html, length: html.length }));
     } catch (e) {
       var error: string = String((e as any).message || e);
-      utf8Write(responsePath, JSON.stringify({ success: false, error: error,
+      utf8Write(responsePath, jsonStringify({ success: false, error: error,
         hint: "For login-required or dynamically rendered pages, use browser mode with Edge WebDriver." }));
     }
     try { fso.DeleteFile(requestPath, true); } catch (ignore) {}
@@ -217,7 +217,7 @@ function selfTest(): void {
     throw new Error("UTF-8 COM file round-trip failed");
   }
   fso.DeleteFile(sample, true);
-  if (!JSON || JSON.parse('{"ok":true}').ok !== true) throw new Error("Native JSON missing");
+  if (jsonParse('{"ok":true}').ok !== true) throw new Error("Native JSON missing");
   var client: any = new ActiveXObject("MSXML2.ServerXMLHTTP.6.0");
   if (!client) throw new Error("HTTP COM client unavailable");
   var blocked: boolean = false;
