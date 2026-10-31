@@ -289,7 +289,7 @@
       font-weight: 600;
     }
     .preview-pane .pane-header { justify-content: center; }
-    .preview-title-group { display: inline-flex; align-items: center; justify-content: center; gap: 10px; }
+    .preview-title-group { display: inline-flex; align-items: center; justify-content: center; gap: 10px; position: relative; }
     #word-count { color: #2563eb; font-weight: 600; }
     [data-theme="dark"] #word-count { color: #60a5fa; }
     .editor-pane .pane-header { position: relative; justify-content: center; }
@@ -300,8 +300,12 @@
       letter-spacing: normal; white-space: nowrap;
       border: none; background: transparent; padding: 0;
     }
-    .preview-title-group .filename-slot { display: flex; flex: 0 0 auto; min-width: 0; }
-    .preview-title-group #filename { font-weight: 700; text-align: left; }
+    /* The timestamp stays anchored: the filename grows left, never into preview text. */
+    .preview-title-group .filename-slot {
+      display: flex; position: absolute; right: calc(100% + 10px);
+      min-width: 0; max-width: 0;
+    }
+    .preview-title-group #filename { font-weight: 700; text-align: right; text-overflow: ellipsis; }
     .preview-title-group #document-time { font-weight: 400; }
     /* Match the outline's collapsed list: hide the editor's scrollable body. */
     .editor-pane.collapsed #editor { display: none; }
@@ -523,6 +527,19 @@
       padding: 0;
       color: inherit;
       font-size: 0.9em;
+    }
+    /* Reference f24c85a: optional fenced-code language note in the top-right. */
+    .preview-content pre { position: relative; }
+    .preview-content pre[data-language]:not([data-language=""])::before {
+      content: attr(data-language);
+      position: absolute;
+      top: 6px;
+      right: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
     .preview-content blockquote {
       margin: 0 0 20px;
@@ -1215,7 +1232,7 @@
       <div class="pane preview-pane">
         <div class="pane-header">
           <div class="preview-title-group">
-            <div class="filename-slot"><input type="text" id="filename" value="未命名文档.md" readonly aria-readonly="true" data-i18n-title="filenameTitle" title="文件名" aria-label="文件名"></div>
+            <div class="filename-slot"><input type="text" id="filename" value="未命名文档.md" data-i18n-title="filenameTitle" title="文件名" aria-label="文件名"></div>
             <time id="document-time" aria-live="polite"></time>
             <span class="pane-title" data-i18n="previewPaneTitle">实时预览</span>
             <span id="word-count">0 字</span>
@@ -1482,6 +1499,7 @@
     const editor = document.getElementById('editor');
     const preview = document.getElementById('preview');
     const filenameInput = document.getElementById('filename');
+    let committedFilename = filenameInput.value;
     const documentTime = document.getElementById('document-time');
     const htmlOpenedAt = new Date();
     let markdownImportedAt = null;
@@ -1509,6 +1527,50 @@
       context.font = style.font || (style.fontWeight + ' ' + style.fontSize + ' ' + style.fontFamily);
       slot.style.width = Math.ceil(context.measureText(filenameInput.value).width + 1) + 'px';
     }
+
+    function updateFilenameLimit() {
+      const markdown = preview.querySelector('.markdown-body');
+      if (!markdown) return;
+      const textLeft = markdown.getBoundingClientRect().left +
+        (parseFloat(getComputedStyle(markdown).paddingLeft) || 0);
+      const available = Math.max(0, Math.floor(documentTime.getBoundingClientRect().left - 10 - textLeft));
+      filenameInput.parentElement.style.maxWidth = available + 'px';
+    }
+
+    // Enter and blur commit only changed names; Escape cancels without a download.
+    function commitFilenameChange() {
+      let name = filenameInput.value.trim();
+      if (!name) {
+        filenameInput.value = committedFilename;
+        updateFilenameWidth();
+        return;
+      }
+      if (!/\.(md|markdown)$/i.test(name)) name += '.md';
+      filenameInput.value = name;
+      updateFilenameWidth();
+      if (name === committedFilename) return;
+      committedFilename = name;
+      syncDocumentTitle();
+      localStorage.setItem(FILENAME_KEY, name);
+      autoSave();
+      // Downloads may open a Save As dialog, depending on browser settings.
+      exportFile();
+    }
+
+    filenameInput.addEventListener('input', updateFilenameWidth);
+    filenameInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        commitFilenameChange();
+        filenameInput.blur();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        filenameInput.value = committedFilename;
+        updateFilenameWidth();
+        filenameInput.blur();
+      }
+    });
+    filenameInput.addEventListener('blur', commitFilenameChange);
 
     function syncDocumentTitle() {
       document.title = filenameInput.value.trim() || t('filenameDefault');
@@ -1708,6 +1770,7 @@
       if (outlineVisible) renderOutline();
       syncDocumentTitle();
       updateFilenameWidth();
+      updateFilenameLimit();
       updateDocumentTime();
       updateThemeButton();
       document.getElementById('more-toggle').setAttribute('aria-label', t('moreMenu'));
@@ -1854,6 +1917,7 @@
         editorPane.style.flex = `${editorRatio} ${editorRatio} 0`;
         previewPane.style.flex = `${1 - editorRatio} ${1 - editorRatio} 0`;
       }
+      updateFilenameLimit();
     }
 
     function startResize(e) {
@@ -2253,6 +2317,7 @@
         setMarkdown(i18n[currentLang].welcomeDoc);
       }
       filenameInput.value = localStorage.getItem(FILENAME_KEY) || t('filenameDefault');
+      committedFilename = filenameInput.value;
       const theme = localStorage.getItem(THEME_KEY) || 'light';
       document.body.setAttribute('data-theme', theme);
 
@@ -2323,6 +2388,15 @@
       }
 
       preview.innerHTML = '<div class="markdown-body">' + html + '</div>';
+      // The existing Marked renderer supplies language-* classes for fenced code.
+      // Annotate only the preview; unlabelled blocks keep an empty top-right.
+      preview.querySelectorAll('pre > code[class*="language-"]').forEach(code => {
+        const languageClass = Array.from(code.classList).find(name => name.startsWith('language-'));
+        if (languageClass && languageClass.length > 9) {
+          code.parentElement.dataset.language = languageClass.slice(9);
+        }
+      });
+      updateFilenameLimit();
       styleTaskLists();
 
       if (typeof renderMathInElement !== 'undefined') {
@@ -2771,6 +2845,7 @@ ${'</scr' + 'ipt>'}
         // Record the successful import time only for Markdown files.
         setDocumentImportTime(/\.(md|markdown)$/i.test(file.name));
         filenameInput.value = name;
+        committedFilename = name;
         syncDocumentTitle();
         updateFilenameWidth();
         updatePreview();
@@ -3835,6 +3910,8 @@ ${'</scr' + 'ipt>'}
       }
     }
     editor.addEventListener('keydown', handleEditorKeydown);
+
+    window.addEventListener('resize', updateFilenameLimit);
 
     // 启动
     init();
