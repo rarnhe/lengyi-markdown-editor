@@ -228,11 +228,43 @@ function selfTest(): void {
   WScript.Echo("WSH_SELF_TEST_OK");
 }
 function bookmark(): void {
-  var js: string = "javascript:(function(){var n=document.querySelector('article,main')||document.body;" +
-    "var t=(document.title||'')+'\\n\\n'+n.innerText;" +
-    "if(navigator.clipboard){navigator.clipboard.writeText(t).catch(function(){prompt('Copy text',t);});}" +
-    "else{prompt('Copy text',t);}})();";
-  WScript.Echo(js);
+  // Browser-side JavaScript executes in the user's opened and rendered page.
+  // Copy the article subtree so extraction never mutates the live website.
+  var script: string = [
+    "(function(){",
+    "function md(n){",
+    "if(n.nodeType===3)return n.textContent.replace(/\\s+/g,' ');",
+    "if(n.nodeType!==1)return '';",
+    "var t=n.tagName.toLowerCase(),c='',i;",
+    "for(i=0;i<n.childNodes.length;i++)c+=md(n.childNodes[i]);",
+    "if(t==='h1')return '# '+c.trim()+'\\n\\n';",
+    "if(t==='h2')return '## '+c.trim()+'\\n\\n';",
+    "if(t==='h3')return '### '+c.trim()+'\\n\\n';",
+    "if(t==='p')return c.trim()+'\\n\\n';",
+    "if(t==='br')return '\\n';",
+    "if(t==='a')return '['+c+']('+(n.href||n.getAttribute('href')||'')+')';",
+    "if(t==='strong'||t==='b')return '**'+c+'**';",
+    "if(t==='em'||t==='i')return '*'+c+'*';",
+    "if(t==='code')return '\x60'+c+'\x60';",
+    "if(t==='pre')return '\\n\x60\x60\x60\\n'+n.innerText.trim()+'\\n\x60\x60\x60\\n\\n';",
+    "if(t==='ul'||t==='ol'){var out='';",
+    "for(i=0;i<n.children.length;i++)out+=(t==='ul'?'- ':(i+1)+'. ')+md(n.children[i]).trim()+'\\n';",
+    "return out+'\\n';}",
+    "if(t==='blockquote')return '> '+c.trim().replace(/\\n/g,'\\n> ')+'\\n\\n';",
+    "if(t==='hr')return '---\\n\\n';",
+    "if(t==='div'||t==='section'||t==='article')return c.trim()+'\\n\\n';",
+    "return c;}",
+    "var el=document.querySelector('article,[role=main],.post-content,.entry-content,.article-content,#js_content,.rich_media_content,main')||document.body;",
+    "var copy=el.cloneNode(true),bad=copy.querySelectorAll('script,style,nav,aside,header,footer,form,iframe,svg,video,audio,canvas,.ad,.ads,.sidebar,.comments');",
+    "for(var j=bad.length-1;j>=0;j--)bad[j].parentNode.removeChild(bad[j]);",
+    "var text=md(copy).replace(/\\n{3,}/g,'\\n\\n').trim();",
+    "if(document.title)text='# '+document.title+'\\n\\n'+text;",
+    "if(navigator.clipboard&&navigator.clipboard.writeText){",
+    "navigator.clipboard.writeText(text).then(function(){alert('Markdown copied');}).catch(function(){prompt('Copy Markdown',text);});",
+    "}else{prompt('Copy Markdown',text);}",
+    "})();"
+  ].join("");
+  WScript.Echo("javascript:" + script);
 }
 function main(): void {
   var arg: string = WScript.Arguments.length ? String(WScript.Arguments.Item(0)) : "--serve";
