@@ -112,7 +112,7 @@ Language preference is persisted to `localStorage`.
 - **Math**: `KaTeX` (`$...$` inline, `$$...$$` block)
 - **Diagrams**: `Mermaid 10` (mind maps and flowcharts)
 - **Image export**: `dom-to-image-more`
-- **Local proxy**: `Python 3` + `http.server` (optional, for webpage-to-Markdown)
+- **Web-to-Markdown extension**: optional Chrome/Edge Manifest V3 extension; no local fetch server, Python or Node.js runtime
 
 ### Core Design
 
@@ -144,7 +144,7 @@ Language preference is persisted to `localStorage`.
 .
 ├── markdown-editor.html    # Main editor (single-file app)
 ├── i18n.js                 # i18n dictionary (10 languages)
-├── web-to-md-proxy.py      # Optional local proxy script
+├── extension/             # Optional Chrome/Edge MV3 extension, no local fetch server
 └── README.md               # This file
 ```
 
@@ -162,33 +162,37 @@ git clone https://github.com/woyin2024/lengyi-markdown-editor.git
 markdown-editor.html
 ```
 
-### Option 2: Local Server (Recommended)
+### Option 2: Browser extension (Web to Markdown)
+
+No local HTTP fetch server, Python, Node.js, cscript or PowerShell is required.
+
+1. Open `chrome://extensions` or `edge://extensions` and enable **Developer mode**.
+2. **Load unpacked** and select the repository's `extension` folder.
+3. If opening `markdown-editor.html` as a local `file://` page, enable
+   **Allow access to file URLs** for the extension, then reload the editor.
+4. In **Web to MD**, enter the URL and choose **Render in browser** (JavaScript and
+   login-aware) or **Fetch raw HTML** (static pages). Click Fetch then Convert & Insert.
+
+The editor can also be served using a web preview server like
+`http://localhost:8080/markdown-editor.html`; this is optional and is **not**
+a fetch proxy. The extension editor bridge is limited to `file://`,
+`http://localhost`, `http://127.0.0.1`, and `https://rarnhe.github.io`.
+For other editor hosts, update `extension/manifest.json` accordingly.
+
+Browser mode opens a new visible tab, waits for rendering, and captures the article.
+If login or CAPTCHA is required, complete it in the new tab and retry.
+Static mode uses extension-side `fetch` without authentication cookies.
+The extension requests access to HTTP(S) sites and does not circumvent authentication,
+CAPTCHA or site policies. No content is sent to public CORS proxy services.
+Without the extension, the editor's manual HTML paste and Markdown tools still work.
+
+Run checks using only built-in Node.js test tools (for development, not runtime):
 
 ```bash
-cd markdown-editor
-
-# Python 3
-python -m http.server 8080
-
-# Or Node.js
-npx serve .
-
-# Open in browser
-open http://localhost:8080/markdown-editor.html
+node tests/run_tests.mjs
 ```
 
-### Option 3: Use the Local Proxy (Webpage to Markdown)
-
-```bash
-# Install requests (optional, recommended)
-pip install requests
-
-# Start the proxy
-python web-to-md-proxy.py
-
-# Default port 8765
-# Check "Use local proxy" in the editor
-```
+See [extension/README.md](extension/README.md) for installation and security notes.
 
 ---
 
