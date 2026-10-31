@@ -177,6 +177,31 @@ cscript //nologo dist\web-to-md.js --serve
 Edge 版本匹配的 `msedgedriver.exe`，将其加入 PATH 或设置环境变量
 `MD_EDITOR_WEBDRIVER`。浏览器使用独立配置目录，不继承普通浏览器登录状态。
 
+### VPN / Clash / Mihomo 下的 WinHTTP 外网代理
+
+默认由 WinHTTP 使用系统配置；浏览器代理可用 **不代表 WinHTTP 的代理可用**。
+如果静态抓取报“无法与服务器建立连接”，先查找 VPN 的真实 **HTTP 或 Mixed** 端口，
+确认本地端口可用（示例 7890，并非固定值）：
+
+```powershell
+curl.exe -I --proxy http://127.0.0.1:7890 https://mp.weixin.qq.com/
+```
+
+再在 **启动 cscript 的同一个 PowerShell 窗口**中设置：
+
+```powershell
+$env:MD_EDITOR_HTTP_PROXY = "127.0.0.1:7890"
+cscript //nologo .\dist\web-to-md.js --once "https://mp.weixin.qq.com/" static
+cscript //nologo .\dist\web-to-md.js --serve
+```
+
+仅支持 `127.0.0.1:端口`、`localhost:端口`，或带 `http://` 前缀的形式。
+不支持 SOCKS5、用户名密码和非本机代理；未设置变量则不覆盖 WinHTTP 原配置。
+**8765 是编辑器访问的本地 API，7890 只是示例外网 HTTP 代理端口，二者不要混淆。**
+如果 curl 经指定代理依旧失败，需要先修复 VPN 节点/代理服务。
+HTTPS 证书错误应检查可信 CA，不要关闭证书验证。
+
+
 本地 API 保持 `http://127.0.0.1:8765/fetch` 兼容，
 PowerShell/.NET HttpListener 仅作为 HTTP 监听桥接，抓取与浏览器控制逻辑由 cscript 执行。
 如果出现 Windows URL-ACL 权限问题，可从管理员 CMD 为当前用户注册本机地址一次：
