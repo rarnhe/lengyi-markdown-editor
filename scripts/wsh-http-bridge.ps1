@@ -66,8 +66,18 @@ try {
         Send-Json $context '{"success":false,"error":"Only /fetch is supported"}' 404
         continue
       }
-      $url = [System.Web.HttpUtility]::ParseQueryString($context.Request.Url.Query).Get('url')
-      $mode = [System.Web.HttpUtility]::ParseQueryString($context.Request.Url.Query).Get('mode')
+      $url = $null
+      $mode = $null
+      $rawQuery = $context.Request.Url.Query
+      if ($rawQuery.StartsWith('?')) { $rawQuery = $rawQuery.Substring(1) }
+      foreach ($entry in $rawQuery.Split('&')) {
+        $parts = $entry -split '=', 2
+        if ($parts.Length -ne 2) { continue }
+        $name = [Uri]::UnescapeDataString($parts[0])
+        $value = [Uri]::UnescapeDataString($parts[1].Replace('+', ' '))
+        if ($name -eq 'url') { $url = $value }
+        if ($name -eq 'mode') { $mode = $value }
+      }
       if ([string]::IsNullOrEmpty($url)) {
         Send-Json $context '{"success":false,"error":"Missing URL"}' 400
         continue
@@ -93,7 +103,9 @@ try {
       }
     } catch {
       if ($context.Response.OutputStream.CanWrite) {
-        Send-Json $context '{"success":false,"error":"HTTP bridge failed"}' 500
+        $description = 'HTTP bridge failed: ' + $_.Exception.Message
+        $messageJson = ConvertTo-Json -InputObject $description -Compress
+        Send-Json $context ('{"success":false,"error":' + $messageJson + '}') 500
       }
     }
   }
