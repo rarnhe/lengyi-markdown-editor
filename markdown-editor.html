@@ -3605,7 +3605,8 @@ ${'</scr' + 'ipt>'}
     // and the installed content-script bridge. No local server or public CORS proxy.
     function extensionRequest(command, payload = {}, timeoutMs = 3000) {
       const channel = 'lengyi-extension-v1';
-      const requestId = (crypto.randomUUID ? crypto.randomUUID() :
+      const requestId = (globalThis.crypto?.randomUUID ?
+        globalThis.crypto.randomUUID() :
         String(Date.now()) + '-' + Math.random().toString(36).slice(2));
       return new Promise((resolve, reject) => {
         const cleanup = () => {
@@ -3614,7 +3615,13 @@ ${'</scr' + 'ipt>'}
         };
         const onMessage = event => {
           const data = event.data;
-          if (event.source !== window || !data || data.channel !== channel ||
+          // In extension contexts MessageEvent.source can be null.
+          // Keep the correlation token and verify local-page origin.
+          if ((event.source !== null && event.source !== window) ||
+              (location.protocol === 'file:' ?
+                !['null', 'file://'].includes(event.origin) :
+                event.origin !== location.origin) ||
+              !data || data.channel !== channel ||
               data.from !== 'extension' || data.requestId !== requestId) return;
           cleanup();
           if (data.success === false) reject(new Error(data.error || 'Browser extension failed'));
@@ -3653,9 +3660,12 @@ ${'</scr' + 'ipt>'}
       status.style.color = 'var(--text-muted)';
       try {
         try {
-          await extensionRequest('PING', {}, 1800);
+          await extensionRequest('PING', {}, 4500);
         } catch (err) {
-          throw new Error('EXTENSION_MISSING');
+          // The content-script marker differentiates absent injection
+          // (installation/file URL/site access) from a broken message channel.
+          throw new Error(document.documentElement.hasAttribute('data-lengyi-extension-ready') ?
+            'EXTENSION_BRIDGE_FAILED' : 'EXTENSION_MISSING');
         }
         const result = await extensionRequest('FETCH', {url,mode}, 55000);
         fetchedHtml = result.html || '';
@@ -3665,7 +3675,10 @@ ${'</scr' + 'ipt>'}
         manualArea.style.display = 'none';
       } catch (err) {
         status.textContent = err.message === 'EXTENSION_MISSING' ?
-          t('urlStatusExtensionMissing') : t('urlStatusExtensionFailed', err.message);
+          t('urlStatusExtensionMissing') :
+          (err.message === 'EXTENSION_BRIDGE_FAILED' ?
+            t('urlStatusExtensionBridgeFailed') :
+            t('urlStatusExtensionFailed', err.message));
         status.style.color = 'var(--danger)';
         manualArea.style.display = 'block';
       }
