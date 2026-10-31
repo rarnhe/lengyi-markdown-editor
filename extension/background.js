@@ -6,6 +6,31 @@ const MESSAGE_CHANNEL = "lengyi-extension-v1";
 const MAX_HTML = 4 * 1024 * 1024;
 const EXTRACT_TIMEOUT = 30000;
 
+// Track browser main-frame navigation errors: a tab marked "complete" may
+// actually be a chrome-error:// page, where scripting cannot execute.
+const navigationErrors = new Map();
+chrome.webNavigation.onBeforeNavigate.addListener(info => {
+  if (info.frameId === 0) navigationErrors.delete(info.tabId);
+});
+chrome.webNavigation.onErrorOccurred.addListener(info => {
+  if (info.frameId === 0) navigationErrors.set(info.tabId, String(info.error || "unknown navigation error"));
+});
+
+function navigationFailure(url, detail) {
+  const error = String(detail || "unknown network error");
+  return new Error("目标网页无法在 Chrome/Edge 打开（" + error +
+    "）。请先在同一浏览器手动打开该网址，检查 VPN/代理、DNS、HTTPS 证书或网址有效性；" +
+    "确认网页能正常显示后可选择「提取已打开的网页」。");
+}
+function sameArticleUrl(a, b) {
+  try {
+    const left = new URL(a), right = new URL(b);
+    left.hash = ""; right.hash = "";
+    return left.href === right.href;
+  } catch { return false; }
+}
+
+
 function isEditorSender(sender) {
   if (!sender || !sender.tab || sender.frameId !== 0 || typeof sender.url !== "string") return false;
   let address;
@@ -105,10 +130,10 @@ async function extractRenderedHtml(maxChars) {
   return { success:true, html, title, finalUrl:location.href, mode:"browser" };
 }
 
-function waitForTabReady(tabId, timeout = 25000) {
+function waitForTabReady(tabId, targetUrl, timeout = 25000) {
   return new Promise((resolve, reject) => {
     let done = false;
-    const finish = (error) => {
+    const finish = error => {
       if (done) return;
       done = true;
       clearTimeout(timer);
@@ -116,33 +141,73 @@ function waitForTabReady(tabId, timeout = 25000) {
       chrome.tabs.onRemoved.removeListener(onRemoved);
       if (error) reject(error); else resolve();
     };
+    const check = async () => {
+      if (navigationErrors.has(tabId)) {
+        finish(navigationFailure(targetUrl, navigationErrors.get(tabId)));
+        return;
+      }
+      try {
+        const tab = await chrome.tabs.get(tabId);
+        if (navigationErrors.has(tabId)) {
+          finish(navigationFailure(targetUrl, navigationErrors.get(tabId)));
+        } else if (tab.status === "complete") {
+          finish();
+        }
+      } catch (error) { finish(error); }
+    };
     const onUpdate = (id, change) => {
-      if (id === tabId && change.status === "complete") finish();
+      if (id === tabId && change.status === "complete") void check();
     };
     const onRemoved = id => {
-      if (id === tabId) finish(new Error("Target tab was closed"));
+      if (id === tabId) finish(new Error("目标标签页已关闭"));
     };
-    const timer = setTimeout(() => finish(new Error("Page navigation timed out")), timeout);
+    const timer = setTimeout(() => finish(navigationFailure(targetUrl, "页面加载超时")), timeout);
     chrome.tabs.onUpdated.addListener(onUpdate);
     chrome.tabs.onRemoved.addListener(onRemoved);
-    chrome.tabs.get(tabId).then(tab => {
-      if (tab.status === "complete") finish();
-    }).catch(finish);
+    void check();
   });
 }
 
-async function browserFetch(url) {
-  // Visible tab allows the user to log in / complete site-specific challenges.
-  // Leave it open after extraction, so the user can retry if login is needed.
-  const tab = await chrome.tabs.create({ url, active:true });
-  await waitForTabReady(tab.id);
-  const results = await chrome.scripting.executeScript({
-    target:{ tabId:tab.id }, func:extractRenderedHtml, args:[MAX_HTML]
-  });
-  if (!results.length || !results[0].result || !results[0].result.html) {
-    throw new Error("Could not extract article from target tab");
+async function captureTab(tab, url) {
+  if (navigationErrors.has(tab.id)) {
+    throw navigationFailure(url, navigationErrors.get(tab.id));
   }
-  return results[0].result;
+  try {
+    const results = await chrome.scripting.executeScript({
+      target:{tabId:tab.id}, func:extractRenderedHtml, args:[MAX_HTML]
+    });
+    if (!results.length || !results[0].result || !results[0].result.html) {
+      throw new Error("目标页面未提取到有效正文，请检查网站是否需要登录或验证码");
+    }
+    return results[0].result;
+  } catch (error) {
+    const message = String(error && error.message || error);
+    if (navigationErrors.has(tab.id)) {
+      throw navigationFailure(url, navigationErrors.get(tab.id));
+    }
+    if (/showing error page|chrome-error|cannot access contents of (?:the )?page|cannot access a chrome/i.test(message)) {
+      throw navigationFailure(url, message);
+    }
+    throw error;
+  }
+}
+
+async function browserFetch(url, reuseOnly) {
+  // Prefer an existing, fully loaded tab for this exact URL: this preserves
+  // the user's browser session and avoids navigating through a broken VPN.
+  const tabs = await chrome.tabs.query({});
+  const matching = tabs.find(tab => tab.id >= 0 && tab.status === "complete" &&
+    typeof tab.url === "string" && sameArticleUrl(tab.url, url) &&
+    !navigationErrors.has(tab.id));
+  if (matching) return captureTab(matching, url);
+  if (reuseOnly) {
+    throw new Error("尚未找到已打开且加载完成的对应网页。请在同一浏览器中手动打开准确的网址并等待加载完成，再重试「提取已打开的网页」。");
+  }
+  // Leave new tabs visible on both success and failure so that connection
+  // errors, login prompts and CAPTCHA are not hidden from the user.
+  const tab = await chrome.tabs.create({url, active:true});
+  await waitForTabReady(tab.id, url);
+  return captureTab(tab, url);
 }
 
 async function staticFetch(url) {
@@ -169,8 +234,9 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       message.type !== "FETCH" || typeof message.requestId !== "string") return false;
   Promise.resolve().then(async () => {
     const url = validateTarget(message.url);
-    if (message.mode !== "browser" && message.mode !== "static") throw new Error("Unsupported fetch mode");
-    return message.mode === "static" ? await staticFetch(url) : await browserFetch(url);
+    if (!["browser", "existing", "static"].includes(message.mode)) throw new Error("Unsupported fetch mode");
+    return message.mode === "static" ? await staticFetch(url) :
+      await browserFetch(url, message.mode === "existing");
   }).then(result => respond(result)).catch(error => {
     respond({success:false,error:String(error && error.message || error)});
   });
