@@ -152,16 +152,20 @@ test('import/export have no separate frame and share the utilities row', () => {
 test('editable filename preserves imported name, browser title and export behavior', () => {
   const fn=html.match(/function syncDocumentTitle\(\) \{[\s\S]*?\n    \}/);
   assert.ok(fn);
-  const ctx={filenameInput:{value:'Report.md'},document:{title:'before'},t:()=> 'Untitled.md'};
+  const ctx={filenameInput:{value:'Report.md'},document:{title:'before'},
+    htmlOpenedAt:{},markdownImportedAt:null,lastSavedAt:null,
+    formatDocumentTime:()=> '2026-10-31 13:44:00',
+    t:(key,val)=>key==='filenameDefault'?'Untitled.md':key+':'+val};
   vm.runInNewContext(fn[0]+'\nthis.sync=syncDocumentTitle;',ctx);
-  ctx.sync();assert.equal(ctx.document.title,'Report.md');
+  ctx.sync();assert.equal(ctx.document.title,'Report.md-openTime:2026-10-31 13:44:00');
   ctx.filenameInput.value='Imported.md';ctx.sync();
-  assert.equal(ctx.document.title,'Imported.md');
+  assert.equal(ctx.document.title,'Imported.md-openTime:2026-10-31 13:44:00');
   const header=html.match(/<div class="preview-title-group">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="preview-content"/);
   assert.ok(header);
   assert.match(header[1],/<input type="text" id="filename"[^>]*value="未命名文档.md"/);
   assert.doesNotMatch(header[1],/readonly|aria-readonly/);
-  assert.match(header[1],/id="filename"[\s\S]*?id="document-time"/);
+  assert.match(header[1],/id="filename"[\s\S]*?id="word-count"/);
+  assert.doesNotMatch(header[1],/id="document-time"|data-i18n="previewPaneTitle"/);
   assert.match(html,/filenameInput\.addEventListener\('input', updateFilenameWidth\)/);
   assert.match(html,/filenameInput\.addEventListener\('keydown'/);
   assert.match(html,/filenameInput\.addEventListener\('blur', commitFilenameChange\)/);
@@ -448,17 +452,18 @@ test('Reading mode translations, refresh restore and outline navigation remain f
 });
 
 
-test('preview header centers the title beside a blue word count', () => {
-  const section = html.match(/<div class="pane preview-pane">([\s\S]*?)<div class="preview-content"/);
-  assert.ok(section);
-  assert.match(section[1], /class="preview-title-group"[\s\S]*?data-i18n="previewPaneTitle"[\s\S]*?id="word-count"/);
-  assert.match(html, /\.preview-pane \.pane-header \{ justify-content: center; \}/);
-  assert.match(html, /\.preview-title-group \{[^}]*gap: 10px/);
-  assert.match(html, /#word-count \{ color: #2563eb;/);
-  assert.match(html, /\[data-theme="dark"\] #word-count \{ color: #60a5fa;/);
-  assert.match(html, /\.app\.reading-mode \.preview-pane \.pane-header \{ display: none !important; \}/);
-});
 
+test('preview title centers just the filename and word count', () => {
+  const section=html.match(/<div class="pane preview-pane">([\s\S]*?)<div class="preview-content"/);
+  assert.ok(section);
+  assert.match(section[1],/class="preview-title-group"[\s\S]*?id="filename"[\s\S]*?id="word-count"/);
+  assert.doesNotMatch(section[1],/document-time|data-i18n="previewPaneTitle"/);
+  assert.match(html,/\.preview-pane \.pane-header \{ justify-content: center; \}/);
+  assert.match(html,/\.preview-title-group \{[^}]*justify-content: center; gap: 10px;/);
+  assert.match(html,/#word-count \{ color: #2563eb; font-weight: 600; flex: 0 0 auto; white-space: nowrap;/);
+  assert.match(html,/\[data-theme="dark"\] #word-count \{ color: #60a5fa;/);
+  assert.match(html,/\.app\.reading-mode \.preview-pane \.pane-header \{ display: none !important; \}/);
+});
 
 test('browser tab title shows opening time and updates to saved time', () => {
   const format=html.match(/function formatDocumentTime\(date\) \{[\s\S]*?\n    \}/);
@@ -868,7 +873,7 @@ test('theme action swaps 夜间 and 日间 on click, language change and stored 
 test('filename is editable before preview time and commits on Enter or blur', () => {
   const heading=html.match(/<div class="preview-title-group">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="preview-content"/);
   assert.ok(heading);
-  assert.match(heading[1],/id="filename"[\s\S]*?id="document-time"/);
+  assert.match(heading[1],/id="filename"[\s\S]*?id="word-count"/);
   assert.doesNotMatch(heading[1],/readonly|aria-readonly/);
   assert.match(html,/filenameInput\.addEventListener\('keydown'/);
   assert.match(html,/filenameInput\.addEventListener\('blur', commitFilenameChange\)/);
@@ -950,35 +955,24 @@ test('Language button uses the correct chevron in inline and overflow layouts', 
 });
 
 
-test('editable filename grows left and remains bounded by preview text', () => {
-  assert.match(html,/\.preview-title-group \{[^}]*gap: 10px/);
-  assert.match(html,/#document-time, \.preview-title-group #filename \{[^}]*font-family: inherit; font-size: 11px;/);
-  assert.match(html,/\.preview-title-group \{[^}]*position: relative;/);
-  assert.match(html,/\.preview-title-group \.filename-slot \{[^}]*position: absolute; right: calc\(100% \+ 10px\);/);
-  assert.match(html,/\.preview-title-group #filename \{ font-weight: 700; text-align: right;/);
-  assert.match(html,/\.preview-title-group #document-time \{ font-weight: 400; \}/);
+
+test('editable filename and count are centered, with flexible filename width', () => {
+  assert.match(html,/\.preview-title-group \{[^}]*display: inline-flex;[^}]*justify-content: center; gap: 10px; min-width: 0;/);
+  assert.match(html,/\.preview-title-group \.filename-slot \{[^}]*flex: 0 1 auto; min-width: 0;/);
+  assert.match(html,/\.preview-title-group #filename \{[^}]*font-family: inherit; font-size: 11px;/);
+  assert.match(html,/font-weight: 700; text-align: right; text-overflow: ellipsis;/);
+  assert.doesNotMatch(html,/right: calc\(100% \+ 10px\)/);
   assert.match(html,/\.filename-slot input\[type="text"\] \{[^}]*padding: 0;[^}]*border: none;/);
   const fn=html.match(/function updateFilenameWidth\(\) \{[\s\S]*?\n    \}/);
   assert.ok(fn);
-  const slot={style:{}};
-  const input={value:'A.md',parentElement:slot};
-  const ctx={
-    filenameInput:input,
-    document:{createElement(type){
-      assert.equal(type,'canvas');
-      return {getContext(){return {font:'',measureText(value){
-        return {width:value.length*7.5};
-      }}}};
-    }},
-    getComputedStyle(){return {font:'600 12px sans-serif'};}
-  };
+  const slot={style:{}},input={value:'A.md',parentElement:slot};
+  const ctx={filenameInput:input,document:{createElement(type){
+      assert.equal(type,'canvas');return {getContext(){return {font:'',measureText(value){return {width:value.length*7.5};}}}};
+    }},getComputedStyle(){return {font:'600 12px sans-serif'};}};
   vm.runInNewContext(fn[0]+'\nthis.measureFilename=updateFilenameWidth;',ctx);
-  ctx.measureFilename();
-  assert.equal(slot.style.width,'31px');
-  input.value='LongerName.md';
-  ctx.measureFilename();
-  assert.equal(slot.style.width,'99px');
-  assert.match(html,/function applyLanguage\(\) \{[\s\S]*?updateFilenameWidth\(\);/);
+  ctx.measureFilename();assert.equal(slot.style.width,'31px');
+  input.value='LongerName.md';ctx.measureFilename();assert.equal(slot.style.width,'99px');
+  assert.match(html,/function applyLanguage\(\) \{[\s\S]*?updateFilenameWidth\(\)/);
   assert.match(html,/filenameInput\.value = name;\s*committedFilename = name;\s*syncDocumentTitle\(\);\s*updateFilenameWidth\(\)/);
 });
 
@@ -1093,22 +1087,19 @@ test('editor collapse hides scrollable textarea exactly as outline collapse hide
   assert.doesNotMatch(html,/\.editor-pane #editor \{ display: none; \}/);
 });
 
-test('preview title order preserves full filename, timestamp, preview label and word count', () => {
+
+test('preview title contains only full editable filename and word count in order', () => {
   const header=html.match(/<div class="preview-title-group">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="preview-content"/);
   assert.ok(header);
-  const indices=['id="filename"','id="document-time"','data-i18n="previewPaneTitle"','id="word-count"']
-    .map(needle=>header[1].indexOf(needle));
-  assert.ok(indices.every(index=>index>=0));
-  assert.deepEqual(indices,[...indices].sort((a,b)=>a-b));
+  const indices=['id="filename"','id="word-count"'].map(x=>header[1].indexOf(x));
+  assert.ok(indices.every(i=>i>=0));assert.deepEqual(indices,[...indices].sort((a,b)=>a-b));
+  assert.doesNotMatch(header[1],/document-time|previewPaneTitle|实时预览/);
   const editorHeader=html.match(/<div class="editor-heading">([\s\S]*?)<\/div>/);
-  assert.ok(editorHeader);
-  assert.doesNotMatch(editorHeader[1],/id="filename"/);
+  assert.ok(editorHeader);assert.doesNotMatch(editorHeader[1],/id="filename"/);
   assert.equal((html.match(/id="filename"/g)||[]).length,1);
-  assert.equal((html.match(/id="document-time"/g)||[]).length,1);
+  assert.equal((html.match(/id="word-count"/g)||[]).length,1);
   assert.match(html,/filenameInput\.value = name;\s*committedFilename = name;\s*syncDocumentTitle\(\);\s*updateFilenameWidth\(\);/);
-  assert.match(html,/localStorage\.setItem\(FILENAME_KEY, filenameInput\.value\)/);
 });
-
 
 test('right-top code label follows fenced language and is empty without one', () => {
   assert.match(html,/\.preview-content pre\[data-language\]:not\(\[data-language=""\]\)::before \{/);
