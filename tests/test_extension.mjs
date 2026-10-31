@@ -116,6 +116,41 @@ test('Browser mode opens a real tab and invokes extension-owned DOM extraction',
   assert.equal(h.state.injected.args[0],4*1024*1024);
 });
 
+test('Rendered DOM extractor returns sanitized article metadata and resolves relative links',async()=>{
+  const h=workerHarness();
+  await h.ask({url:'https://example.com/',mode:'browser'});
+  const extractor=h.state.injected.func;
+  const text='Article body with sufficient text. '.repeat(10);
+  const anchor={
+    attributes:[{name:'href',value:'/news/1'},{name:'onclick',value:'bad()'}],
+    setAttribute(name,value){this.attributes=this.attributes.filter(a=>a.name!==name);this.attributes.push({name,value});},
+    removeAttribute(name){this.attributes=this.attributes.filter(a=>a.name!==name);}
+  };
+  const copy={
+    attributes:[],textContent:text,
+    outerHTML:'<article><h1>Headline</h1><p>'+text+'</p></article>',
+    querySelectorAll(sel){return sel==='*'?[anchor]:[];},
+    removeAttribute(){},setAttribute(){}
+  };
+  const body={innerText:text,cloneNode(){return copy;}};
+  const page={
+    body,baseURI:'https://example.com/news/start',title:'Article title',
+    querySelector(){return null;}
+  };
+  const sandbox={
+    document:page,location:{href:'https://example.com/news/start'},URL,Date,
+    setTimeout:fn=>{queueMicrotask(fn);return 1;}
+  };
+  const actual=vm.runInNewContext('('+extractor.toString()+')',sandbox);
+  const result=await actual(4*1024*1024);
+  assert.equal(result.success,true);
+  assert.equal(result.title,'Article title');
+  assert.match(result.html,/<title>Article title<\/title>/);
+  assert.match(result.html,/<article>/);
+  assert.equal(anchor.attributes.find(a=>a.name==='href').value,'https://example.com/news/1');
+  assert.equal(anchor.attributes.some(a=>a.name==='onclick'),false);
+});
+
 test('Content script replies to editor PING/FETCH through bounded message bridge',async()=>{
   const sent=[];
   let listener;
