@@ -131,8 +131,8 @@ test('import/export have no separate frame and share the utilities row', () => {
   assert.ok(toolbar);
   const src=toolbar[1];
   const keys=['data-i18n="mermaid"','id="toolbar-utilities"',
-    'id="import-action"','id="export-dropdown"','id="view-dropdown"','id="theme-toggle"',
-    'id="web-to-md-action"','id="lang-dropdown"','id="clear-action"','id="help-action"'];
+    'id="import-action"','id="export-dropdown"','id="web-to-md-action"',
+    'id="view-dropdown"','id="help-action"','id="theme-toggle"'];
   let previous=-1;
   for (const key of keys) {
     const next=src.indexOf(key,previous+1);
@@ -143,7 +143,8 @@ test('import/export have no separate frame and share the utilities row', () => {
   assert.doesNotMatch(src,/class="import-export-group"/);
   assert.match(src,/id="more-actions" hidden/);
   assert.match(src,/id="more-menu"><\/div>/);
-  assert.match(src,/id="lang-menu"[\s\S]*?setLanguage\('pt'\)/);
+  assert.doesNotMatch(src,/id="lang-dropdown"|id="clear-action"/);
+  assert.match(html,/class="status-left" id="status-left"[\s\S]*?id="lang-dropdown"/);
   assert.doesNotMatch(html,/\.editor-toolbar \.import-export-group|width < 1260|width < 1720/);
   assert.match(html,/\.editor-toolbar \{[^}]*flex-wrap: nowrap;/);
   assert.doesNotMatch(html,/class="top-bar"/);
@@ -153,7 +154,7 @@ test('editable filename preserves imported name, browser title and export behavi
   const fn=html.match(/function syncDocumentTitle\(\) \{[\s\S]*?\n    \}/);
   assert.ok(fn);
   const ctx={filenameInput:{value:'Report.md'},document:{title:'before'},
-    htmlOpenedAt:{},markdownImportedAt:null,lastSavedAt:null,
+    htmlOpenedAt:{},markdownImportedAt:null,
     formatDocumentTime:()=> '2026-10-31 13:44:00',
     t:(key,val)=>key==='filenameDefault'?'Untitled.md':key+':'+val};
   vm.runInNewContext(fn[0]+'\nthis.sync=syncDocumentTitle;',ctx);
@@ -164,7 +165,8 @@ test('editable filename preserves imported name, browser title and export behavi
   assert.ok(header);
   assert.match(header[1],/<input type="text" id="filename"[^>]*value="未命名文档.md"/);
   assert.doesNotMatch(header[1],/readonly|aria-readonly/);
-  assert.match(header[1],/id="filename"[\s\S]*?id="word-count"/);
+  assert.doesNotMatch(header[1],/id="word-count"/);
+  assert.match(html,/id="status-left"[\s\S]*?id="word-count"/);
   assert.doesNotMatch(header[1],/id="document-time"|data-i18n="previewPaneTitle"/);
   assert.match(html,/filenameInput\.addEventListener\('input', updateFilenameWidth\)/);
   assert.match(html,/filenameInput\.addEventListener\('keydown'/);
@@ -453,58 +455,61 @@ test('Reading mode translations, refresh restore and outline navigation remain f
 
 
 
-test('preview title centers just the filename and word count', () => {
+test('preview title centers the filename; rendered count lives in the footer', () => {
   const section=html.match(/<div class="pane preview-pane">([\s\S]*?)<div class="preview-content"/);
   assert.ok(section);
-  assert.match(section[1],/class="preview-title-group"[\s\S]*?id="filename"[\s\S]*?id="word-count"/);
-  assert.doesNotMatch(section[1],/document-time|data-i18n="previewPaneTitle"/);
+  assert.match(section[1],/class="preview-title-group"[\s\S]*?id="filename"/);
+  assert.doesNotMatch(section[1],/id="word-count"|document-time|data-i18n="previewPaneTitle"/);
+  const footer=html.match(/<div class="statusbar">([\s\S]*?)<\/div>\s*<!-- 拖放文件/);
+  assert.ok(footer);
+  assert.match(footer[1],/id="preview-progress"[\s\S]*?id="word-count"[\s\S]*?id="lang-dropdown"/);
   assert.match(html,/\.preview-pane \.pane-header \{ justify-content: center; \}/);
-  assert.match(html,/\.preview-title-group \{[^}]*justify-content: center; gap: 10px;/);
   assert.match(html,/#word-count \{ color: #2563eb; font-weight: 600; flex: 0 0 auto; white-space: nowrap;/);
   assert.match(html,/\[data-theme="dark"\] #word-count \{ color: #60a5fa;/);
   assert.match(html,/\.app\.reading-mode \.preview-pane \.pane-header \{ display: none !important; \}/);
 });
 
-test('browser tab title shows opening time and updates to saved time', () => {
+test('browser tab keeps Markdown import time after autosave, manual save and export', () => {
   const format=html.match(/function formatDocumentTime\(date\) \{[\s\S]*?\n    \}/);
   const openedFn=html.match(/function setDocumentImportTime\(isMarkdown\) \{[\s\S]*?\n    \}/);
-  const savedFn=html.match(/function markDocumentSaved\(\) \{[\s\S]*?\n    \}/);
   const titleFn=html.match(/function syncDocumentTitle\(\) \{[\s\S]*?\n    \}/);
-  assert.ok(format&&openedFn&&savedFn&&titleFn);
+  assert.ok(format&&openedFn&&titleFn);
   const date=(h,m,s)=>({
     getFullYear:()=>2026,getMonth:()=>9,getDate:()=>31,
     getHours:()=>h,getMinutes:()=>m,getSeconds:()=>s
   });
-  const opened=date(9,5,7),imported=date(10,6,8),saved=date(11,7,9);
-  const queue=[imported,saved],ctx={
+  const opened=date(9,5,7),imported=date(10,6,8);
+  const ctx={
     document:{title:''},filenameInput:{value:'report.md'},
-    htmlOpenedAt:opened,markdownImportedAt:null,lastSavedAt:null,
-    t:(k,v)=>k+':'+v,Date:function(){return queue.shift();}
+    htmlOpenedAt:opened,markdownImportedAt:null,
+    t:(k,v)=>k+':'+v,Date:function(){return imported;}
   };
-  vm.runInNewContext([format[0],openedFn[0],savedFn[0],titleFn[0],
-    'this.title=syncDocumentTitle;this.open=setDocumentImportTime;this.save=markDocumentSaved;'].join('\n'),ctx);
+  vm.runInNewContext([format[0],openedFn[0],titleFn[0],
+    'this.title=syncDocumentTitle;this.open=setDocumentImportTime;'].join('\n'),ctx);
   ctx.title();assert.equal(ctx.document.title,'report.md-openTime:2026-10-31 09:05:07');
-  ctx.open(true);assert.equal(ctx.document.title,'report.md-openTime:2026-10-31 10:06:08');
-  ctx.save();assert.equal(ctx.document.title,'report.md-saveTime:2026-10-31 11:07:09');
+  ctx.open(true);assert.equal(ctx.document.title,'report.md-importTime:2026-10-31 10:06:08');
   ctx.filenameInput.value='renamed.md';ctx.title();
-  assert.equal(ctx.document.title,'renamed.md-saveTime:2026-10-31 11:07:09');
+  assert.equal(ctx.document.title,'renamed.md-importTime:2026-10-31 10:06:08');
   ctx.open(false);assert.equal(ctx.document.title,'renamed.md-openTime:2026-10-31 09:05:07');
-  assert.match(html,/function autoSave\(\) \{[\s\S]*?markDocumentSaved\(\)/);
-  assert.match(html,/function saveToLocal\(\) \{[\s\S]*?markDocumentSaved\(\)/);
-  assert.match(html,/function exportFile\(\) \{[\s\S]*?markDocumentSaved\(\)/);
-  assert.doesNotMatch(html,/id="document-time"|function updateDocumentTime\(/);
+  assert.doesNotMatch(html,/markDocumentSaved|lastSavedAt/);
+  for (const name of ['autoSave','saveToLocal','exportFile']) {
+    const fn=html.match(new RegExp('function '+name+'\\(\\) \\{[\\s\\S]*?\\n    \\}'));
+    assert.ok(fn,name);
+    assert.doesNotMatch(fn[0],/syncDocumentTitle\(|setDocumentImportTime\(/);
+  }
   assert.ok(html.includes('setDocumentImportTime(/\\.(md|markdown)$/i.test(file.name))'));
-  for(const k of ['openTime','saveTime']) {
+  for(const k of ['openTime','importTime']) {
     assert.equal((i18n.match(new RegExp('^    '+k+':','gm'))||[]).length,10,k);
   }
+  assert.doesNotMatch(i18n,/^    saveTime:/m);
 });
 
 test('responsive overflow moves one control at a time using actual available width', () => {
   const fn=html.match(/function applyToolbarOverflow\(\) \{[\s\S]*?\n    \}/);
   assert.ok(fn);
-  const ids=['import-action','export-dropdown','view-dropdown','theme-toggle',
-    'web-to-md-action','lang-dropdown','clear-action','help-action'];
-  const widths=[68,80,76,68,110,75,67,67];
+  const ids=['import-action','export-dropdown','web-to-md-action',
+    'view-dropdown','help-action','theme-toggle'];
+  const widths=[68,80,110,76,67,68];
   const classSet=()=>({
     state:new Set(),
     add(...names){names.forEach(name=>this.state.add(name));},
@@ -512,7 +517,7 @@ test('responsive overflow moves one control at a time using actual available wid
     contains(name){return this.state.has(name);}
   });
   const original=ids.map((id,i)=>({id,tagName:id==='import-action'?'LABEL':
-      ['export-dropdown','view-dropdown','lang-dropdown'].includes(id)?'DIV':'BUTTON',
+      ['export-dropdown','view-dropdown'].includes(id)?'DIV':'BUTTON',
     width:widths[i],classList:classSet(),parent:null}));
   const nodes=Object.fromEntries(original.map(x=>[x.id,x]));
   const detach=x=>{
@@ -542,11 +547,11 @@ test('responsive overflow moves one control at a time using actual available wid
   assert.equal(more.hidden,true);
   assert.deepEqual(inline.items.map(x=>x.id),ids);
   assert.deepEqual(fit(1050),[]);
-  assert.deepEqual(fit(980),['clear-action','help-action']);
-  assert.deepEqual(fit(920),['lang-dropdown','clear-action','help-action']);
-  assert.deepEqual(fit(810),['web-to-md-action','lang-dropdown','clear-action','help-action']);
-  assert.deepEqual(fit(560),['export-dropdown','view-dropdown','theme-toggle',
-    'web-to-md-action','lang-dropdown','clear-action','help-action']);
+  assert.deepEqual(fit(980),[]);
+  assert.deepEqual(fit(850),['help-action','theme-toggle']);
+  assert.deepEqual(fit(740),['view-dropdown','help-action','theme-toggle']);
+  assert.deepEqual(fit(560),['export-dropdown','web-to-md-action','view-dropdown',
+    'help-action','theme-toggle']);
   assert.deepEqual(fit(210),ids);
   assert.equal(toolbar.classList.contains('format-compact'),true);
   assert.equal(toolbar.classList.contains('format-scroll'),true);
@@ -873,7 +878,8 @@ test('theme action swaps 夜间 and 日间 on click, language change and stored 
 test('filename is editable before preview time and commits on Enter or blur', () => {
   const heading=html.match(/<div class="preview-title-group">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="preview-content"/);
   assert.ok(heading);
-  assert.match(heading[1],/id="filename"[\s\S]*?id="word-count"/);
+  assert.match(heading[1],/id="filename"/);
+  assert.doesNotMatch(heading[1],/id="word-count"/);
   assert.doesNotMatch(heading[1],/readonly|aria-readonly/);
   assert.match(html,/filenameInput\.addEventListener\('keydown'/);
   assert.match(html,/filenameInput\.addEventListener\('blur', commitFilenameChange\)/);
@@ -945,16 +951,24 @@ test('format tools and More remain on one row even at very narrow widths', () =>
   assert.match(html,/id="more-actions" hidden/);
 });
 
-test('Language button uses the correct chevron in inline and overflow layouts', () => {
-  const button=html.match(/id="lang-dropdown"[^]*?<button type="button"[^]*?<\/button>/);
+test('footer language button is text-only and reflects the selected language', () => {
+  const button=html.match(/id="lang-dropdown"[\s\S]*?<button type="button"[\s\S]*?<\/button>/);
   assert.ok(button);
-  assert.match(button[0],/language-inline-chevron"[^]*?icon-chevron-down/);
-  assert.match(button[0],/language-overflow-chevron"[^]*?icon-chevron-left/);
-  assert.match(html,/#toolbar-utilities \.language-overflow-chevron,\s*#toolbar-utilities \.view-overflow-chevron \{ display: none; \}/);
-  assert.match(html,/#more-menu \.language-inline-chevron,\s*#more-menu \.view-inline-chevron \{ display: none; \}/);
+  assert.match(button[0],/id="lang-trigger"[\s\S]*?id="lang-label">中文<\/span>/);
+  assert.doesNotMatch(button[0],/<svg|<use|language-inline-chevron|language-overflow-chevron/);
+  assert.match(html,/#lang-menu \{\s*top: auto; bottom: 100%; left: 0;/);
+  const map=html.match(/const languageNames = \{[\s\S]*?\n    \};/);
+  const status=html.match(/function updateStatusBar\(\) \{[\s\S]*?\n    \}/);
+  assert.ok(map&&status);
+  const node={textContent:''};
+  const ctx={currentLang:'zh-CN',document:{getElementById(id){
+    return id==='lang-label'?node:null;
+  }},t:k=>k};
+  vm.runInNewContext(map[0]+'\n'+status[0]+'\nthis.update=updateStatusBar;',ctx);
+  ctx.update();assert.equal(node.textContent,'中文');
+  ctx.currentLang='en';ctx.update();assert.equal(node.textContent,'English');
+  ctx.currentLang='ja';ctx.update();assert.equal(node.textContent,'日本語');
 });
-
-
 
 test('editable filename and count are centered, with flexible filename width', () => {
   assert.match(html,/\.preview-title-group \{[^}]*display: inline-flex;[^}]*justify-content: center; gap: 10px; min-width: 0;/);
@@ -1025,18 +1039,19 @@ test('Export View and Language overflow triggers are left-aligned and keep menus
   assert.match(html,/id="export-dropdown"[\s\S]*?id="export-menu"/);
 });
 
-test('inline Chinese Language menu opens inward at right edge without being clipped', () => {
-  assert.match(html,/#toolbar-utilities #lang-menu \{ left: auto; right: 0; top: 100%; margin-top: 8px; \}/);
-  assert.match(html,/#more-menu #lang-menu \{ left: auto; top: 0; right: calc\(100% \+ 6px\); margin-top: 0; \}/);
+test('footer Language menu opens upward and maintains expanded state', () => {
+  assert.match(html,/#lang-menu \{\s*top: auto; bottom: 100%; left: 0; margin: 0 0 8px;/);
   const toggler=html.match(/function toggleLangMenu\(\) \{[\s\S]*?\n    \}/);
-  const state={show:false, classList:{toggle(key){state.show=!state.show;return state.show;}}};
-  const ctx={document:{getElementById(){return state;}}};
+  assert.ok(toggler);
+  const state={show:false, classList:{toggle(){state.show=!state.show;return state.show;}}};
+  const attrs={};
+  const button={setAttribute(k,v){attrs[k]=v;}};
+  const ctx={document:{getElementById(id){return id==='lang-menu'?state:button;}}};
   vm.runInNewContext(toggler[0]+'\nthis.toggle=toggleLangMenu;',ctx);
-  ctx.toggle();assert.equal(state.show,true);
-  ctx.toggle();assert.equal(state.show,false);
+  ctx.toggle();assert.equal(state.show,true);assert.equal(attrs['aria-expanded'],'true');
+  ctx.toggle();assert.equal(state.show,false);assert.equal(attrs['aria-expanded'],'false');
   assert.match(html,/if \(langDropdown && !langDropdown\.contains\(e\.target\)\) \{\s*closeLangMenu\(\)/);
 });
-
 
 test('clicking inline Language must not be closed by the inactive More menu', () => {
   const click=html.match(/\/\/ 点击外部关闭下拉菜单\s*\n\s*document\.addEventListener\('click', \(e\) => \{[\s\S]*?\n    \}\);/);
@@ -1088,17 +1103,37 @@ test('editor collapse hides scrollable textarea exactly as outline collapse hide
 });
 
 
-test('preview title contains only full editable filename and word count in order', () => {
+test('preview header contains only the editable filename, with count in footer', () => {
   const header=html.match(/<div class="preview-title-group">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="preview-content"/);
   assert.ok(header);
-  const indices=['id="filename"','id="word-count"'].map(x=>header[1].indexOf(x));
-  assert.ok(indices.every(i=>i>=0));assert.deepEqual(indices,[...indices].sort((a,b)=>a-b));
-  assert.doesNotMatch(header[1],/document-time|previewPaneTitle|实时预览/);
+  assert.match(header[1],/id="filename"/);
+  assert.doesNotMatch(header[1],/id="word-count"|document-time|previewPaneTitle|实时预览|readonly/);
   const editorHeader=html.match(/<div class="editor-heading">([\s\S]*?)<\/div>/);
   assert.ok(editorHeader);assert.doesNotMatch(editorHeader[1],/id="filename"/);
   assert.equal((html.match(/id="filename"/g)||[]).length,1);
   assert.equal((html.match(/id="word-count"/g)||[]).length,1);
   assert.match(html,/filenameInput\.value = name;\s*committedFilename = name;\s*syncDocumentTitle\(\);\s*updateFilenameWidth\(\);/);
+});
+
+test('preview bottom-edge progress reaches 100% at the document bottom', () => {
+  const fn=html.match(/function updatePreviewProgress\(\) \{[\s\S]*?\n    \}/);
+  assert.ok(fn);
+  const node={textContent:''};
+  const preview={scrollHeight:1000,clientHeight:200,scrollTop:0};
+  const ctx={preview,document:{getElementById(id){
+    assert.equal(id,'preview-progress');return node;
+  }}};
+  vm.runInNewContext(fn[0]+'\nthis.update=updatePreviewProgress;',ctx);
+  ctx.update();assert.equal(node.textContent,'20%');
+  preview.scrollTop=350;ctx.update();assert.equal(node.textContent,'55%');
+  preview.scrollTop=800;ctx.update();assert.equal(node.textContent,'100%');
+  preview.scrollHeight=100;preview.clientHeight=200;preview.scrollTop=0;
+  ctx.update();assert.equal(node.textContent,'100%');
+  assert.match(html,/preview\.addEventListener\('scroll',[\s\S]*?updatePreviewProgress\(\)/);
+  assert.match(html,/previewBodyObserver\.observe\(preview\.querySelector\('\.markdown-body'\)\)/);
+  assert.doesNotMatch(html,/id="status-left">自动保存已启用/);
+  assert.doesNotMatch(html,/id="clear-action"|function clearDoc\(|onclick="clearDoc\(/);
+  assert.doesNotMatch(i18n,/^    (?:clear|confirmClear|autosaveEnabled):/m);
 });
 
 test('right-top code label follows fenced language and is empty without one', () => {
