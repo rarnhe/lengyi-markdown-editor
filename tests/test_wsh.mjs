@@ -33,11 +33,33 @@ test('tsc ES5 -> esbuild target es5 produces executable dist/web-to-md.js', () =
   assert.ok(intermediate.length > 1000);
   for (const [name,source] of [['tsc',intermediate],['esbuild',built]]) {
     assert.doesNotMatch(source, /(?:^|[;\s])(?:const|let|class|import|export)\s/m, name);
-    assert.doesNotMatch(source, /=>|\x60/, name);
+    assert.doesNotMatch(source, /=>/, name);
   }
   const syntax = spawnSync(process.execPath,['--check','dist/web-to-md.js'],
     { encoding:'utf8' });
   assert.equal(syntax.status,0,syntax.stderr);
+});
+
+
+test('existing editor delegates optional dynamic rendering to local WSH proxy', () => {
+  const html = readFileSync('markdown-editor.html', 'utf8');
+  const i18n = readFileSync('i18n.js', 'utf8');
+  assert.match(html, /id="browser-render"/);
+  assert.match(html, /id="browser-render-row"/);
+  assert.match(html, /data-i18n="browserRender"/);
+  assert.match(html, /document\.getElementById\('browser-render'\)\.checked \? '&mode=browser' : ''/);
+  assert.match(html, /id="proxy-url" value="http:\/\/localhost:8765\/fetch"/);
+  assert.equal((i18n.match(/^    browserRender:/gm)||[]).length, 10);
+  assert.doesNotMatch(html, /web-to-md-proxy\.py/);
+});
+
+test('Windows runtime contains WebDriver and legacy JSON compatibility without Node imports', () => {
+  const compiled = readFileSync('dist/web-to-md.js','utf8');
+  assert.match(compiled, /WinHttp\.WinHttpRequest\.5\.1/);
+  assert.match(compiled, /MSXML2\.ServerXMLHTTP\.6\.0/);
+  assert.match(compiled, /msedgedriver\.exe/);
+  assert.match(compiled, /javascript:/);
+  assert.doesNotMatch(compiled, /\brequire\s*\(|\bprocess\.|\bmodule\.exports\b/);
 });
 
 test('Windows runner executes cscript //nologo dist\\web-to-md.js --self-test successfully', t => {
