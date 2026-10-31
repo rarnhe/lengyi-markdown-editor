@@ -3617,10 +3617,14 @@ ${'</scr' + 'ipt>'}
           const data = event.data;
           // In extension contexts MessageEvent.source can be null.
           // Keep the correlation token and verify local-page origin.
+          const samePageOrigin = location.protocol === 'file:' ?
+            ['null', 'file://', ''].includes(event.origin) :
+            event.origin === location.origin;
+          // Chrome may report an extension-scheme origin for isolated worlds.
+          const extensionOrigin = /^chrome-extension:\/\/[a-p]{32}$/.test(event.origin) &&
+            document.documentElement.hasAttribute('data-lengyi-extension-ready');
           if ((event.source !== null && event.source !== window) ||
-              (location.protocol === 'file:' ?
-                !['null', 'file://'].includes(event.origin) :
-                event.origin !== location.origin) ||
+              (!samePageOrigin && !extensionOrigin) ||
               !data || data.channel !== channel ||
               data.from !== 'extension' || data.requestId !== requestId) return;
           cleanup();
