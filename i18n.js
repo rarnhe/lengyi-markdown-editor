@@ -14,7 +14,7 @@ const i18n = {
 </ul>
 <p><b>保存、导入与导出</b></p>
 <ul>
-  <li>按 <code>Ctrl+S</code> 保存，编辑器每 500ms 自动保存一次；按 <code>Ctrl+F</code> 查找。</li>
+  <li>按 <code>Ctrl+S</code> 下载 Markdown，编辑器每 500ms 自动保存一次；按 <code>Ctrl+F</code> 查找。</li>
   <li>点「导入」导入本地 .md / .txt，或直接把文件拖进窗口。</li>
   <li>点「导出」导出 Markdown、HTML、Word、PDF（打印另存为）或图片。</li>
 </ul>
@@ -29,9 +29,9 @@ const i18n = {
   <li>知乎、微信公众号等建议勾选「使用本地代理」，先运行同目录的 <code>web-to-md-proxy.py</code>。</li>
   <li>需要登录的页面，可运行 <code>python web-to-md-proxy.py --bookmark</code> 生成书签小工具提取。</li>
 </ul>
-<p><b>常用快捷键</b>：<code>Ctrl+S</code> 保存，<code>Ctrl+Z</code> 撤销，<code>Ctrl+Y / Ctrl+Shift+Z</code> 重做，<code>Ctrl+B</code> 加粗，<code>Ctrl+I</code> 斜体，<code>Ctrl+U</code> 下划线，<code>Ctrl+K</code> 链接，<code>Ctrl+Shift+K</code> 图片，<code>Ctrl+F</code> 查找，<code>Ctrl+H</code> 替换，<code>Tab</code> 插入 4 空格缩进。</p>
+<p><b>常用快捷键</b>：<code>Ctrl+S</code> 下载 Markdown，<code>Ctrl+Z</code> 撤销，<code>Ctrl+Y / Ctrl+Shift+Z</code> 重做，<code>Ctrl+B</code> 加粗，<code>Ctrl+I</code> 斜体，<code>Ctrl+U</code> 下划线，<code>Ctrl+K</code> 链接，<code>Ctrl+Shift+K</code> 图片，<code>Ctrl+F</code> 查找，<code>Ctrl+H</code> 替换，<code>Tab</code> 插入 4 空格缩进。</p>
 <p style="color:var(--text-muted);font-size:12px;">本编辑器由「沃垠AI」主理人冷逸开发，功能建议请联系微信：lengcp2013</p>`,
-    welcomeDoc: '# 欢迎使用 Markdown 编辑器\n\n在左侧输入 Markdown，右侧即可**实时预览**。\n\n## 功能\n\n- 自动保存到浏览器本地\n- 支持导入 / 导出 `.md` 文件\n- 可将网页链接转换为 Markdown\n- 快捷键：Ctrl+S 保存\n\n```js\nconsole.log("Hello Markdown!");\n```',
+    welcomeDoc: '# 欢迎使用 Markdown 编辑器\n\n在左侧输入 Markdown，右侧即可**实时预览**。\n\n## 功能\n\n- 自动保存到浏览器本地\n- 支持导入 / 导出 `.md` 文件\n- 可将网页链接转换为 Markdown\n- 快捷键：Ctrl+S 下载 Markdown\n\n```js\nconsole.log("Hello Markdown!");\n```',
     filenameTitle: '文件名',
     openTime: '打开时间：{0}',
     importTime: '导入时间：{0}',
@@ -100,7 +100,7 @@ const i18n = {
     wordCount: '{0} 字',
     autosaveEnabled: '自动保存已启用',
     saved: '已保存',
-    statusShortcuts: 'Ctrl+S 保存 · Ctrl+B 加粗 · Ctrl+I 斜体 · Ctrl+U 下划线 · Ctrl+Z 撤销 · Ctrl+Y 重做',
+    statusShortcuts: 'Ctrl+S 下载 Markdown · Ctrl+B 加粗 · Ctrl+I 斜体 · Ctrl+U 下划线 · Ctrl+Z 撤销 · Ctrl+Y 重做',
     helpTitle: '使用帮助',
     helpOk: '知道了',
     urlTitle: '网页转 Markdown',
@@ -210,7 +210,7 @@ const i18n = {
 </ul>
 <p><b>儲存、匯入與匯出</b></p>
 <ul>
-  <li>按 <code>Ctrl+S</code> 儲存，編輯器每 500ms 自動儲存；按 <code>Ctrl+F</code> 尋找。</li>
+  <li>按 <code>Ctrl+S</code> 下載 Markdown，編輯器每 500ms 自動儲存；按 <code>Ctrl+F</code> 尋找。</li>
   <li>點「匯入」匯入本地 .md / .txt，或直接把檔案拖進視窗。</li>
   <li>點「匯出」匯出 Markdown、HTML、Word、PDF（列印另存為 PDF）或圖片。</li>
 </ul>
@@ -225,9 +225,9 @@ const i18n = {
   <li>知乎、微信公眾號等建議勾選「使用本機代理」，先執行同目錄的 <code>web-to-md-proxy.py</code>。</li>
   <li>需要登入的頁面，可執行 <code>python web-to-md-proxy.py --bookmark</code> 生成書籤小工具提取。</li>
 </ul>
-<p><b>常用快捷鍵</b>：<code>Ctrl+S</code> 儲存，<code>Ctrl+Z</code> 復原，<code>Ctrl+Y / Ctrl+Shift+Z</code> 重做，<code>Ctrl+B</code> 粗體，<code>Ctrl+I</code> 斜體，<code>Ctrl+U</code> 底線，<code>Ctrl+K</code> 連結，<code>Ctrl+Shift+K</code> 圖片，<code>Ctrl+F</code> 尋找，<code>Ctrl+H</code> 取代，<code>Tab</code> 插入 4 空格縮排。</p>
+<p><b>常用快捷鍵</b>：<code>Ctrl+S</code> 下載 Markdown，<code>Ctrl+Z</code> 復原，<code>Ctrl+Y / Ctrl+Shift+Z</code> 重做，<code>Ctrl+B</code> 粗體，<code>Ctrl+I</code> 斜體，<code>Ctrl+U</code> 底線，<code>Ctrl+K</code> 連結，<code>Ctrl+Shift+K</code> 圖片，<code>Ctrl+F</code> 尋找，<code>Ctrl+H</code> 取代，<code>Tab</code> 插入 4 空格縮排。</p>
 <p style="color:var(--text-muted);font-size:12px;">本編輯器由「沃垠AI」主理人冷逸開發，功能建議請聯繫微信：lengcp2013</p>`,
-    welcomeDoc: '# 歡迎使用 Markdown 編輯器\n\n在左側輸入 Markdown，右側即可**即時預覽**。\n\n## 功能\n\n- 自動儲存到瀏覽器本地\n- 支援匯入 / 匯出 `.md` 檔案\n- 可將網頁連結轉換為 Markdown\n- 快捷鍵：Ctrl+S 儲存\n\n```js\nconsole.log("Hello Markdown!");\n```',
+    welcomeDoc: '# 歡迎使用 Markdown 編輯器\n\n在左側輸入 Markdown，右側即可**即時預覽**。\n\n## 功能\n\n- 自動儲存到瀏覽器本地\n- 支援匯入 / 匯出 `.md` 檔案\n- 可將網頁連結轉換為 Markdown\n- 快捷鍵：Ctrl+S 下載 Markdown\n\n```js\nconsole.log("Hello Markdown!");\n```',
     filenameTitle: '檔案名稱',
     openTime: '開啟時間：{0}',
     importTime: '匯入時間：{0}',
@@ -296,7 +296,7 @@ const i18n = {
     wordCount: '{0} 字',
     autosaveEnabled: '自動儲存已啟用',
     saved: '已儲存',
-    statusShortcuts: 'Ctrl+S 儲存 · Ctrl+B 粗體 · Ctrl+I 斜體 · Ctrl+U 底線 · Ctrl+Z 復原 · Ctrl+Y 重做',
+    statusShortcuts: 'Ctrl+S 下載 Markdown · Ctrl+B 粗體 · Ctrl+I 斜體 · Ctrl+U 底線 · Ctrl+Z 復原 · Ctrl+Y 重做',
     helpTitle: '使用說明',
     helpOk: '知道了',
     urlTitle: '網頁轉 Markdown',
@@ -406,7 +406,7 @@ const i18n = {
 </ul>
 <p><b>Save, import & export</b></p>
 <ul>
-  <li>Press <code>Ctrl+S</code> to save; auto-save runs every 500 ms. Use <code>Ctrl+F</code> to find.</li>
+  <li>Press <code>Ctrl+S</code> to download Markdown; auto-save runs every 500 ms. Use <code>Ctrl+F</code> to find.</li>
   <li>Click Import to open a local .md / .txt file, or drag a file into the window.</li>
   <li>Click Export to Markdown, HTML, Word, PDF (print to PDF), or image.</li>
 </ul>
@@ -421,9 +421,9 @@ const i18n = {
   <li>For Zhihu, WeChat articles, etc., enable “Use local proxy” and run <code>web-to-md-proxy.py</code> in the same folder first.</li>
   <li>For pages that require login, run <code>python web-to-md-proxy.py --bookmark</code> to generate a bookmarklet.</li>
 </ul>
-<p><b>Common shortcuts</b>: <code>Ctrl+S</code> Save, <code>Ctrl+Z</code> Undo, <code>Ctrl+Y / Ctrl+Shift+Z</code> Redo, <code>Ctrl+B</code> Bold, <code>Ctrl+I</code> Italic, <code>Ctrl+U</code> Underline, <code>Ctrl+K</code> Link, <code>Ctrl+Shift+K</code> Image, <code>Ctrl+F</code> Find, <code>Ctrl+H</code> Replace, <code>Tab</code> insert 4-space indent.</p>
+<p><b>Common shortcuts</b>: <code>Ctrl+S</code> Download Markdown, <code>Ctrl+Z</code> Undo, <code>Ctrl+Y / Ctrl+Shift+Z</code> Redo, <code>Ctrl+B</code> Bold, <code>Ctrl+I</code> Italic, <code>Ctrl+U</code> Underline, <code>Ctrl+K</code> Link, <code>Ctrl+Shift+K</code> Image, <code>Ctrl+F</code> Find, <code>Ctrl+H</code> Replace, <code>Tab</code> insert 4-space indent.</p>
 <p style="color:var(--text-muted);font-size:12px;">Developed by Leng Yi of Woyin AI. Feedback via WeChat: lengcp2013</p>`,
-    welcomeDoc: '# Welcome to the Markdown Editor\n\nType Markdown on the left and see the **live preview** on the right.\n\n## Features\n\n- Auto-saved to browser local storage\n- Import / export `.md` files\n- Convert web links to Markdown\n- Shortcut: Ctrl+S to save\n\n```js\nconsole.log("Hello Markdown!");\n```',
+    welcomeDoc: '# Welcome to the Markdown Editor\n\nType Markdown on the left and see the **live preview** on the right.\n\n## Features\n\n- Auto-saved to browser local storage\n- Import / export `.md` files\n- Convert web links to Markdown\n- Shortcut: Ctrl+S to download Markdown\n\n```js\nconsole.log("Hello Markdown!");\n```',
     filenameTitle: 'Filename',
     openTime: 'Opened: {0}',
     importTime: 'Imported: {0}',
@@ -492,7 +492,7 @@ const i18n = {
     wordCount: '{0} chars',
     autosaveEnabled: 'Auto-save enabled',
     saved: 'Saved',
-    statusShortcuts: 'Ctrl+S Save · Ctrl+B Bold · Ctrl+I Italic · Ctrl+U Underline · Ctrl+Z Undo · Ctrl+Y Redo',
+    statusShortcuts: 'Ctrl+S Download Markdown · Ctrl+B Bold · Ctrl+I Italic · Ctrl+U Underline · Ctrl+Z Undo · Ctrl+Y Redo',
     helpTitle: 'Help',
     helpOk: 'Got it',
     urlTitle: 'Web to Markdown',
@@ -602,7 +602,7 @@ const i18n = {
 </ul>
 <p><b>保存、インポート、エクスポート</b></p>
 <ul>
-  <li><code>Ctrl+S</code> で保存；500ms ごとに自動保存されます。検索は <code>Ctrl+F</code>。</li>
+  <li><code>Ctrl+S</code> で Markdown をダウンロード；500ms ごとに自動保存されます。検索は <code>Ctrl+F</code>。</li>
   <li>⬆ インポートでローカルの .md / .txt を開くか、ファイルをウィンドウにドラッグ。</li>
   <li>⬇ エクスポートで Markdown、HTML、Word、PDF（PDF として保存）、画像を出力。</li>
 </ul>
@@ -617,9 +617,9 @@ const i18n = {
   <li>知乎、微信公众号などは「ローカルプロキシを使用」にチェックし、同じフォルダの <code>web-to-md-proxy.py</code> を事前に実行してください。</li>
   <li>ログインが必要なページは、<code>python web-to-md-proxy.py --bookmark</code> を実行してブックマークレットを生成して抽出します。</li>
 </ul>
-<p><b>よく使うショートカット</b>：<code>Ctrl+S</code> 保存、<code>Ctrl+Z</code> 元に戻す、<code>Ctrl+Y / Ctrl+Shift+Z</code> やり直す、<code>Ctrl+B</code> 太字、<code>Ctrl+I</code> 斜体、<code>Ctrl+U</code> 下線、<code>Ctrl+K</code> リンク、<code>Ctrl+Shift+K</code> 画像、<code>Ctrl+F</code> 検索、<code>Ctrl+H</code> 置換、<code>Tab</code> 4 スペース字下げ。</p>
+<p><b>よく使うショートカット</b>：<code>Ctrl+S</code> Markdown をダウンロード、<code>Ctrl+Z</code> 元に戻す、<code>Ctrl+Y / Ctrl+Shift+Z</code> やり直す、<code>Ctrl+B</code> 太字、<code>Ctrl+I</code> 斜体、<code>Ctrl+U</code> 下線、<code>Ctrl+K</code> リンク、<code>Ctrl+Shift+K</code> 画像、<code>Ctrl+F</code> 検索、<code>Ctrl+H</code> 置換、<code>Tab</code> 4 スペース字下げ。</p>
 <p style="color:var(--text-muted);font-size:12px;">本エディタは「沃垠AI」の主理人である冷逸（Leng Yi）によって開発されました。機能提案は WeChat: lengcp2013 まで</p>`,
-    welcomeDoc: '# Markdown エディタへようこそ\n\n左側に Markdown を入力すると、右側に**リアルタイムプレビュー**が表示されます。\n\n## 機能\n\n- ブラウザのローカルに自動保存\n- `.md` ファイルのインポート / エクスポート\n- Web リンクを Markdown に変換\n- ショートカット：Ctrl+S で保存\n\n```js\nconsole.log("Hello Markdown!");\n```',
+    welcomeDoc: '# Markdown エディタへようこそ\n\n左側に Markdown を入力すると、右側に**リアルタイムプレビュー**が表示されます。\n\n## 機能\n\n- ブラウザのローカルに自動保存\n- `.md` ファイルのインポート / エクスポート\n- Web リンクを Markdown に変換\n- ショートカット：Ctrl+S で Markdown をダウンロード\n\n```js\nconsole.log("Hello Markdown!");\n```',
     filenameTitle: 'ファイル名',
     openTime: '起動時刻：{0}',
     importTime: '読込時刻：{0}',
@@ -688,7 +688,7 @@ const i18n = {
     wordCount: '{0} 文字',
     autosaveEnabled: '自動保存が有効',
     saved: '保存しました',
-    statusShortcuts: 'Ctrl+S 保存 · Ctrl+B 太字 · Ctrl+I 斜体 · Ctrl+U 下線 · Ctrl+Z 元に戻す · Ctrl+Y やり直す',
+    statusShortcuts: 'Ctrl+S Markdown をダウンロード · Ctrl+B 太字 · Ctrl+I 斜体 · Ctrl+U 下線 · Ctrl+Z 元に戻す · Ctrl+Y やり直す',
     helpTitle: 'ヘルプ',
     helpOk: 'OK',
     urlTitle: 'Web を Markdown に',
@@ -798,7 +798,7 @@ const i18n = {
 </ul>
 <p><b>저장, 가져오기 및 내보내기</b></p>
 <ul>
-  <li><code>Ctrl+S</code>로 저장하고 500ms마다 자동 저장됩니다. 찾기는 <code>Ctrl+F</code>.</li>
+  <li><code>Ctrl+S</code>로 Markdown 다운로드하고 500ms마다 자동 저장됩니다. 찾기는 <code>Ctrl+F</code>.</li>
   <li>⬆ 가져오기로 로컬 .md / .txt를 열거나 파일을 창으로 드래그하세요.</li>
   <li>⬇ 내보내기로 Markdown, HTML, Word, PDF(PDF로 저장), 이미지 출력.</li>
 </ul>
@@ -813,9 +813,9 @@ const i18n = {
   <li>知乎, 微信公众号 등은「로컬 프록시 사용」을 체크하고 같은 폴더의 <code>web-to-md-proxy.py</code>를 미리 실행하세요.</li>
   <li>로그인이 필요한 페이지는 <code>python web-to-md-proxy.py --bookmark</code>를 실행해 북마크릿을 생성해 추출하세요.</li>
 </ul>
-<p><b>자주 사용하는 단축키</b>: <code>Ctrl+S</code> 저장, <code>Ctrl+Z</code> 실행 취소, <code>Ctrl+Y / Ctrl+Shift+Z</code> 다시 실행, <code>Ctrl+B</code> 굵게, <code>Ctrl+I</code> 기울임, <code>Ctrl+U</code> 밑줄, <code>Ctrl+K</code> 링크, <code>Ctrl+Shift+K</code> 이미지, <code>Ctrl+F</code> 찾기, <code>Ctrl+H</code> 바꾸기, <code>Tab</code> 4칸 들여쓰기.</p>
+<p><b>자주 사용하는 단축키</b>: <code>Ctrl+S</code> Markdown 다운로드, <code>Ctrl+Z</code> 실행 취소, <code>Ctrl+Y / Ctrl+Shift+Z</code> 다시 실행, <code>Ctrl+B</code> 굵게, <code>Ctrl+I</code> 기울임, <code>Ctrl+U</code> 밑줄, <code>Ctrl+K</code> 링크, <code>Ctrl+Shift+K</code> 이미지, <code>Ctrl+F</code> 찾기, <code>Ctrl+H</code> 바꾸기, <code>Tab</code> 4칸 들여쓰기.</p>
 <p style="color:var(--text-muted);font-size:12px;">본 편집기는 「沃垠AI」대표 랭이(Leng Yi)가 개발했습니다. 기능 제안은 WeChat: lengcp2013</p>`,
-    welcomeDoc: '# Markdown 편집기에 오신 것을 환영합니다\n\n왼쪽에 Markdown을 입력하면 오른쪽에 **실시간 미리보기**가 표시됩니다.\n\n## 기능\n\n- 브라우저 로컬에 자동 저장\n- `.md` 파일 가져오기 / 내보내기\n- 웹 링크를 Markdown으로 변환\n- 단축키: Ctrl+S 저장\n\n```js\nconsole.log("Hello Markdown!");\n```',
+    welcomeDoc: '# Markdown 편집기에 오신 것을 환영합니다\n\n왼쪽에 Markdown을 입력하면 오른쪽에 **실시간 미리보기**가 표시됩니다.\n\n## 기능\n\n- 브라우저 로컬에 자동 저장\n- `.md` 파일 가져오기 / 내보내기\n- 웹 링크를 Markdown으로 변환\n- 단축키: Ctrl+S Markdown 다운로드\n\n```js\nconsole.log("Hello Markdown!");\n```',
     filenameTitle: '파일 이름',
     openTime: '열린 시각: {0}',
     importTime: '가져온 시각: {0}',
@@ -884,7 +884,7 @@ const i18n = {
     wordCount: '{0}자',
     autosaveEnabled: '자동 저장 사용 중',
     saved: '저장됨',
-    statusShortcuts: 'Ctrl+S 저장 · Ctrl+B 굵게 · Ctrl+I 기울임 · Ctrl+U 밑줄 · Ctrl+Z 실행 취소 · Ctrl+Y 다시 실행',
+    statusShortcuts: 'Ctrl+S Markdown 다운로드 · Ctrl+B 굵게 · Ctrl+I 기울임 · Ctrl+U 밑줄 · Ctrl+Z 실행 취소 · Ctrl+Y 다시 실행',
     helpTitle: '사용 도움말',
     helpOk: '확인',
     urlTitle: 'Web을 Markdown으로',
@@ -994,7 +994,7 @@ const i18n = {
 </ul>
 <p><b>Guardar, importar y exportar</b></p>
 <ul>
-  <li>Pulsa <code>Ctrl+S</code> para guardar; el guardado automático se ejecuta cada 500 ms. Usa <code>Ctrl+F</code> para buscar.</li>
+  <li>Pulsa <code>Ctrl+S</code> para descargar Markdown; el guardado automático se ejecuta cada 500 ms. Usa <code>Ctrl+F</code> para buscar.</li>
   <li>Haz clic en ⬆ Importar para abrir un archivo .md / .txt local, o arrastra un archivo a la ventana.</li>
   <li>Haz clic en ⬇ Exportar a Markdown, HTML, Word, PDF (imprimir como PDF) o imagen.</li>
 </ul>
@@ -1009,9 +1009,9 @@ const i18n = {
   <li>Para Zhihu, artículos de WeChat, etc., activa “Usar proxy local” y ejecuta <code>web-to-md-proxy.py</code> en la misma carpeta primero.</li>
   <li>Para páginas que requieren inicio de sesión, ejecuta <code>python web-to-md-proxy.py --bookmark</code> para generar un bookmarklet.</li>
 </ul>
-<p><b>Atajos comunes</b>: <code>Ctrl+S</code> Guardar, <code>Ctrl+Z</code> Deshacer, <code>Ctrl+Y / Ctrl+Shift+Z</code> Rehacer, <code>Ctrl+B</code> Negrita, <code>Ctrl+I</code> Cursiva, <code>Ctrl+U</code> Subrayado, <code>Ctrl+K</code> Enlace, <code>Ctrl+Shift+K</code> Imagen, <code>Ctrl+F</code> Buscar, <code>Ctrl+H</code> Reemplazar, <code>Tab</code> insertar sangría de 4 espacios.</p>
+<p><b>Atajos comunes</b>: <code>Ctrl+S</code> Descargar Markdown, <code>Ctrl+Z</code> Deshacer, <code>Ctrl+Y / Ctrl+Shift+Z</code> Rehacer, <code>Ctrl+B</code> Negrita, <code>Ctrl+I</code> Cursiva, <code>Ctrl+U</code> Subrayado, <code>Ctrl+K</code> Enlace, <code>Ctrl+Shift+K</code> Imagen, <code>Ctrl+F</code> Buscar, <code>Ctrl+H</code> Reemplazar, <code>Tab</code> insertar sangría de 4 espacios.</p>
 <p style="color:var(--text-muted);font-size:12px;">Desarrollado por Leng Yi de Woyin AI. Sugerencias por WeChat: lengcp2013</p>`,
-    welcomeDoc: '# Bienvenido al Editor Markdown\n\nEscribe Markdown a la izquierda y ve la **vista previa en tiempo real** a la derecha.\n\n## Características\n\n- Guardado automático en el almacenamiento local del navegador\n- Importar / exportar archivos `.md`\n- Convertir enlaces web a Markdown\n- Atajo: Ctrl+S para guardar\n\n```js\nconsole.log("Hello Markdown!");\n```',
+    welcomeDoc: '# Bienvenido al Editor Markdown\n\nEscribe Markdown a la izquierda y ve la **vista previa en tiempo real** a la derecha.\n\n## Características\n\n- Guardado automático en el almacenamiento local del navegador\n- Importar / exportar archivos `.md`\n- Convertir enlaces web a Markdown\n- Atajo: Ctrl+S para descargar Markdown\n\n```js\nconsole.log("Hello Markdown!");\n```',
     filenameTitle: 'Nombre de archivo',
     openTime: 'Abierto: {0}',
     importTime: 'Importado: {0}',
@@ -1080,7 +1080,7 @@ const i18n = {
     wordCount: '{0} caracteres',
     autosaveEnabled: 'Guardado automático activado',
     saved: 'Guardado',
-    statusShortcuts: 'Ctrl+S Guardar · Ctrl+B Negrita · Ctrl+I Cursiva · Ctrl+U Subrayado · Ctrl+Z Deshacer · Ctrl+Y Rehacer',
+    statusShortcuts: 'Ctrl+S Descargar Markdown · Ctrl+B Negrita · Ctrl+I Cursiva · Ctrl+U Subrayado · Ctrl+Z Deshacer · Ctrl+Y Rehacer',
     helpTitle: 'Ayuda',
     helpOk: 'Entendido',
     urlTitle: 'Web a Markdown',
@@ -1190,7 +1190,7 @@ const i18n = {
 </ul>
 <p><b>Enregistrer, importer et exporter</b></p>
 <ul>
-  <li>Appuyez sur <code>Ctrl+S</code> pour enregistrer ; la sauvegarde automatique s’exécute toutes les 500 ms. Utilisez <code>Ctrl+F</code> pour rechercher.</li>
+  <li>Appuyez sur <code>Ctrl+S</code> pour télécharger Markdown ; la sauvegarde automatique s’exécute toutes les 500 ms. Utilisez <code>Ctrl+F</code> pour rechercher.</li>
   <li>Cliquez sur ⬆ Importer pour ouvrir un fichier .md / .txt local, ou glissez-déposez un fichier dans la fenêtre.</li>
   <li>Cliquez sur ⬇ Exporter vers Markdown, HTML, Word, PDF (enregistrer en PDF) ou image.</li>
 </ul>
@@ -1205,9 +1205,9 @@ const i18n = {
   <li>Pour Zhihu, les articles WeChat, etc., activez « Utiliser le proxy local » et exécutez d’abord <code>web-to-md-proxy.py</code> dans le même dossier.</li>
   <li>Pour les pages nécessitant une connexion, exécutez <code>python web-to-md-proxy.py --bookmark</code> pour générer un bookmarklet.</li>
 </ul>
-<p><b>Raccourcis courants</b> : <code>Ctrl+S</code> Enregistrer, <code>Ctrl+Z</code> Annuler, <code>Ctrl+Y / Ctrl+Shift+Z</code> Rétablir, <code>Ctrl+B</code> Gras, <code>Ctrl+I</code> Italique, <code>Ctrl+U</code> Souligné, <code>Ctrl+K</code> Lien, <code>Ctrl+Shift+K</code> Image, <code>Ctrl+F</code> Rechercher, <code>Ctrl+H</code> Remplacer, <code>Tab</code> insérer une indentation de 4 espaces.</p>
+<p><b>Raccourcis courants</b> : <code>Ctrl+S</code> Télécharger Markdown, <code>Ctrl+Z</code> Annuler, <code>Ctrl+Y / Ctrl+Shift+Z</code> Rétablir, <code>Ctrl+B</code> Gras, <code>Ctrl+I</code> Italique, <code>Ctrl+U</code> Souligné, <code>Ctrl+K</code> Lien, <code>Ctrl+Shift+K</code> Image, <code>Ctrl+F</code> Rechercher, <code>Ctrl+H</code> Remplacer, <code>Tab</code> insérer une indentation de 4 espaces.</p>
 <p style="color:var(--text-muted);font-size:12px;">Développé par Leng Yi de Woyin AI. Suggestions via WeChat : lengcp2013</p>`,
-    welcomeDoc: '# Bienvenue dans l’éditeur Markdown\n\nSaisissez du Markdown à gauche et voyez l’**aperçu en direct** à droite.\n\n## Fonctionnalités\n\n- Sauvegarde automatique dans le stockage local du navigateur\n- Importer / exporter des fichiers `.md`\n- Convertir des liens Web en Markdown\n- Raccourci : Ctrl+S pour enregistrer\n\n```js\nconsole.log("Hello Markdown!");\n```',
+    welcomeDoc: '# Bienvenue dans l’éditeur Markdown\n\nSaisissez du Markdown à gauche et voyez l’**aperçu en direct** à droite.\n\n## Fonctionnalités\n\n- Sauvegarde automatique dans le stockage local du navigateur\n- Importer / exporter des fichiers `.md`\n- Convertir des liens Web en Markdown\n- Raccourci : Ctrl+S pour télécharger Markdown\n\n```js\nconsole.log("Hello Markdown!");\n```',
     filenameTitle: 'Nom du fichier',
     openTime: 'Ouvert : {0}',
     importTime: 'Importé : {0}',
@@ -1276,7 +1276,7 @@ const i18n = {
     wordCount: '{0} caractères',
     autosaveEnabled: 'Sauvegarde automatique activée',
     saved: 'Enregistré',
-    statusShortcuts: 'Ctrl+S Enregistrer · Ctrl+B Gras · Ctrl+I Italique · Ctrl+U Souligné · Ctrl+Z Annuler · Ctrl+Y Rétablir',
+    statusShortcuts: 'Ctrl+S Télécharger Markdown · Ctrl+B Gras · Ctrl+I Italique · Ctrl+U Souligné · Ctrl+Z Annuler · Ctrl+Y Rétablir',
     helpTitle: 'Aide',
     helpOk: 'Compris',
     urlTitle: 'Web vers Markdown',
@@ -1386,7 +1386,7 @@ const i18n = {
 </ul>
 <p><b>Speichern, importieren und exportieren</b></p>
 <ul>
-  <li>Drücke <code>Ctrl+S</code> zum Speichern; automatisches Speichern läuft alle 500 ms. Suche mit <code>Ctrl+F</code>.</li>
+  <li>Drücke <code>Ctrl+S</code> zum Markdown-Herunterladen; automatisches Speichern läuft alle 500 ms. Suche mit <code>Ctrl+F</code>.</li>
   <li>Klicke auf ⬆ Importieren, um eine lokale .md / .txt Datei zu öffnen, oder ziehe eine Datei ins Fenster.</li>
   <li>Klicke auf ⬇ Exportieren nach Markdown, HTML, Word, PDF (als PDF speichern) oder Bild.</li>
 </ul>
@@ -1401,9 +1401,9 @@ const i18n = {
   <li>Für Zhihu, WeChat-Artikel usw. aktiviere „Lokalen Proxy verwenden“ und führe zuerst <code>web-to-md-proxy.py</code> im selben Ordner aus.</li>
   <li>Für Seiten mit Anmeldung führe <code>python web-to-md-proxy.py --bookmark</code> aus, um ein Bookmarklet zu erzeugen.</li>
 </ul>
-<p><b>Häufige Tastenkürzel</b>: <code>Ctrl+S</code> Speichern, <code>Ctrl+Z</code> Rückgängig, <code>Ctrl+Y / Ctrl+Shift+Z</code> Wiederherstellen, <code>Ctrl+B</code> Fett, <code>Ctrl+I</code> Kursiv, <code>Ctrl+U</code> Unterstrichen, <code>Ctrl+K</code> Link, <code>Ctrl+Shift+K</code> Bild, <code>Ctrl+F</code> Suchen, <code>Ctrl+H</code> Ersetzen, <code>Tab</code> 4 Leerzeichen Einzug einfügen.</p>
+<p><b>Häufige Tastenkürzel</b>: <code>Ctrl+S</code> Markdown herunterladen, <code>Ctrl+Z</code> Rückgängig, <code>Ctrl+Y / Ctrl+Shift+Z</code> Wiederherstellen, <code>Ctrl+B</code> Fett, <code>Ctrl+I</code> Kursiv, <code>Ctrl+U</code> Unterstrichen, <code>Ctrl+K</code> Link, <code>Ctrl+Shift+K</code> Bild, <code>Ctrl+F</code> Suchen, <code>Ctrl+H</code> Ersetzen, <code>Tab</code> 4 Leerzeichen Einzug einfügen.</p>
 <p style="color:var(--text-muted);font-size:12px;">Entwickelt von Leng Yi von Woyin AI. Feedback über WeChat: lengcp2013</p>`,
-    welcomeDoc: '# Willkommen im Markdown-Editor\n\nGeben Sie links Markdown ein und sehen Sie rechts die **Live-Vorschau**.\n\n## Funktionen\n\n- Automatisches Speichern im lokalen Browser-Speicher\n- .md-Dateien importieren / exportieren\n- Weblinks in Markdown umwandeln\n- Tastenkürzel: Ctrl+S zum Speichern\n\n```js\nconsole.log("Hello Markdown!");\n```',
+    welcomeDoc: '# Willkommen im Markdown-Editor\n\nGeben Sie links Markdown ein und sehen Sie rechts die **Live-Vorschau**.\n\n## Funktionen\n\n- Automatisches Speichern im lokalen Browser-Speicher\n- .md-Dateien importieren / exportieren\n- Weblinks in Markdown umwandeln\n- Tastenkürzel: Ctrl+S zum Markdown-Herunterladen\n\n```js\nconsole.log("Hello Markdown!");\n```',
     filenameTitle: 'Dateiname',
     openTime: 'Geöffnet: {0}',
     importTime: 'Importiert: {0}',
@@ -1472,7 +1472,7 @@ const i18n = {
     wordCount: '{0} Zeichen',
     autosaveEnabled: 'Automatisches Speichern aktiv',
     saved: 'Gespeichert',
-    statusShortcuts: 'Ctrl+S Speichern · Ctrl+B Fett · Ctrl+I Kursiv · Ctrl+U Unterstrichen · Ctrl+Z Rückgängig · Ctrl+Y Wiederherstellen',
+    statusShortcuts: 'Ctrl+S Markdown herunterladen · Ctrl+B Fett · Ctrl+I Kursiv · Ctrl+U Unterstrichen · Ctrl+Z Rückgängig · Ctrl+Y Wiederherstellen',
     helpTitle: 'Hilfe',
     helpOk: 'Verstanden',
     urlTitle: 'Web zu Markdown',
@@ -1582,7 +1582,7 @@ const i18n = {
 </ul>
 <p><b>Сохранение, импорт и экспорт</b></p>
 <ul>
-  <li>Нажмите <code>Ctrl+S</code> для сохранения; автосохранение работает каждые 500 мс. Для поиска используйте <code>Ctrl+F</code>.</li>
+  <li>Нажмите <code>Ctrl+S</code> для скачивания Markdown; автосохранение работает каждые 500 мс. Для поиска используйте <code>Ctrl+F</code>.</li>
   <li>Кликните ⬆ Импорт, чтобы открыть локальный файл .md / .txt, или перетащите файл в окно.</li>
   <li>Кликните ⬇ Экспорт в Markdown, HTML, Word, PDF (сохранить как PDF) или изображение.</li>
 </ul>
@@ -1597,9 +1597,9 @@ const i18n = {
   <li>Для Zhihu, статей WeChat и т. п. включите «Использовать локальный прокси» и заранее запустите <code>web-to-md-proxy.py</code> из той же папки.</li>
   <li>Для страниц, требующих входа, запустите <code>python web-to-md-proxy.py --bookmark</code>, чтобы создать букмарклет.</li>
 </ul>
-<p><b>Частые горячие клавиши</b>: <code>Ctrl+S</code> Сохранить, <code>Ctrl+Z</code> Отменить, <code>Ctrl+Y / Ctrl+Shift+Z</code> Повторить, <code>Ctrl+B</code> Жирный, <code>Ctrl+I</code> Курсив, <code>Ctrl+U</code> Подчеркнутый, <code>Ctrl+K</code> Ссылка, <code>Ctrl+Shift+K</code> Изображение, <code>Ctrl+F</code> Найти, <code>Ctrl+H</code> Заменить, <code>Tab</code> вставить отступ в 4 пробела.</p>
+<p><b>Частые горячие клавиши</b>: <code>Ctrl+S</code> Скачать Markdown, <code>Ctrl+Z</code> Отменить, <code>Ctrl+Y / Ctrl+Shift+Z</code> Повторить, <code>Ctrl+B</code> Жирный, <code>Ctrl+I</code> Курсив, <code>Ctrl+U</code> Подчеркнутый, <code>Ctrl+K</code> Ссылка, <code>Ctrl+Shift+K</code> Изображение, <code>Ctrl+F</code> Найти, <code>Ctrl+H</code> Заменить, <code>Tab</code> вставить отступ в 4 пробела.</p>
 <p style="color:var(--text-muted);font-size:12px;">Разработано Лэн И (Leng Yi) из Woyin AI. Предложения по WeChat: lengcp2013</p>`,
-    welcomeDoc: '# Добро пожаловать в редактор Markdown\n\nВведите Markdown слева и увидите **предпросмотр в реальном времени** справа.\n\n## Возможности\n\n- Автоматическое сохранение в локальное хранилище браузера\n- Импорт / экспорт файлов `.md`\n- Преобразование веб-ссылок в Markdown\n- Горячая клавиша: Ctrl+S для сохранения\n\n```js\nconsole.log("Hello Markdown!");\n```',
+    welcomeDoc: '# Добро пожаловать в редактор Markdown\n\nВведите Markdown слева и увидите **предпросмотр в реальном времени** справа.\n\n## Возможности\n\n- Автоматическое сохранение в локальное хранилище браузера\n- Импорт / экспорт файлов `.md`\n- Преобразование веб-ссылок в Markdown\n- Горячая клавиша: Ctrl+S для скачивания Markdown\n\n```js\nconsole.log("Hello Markdown!");\n```',
     filenameTitle: 'Имя файла',
     openTime: 'Открыто: {0}',
     importTime: 'Импортировано: {0}',
@@ -1668,7 +1668,7 @@ const i18n = {
     wordCount: '{0} символов',
     autosaveEnabled: 'Автосохранение включено',
     saved: 'Сохранено',
-    statusShortcuts: 'Ctrl+S Сохранить · Ctrl+B Жирный · Ctrl+I Курсив · Ctrl+U Подчеркнутый · Ctrl+Z Отменить · Ctrl+Y Повторить',
+    statusShortcuts: 'Ctrl+S Скачать Markdown · Ctrl+B Жирный · Ctrl+I Курсив · Ctrl+U Подчеркнутый · Ctrl+Z Отменить · Ctrl+Y Повторить',
     helpTitle: 'Справка',
     helpOk: 'Понятно',
     urlTitle: 'Web в Markdown',
@@ -1778,7 +1778,7 @@ const i18n = {
 </ul>
 <p><b>Salvar, importar e exportar</b></p>
 <ul>
-  <li>Pressione <code>Ctrl+S</code> para salvar; o salvamento automático ocorre a cada 500 ms. Use <code>Ctrl+F</code> para localizar.</li>
+  <li>Pressione <code>Ctrl+S</code> para baixar Markdown; o salvamento automático ocorre a cada 500 ms. Use <code>Ctrl+F</code> para localizar.</li>
   <li>Clique em ⬆ Importar para abrir um arquivo .md / .txt local, ou arraste um arquivo para a janela.</li>
   <li>Clique em ⬇ Exportar para Markdown, HTML, Word, PDF (salvar como PDF) ou imagem.</li>
 </ul>
@@ -1793,9 +1793,9 @@ const i18n = {
   <li>Para Zhihu, artigos do WeChat etc., ative “Usar proxy local” e execute <code>web-to-md-proxy.py</code> na mesma pasta primeiro.</li>
   <li>Para páginas que exigem login, execute <code>python web-to-md-proxy.py --bookmark</code> para gerar um bookmarklet.</li>
 </ul>
-<p><b>Atalhos comuns</b>: <code>Ctrl+S</code> Salvar, <code>Ctrl+Z</code> Desfazer, <code>Ctrl+Y / Ctrl+Shift+Z</code> Refazer, <code>Ctrl+B</code> Negrito, <code>Ctrl+I</code> Itálico, <code>Ctrl+U</code> Sublinhado, <code>Ctrl+K</code> Link, <code>Ctrl+Shift+K</code> Imagem, <code>Ctrl+F</code> Localizar, <code>Ctrl+H</code> Substituir, <code>Tab</code> inserir recuo de 4 espaços.</p>
+<p><b>Atalhos comuns</b>: <code>Ctrl+S</code> Baixar Markdown, <code>Ctrl+Z</code> Desfazer, <code>Ctrl+Y / Ctrl+Shift+Z</code> Refazer, <code>Ctrl+B</code> Negrito, <code>Ctrl+I</code> Itálico, <code>Ctrl+U</code> Sublinhado, <code>Ctrl+K</code> Link, <code>Ctrl+Shift+K</code> Imagem, <code>Ctrl+F</code> Localizar, <code>Ctrl+H</code> Substituir, <code>Tab</code> inserir recuo de 4 espaços.</p>
 <p style="color:var(--text-muted);font-size:12px;">Desenvolvido por Leng Yi da Woyin AI. Sugestões pelo WeChat: lengcp2013</p>`,
-    welcomeDoc: '# Bem-vindo ao Editor Markdown\n\nDigite Markdown à esquerda e veja a **pré-visualização em tempo real** à direita.\n\n## Recursos\n\n- Salvamento automático no armazenamento local do navegador\n- Importar / exportar arquivos `.md`\n- Converter links da web para Markdown\n- Atalho: Ctrl+S para salvar\n\n```js\nconsole.log("Hello Markdown!");\n```',
+    welcomeDoc: '# Bem-vindo ao Editor Markdown\n\nDigite Markdown à esquerda e veja a **pré-visualização em tempo real** à direita.\n\n## Recursos\n\n- Salvamento automático no armazenamento local do navegador\n- Importar / exportar arquivos `.md`\n- Converter links da web para Markdown\n- Atalho: Ctrl+S para baixar Markdown\n\n```js\nconsole.log("Hello Markdown!");\n```',
     filenameTitle: 'Nome do arquivo',
     openTime: 'Aberto: {0}',
     importTime: 'Importado: {0}',
@@ -1864,7 +1864,7 @@ const i18n = {
     wordCount: '{0} caracteres',
     autosaveEnabled: 'Auto-salvamento ativado',
     saved: 'Salvo',
-    statusShortcuts: 'Ctrl+S Salvar · Ctrl+B Negrito · Ctrl+I Itálico · Ctrl+U Sublinhado · Ctrl+Z Desfazer · Ctrl+Y Refazer',
+    statusShortcuts: 'Ctrl+S Baixar Markdown · Ctrl+B Negrito · Ctrl+I Itálico · Ctrl+U Sublinhado · Ctrl+Z Desfazer · Ctrl+Y Refazer',
     helpTitle: 'Ajuda',
     helpOk: 'Entendi',
     urlTitle: 'Web para Markdown',
