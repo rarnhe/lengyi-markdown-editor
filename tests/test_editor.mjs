@@ -843,30 +843,38 @@ test('More menu toggles independently of the footer language menu', () => {
 test('theme action swaps 夜间 and 日间 on click, language change and stored dark theme', () => {
   const update=html.match(/function updateThemeButton\(\) \{[\s\S]*?\n    \}/);
   assert.ok(update);
-  const themeSpan={textContent:''};
-  const icon={href:'',setAttribute(k,v){this[k]=v;}};
-  const attrs={};
-  const button={
-    title:'',querySelector(q){return q==='#theme-label'?themeSpan:icon;},
-    setAttribute(k,v){attrs[k]=v;}
+  const makeButton=(labelId)=>{
+    const span={textContent:''},icon={href:'',setAttribute(k,v){this[k]=v;}},attrs={};
+    return {span,icon,attrs,title:'',
+      querySelector(q){return q==='#'+labelId?span:icon;},
+      setAttribute(k,v){attrs[k]=v;}
+    };
   };
+  const button=makeButton('theme-label'),readingButton=makeButton('reading-theme-label');
   const body={theme:'light',getAttribute(){return this.theme;},setAttribute(k,v){this.theme=v;}};
   const ctx={
-    document:{body,getElementById(){return button;}},
+    document:{body,getElementById(id){return id==='theme-toggle'?button:readingButton;}},
     t(key){return key==='themeDark'?'夜间':'日间';}
   };
   vm.runInNewContext(update[0]+'\nthis.update=updateThemeButton;',ctx);
   ctx.update();
-  assert.equal(themeSpan.textContent,'夜间');
-  assert.equal(icon.href,'#icon-moon');
-  assert.equal(button.title,'夜间');
+  for (const b of [button,readingButton]) {
+    assert.equal(b.span.textContent,'夜间');
+    assert.equal(b.icon.href,'#icon-moon');
+    assert.equal(b.title,'夜间');
+  }
   body.theme='dark';ctx.update();
-  assert.equal(themeSpan.textContent,'日间');
-  assert.equal(icon.href,'#icon-sun');
-  assert.equal(attrs['aria-label'],'日间');
+  for (const b of [button,readingButton]) {
+    assert.equal(b.span.textContent,'日间');
+    assert.equal(b.icon.href,'#icon-sun');
+    assert.equal(b.attrs['aria-label'],'日间');
+  }
   assert.match(html,/function toggleTheme\(\) \{[\s\S]*?updateThemeButton\(\);/);
   assert.match(html,/function applyLanguage\(\) \{[\s\S]*?updateThemeButton\(\);/);
   assert.match(html,/id="theme-toggle" onclick="toggleTheme\(\)"/);
+  assert.match(html,/id="reading-theme-toggle" onclick="toggleTheme\(\)"/);
+  assert.match(html,/id="reading-exit-btn" onclick="setReadingMode\(false\)"/);
+  assert.match(html,/\['theme-toggle', 'theme-label'\], \['reading-theme-toggle', 'reading-theme-label'\]/);
   for (const key of ['themeDark','themeLight','moreMenu']) {
     assert.equal((i18n.match(new RegExp('^    '+key+':','gm'))||[]).length,10,key);
   }
@@ -954,7 +962,7 @@ test('format tools and More remain on one row even at very narrow widths', () =>
 test('footer language button is text-only and reflects the selected language', () => {
   const button=html.match(/id="lang-dropdown"[\s\S]*?<button type="button"[\s\S]*?<\/button>/);
   assert.ok(button);
-  assert.match(button[0],/id="lang-trigger"[\s\S]*?id="lang-label">中文<\/span>/);
+  assert.match(button[0],/id="lang-trigger"[\s\S]*?id="lang-label">简体中文<\/span>/);
   assert.doesNotMatch(button[0],/<svg|<use|language-inline-chevron|language-overflow-chevron/);
   assert.match(html,/#lang-menu \{\s*top: auto; bottom: 100%; left: 0;/);
   const map=html.match(/const languageNames = \{[\s\S]*?\n    \};/);
@@ -965,9 +973,56 @@ test('footer language button is text-only and reflects the selected language', (
     return id==='lang-label'?node:null;
   }},t:k=>k};
   vm.runInNewContext(map[0]+'\n'+status[0]+'\nthis.update=updateStatusBar;',ctx);
-  ctx.update();assert.equal(node.textContent,'中文');
+  ctx.update();assert.equal(node.textContent,'简体中文');
   ctx.currentLang='en';ctx.update();assert.equal(node.textContent,'English');
   ctx.currentLang='ja';ctx.update();assert.equal(node.textContent,'日本語');
+});
+
+
+test('filename has high contrast in both light and dark themes', () => {
+  assert.match(html,/\.preview-title-group #filename \{\s*color: #000;/);
+  assert.match(html,/\[data-theme="dark"\] \.preview-title-group #filename \{ color: var\(--text\); \}/);
+  assert.match(html,/\.preview-title-group \.filename-slot \{ display: flex; flex: 0 1 auto; min-width: 0; \}/);
+});
+
+test('footer reading button is icon-only, accessible, and enters reading mode', () => {
+  const status=html.match(/<div class="statusbar">([\s\S]*?)<\/div>\s*<!-- 拖放文件/);
+  assert.ok(status);
+  const button=status[1].match(/<button[^>]*id="reading-shortcut"[^>]*>([\s\S]*?)<\/button>/);
+  assert.ok(button);
+  assert.match(button[0],/onclick="setReadingMode\(true\)"/);
+  assert.match(button[0],/data-i18n-title="readingMode"[^>]*aria-label="阅读模式"/);
+  assert.match(button[1],/<svg[^>]*aria-hidden="true"[^>]*>[\s\S]*?#icon-reading/);
+  assert.doesNotMatch(button[1],/\S[^<>]*(?:快捷键|Ctrl\+)/);
+  assert.doesNotMatch(status[1],/id="status-right"|Ctrl\+S 下载 Markdown/);
+  assert.match(html,/#reading-shortcut \{[\s\S]*?background: var\(--accent-soft\); color: var\(--accent\);/);
+  assert.match(html,/<symbol id="icon-reading" viewBox="0 0 24 24">/);
+  const fn=html.match(/function updateStatusBar\(\) \{[\s\S]*?\n    \}/);
+  assert.ok(fn);
+  const labels=[];
+  const ctx={
+    currentLang:'en',languageNames:{'en':'English','zh-CN':'简体中文'},
+    document:{getElementById(id){return id==='reading-shortcut'?{
+      setAttribute(k,v){labels.push([k,v]);}
+    }:null;}},t(key){return key==='readingMode'?'Reading mode':key;}
+  };
+  vm.runInNewContext(fn[0]+'\nthis.update=updateStatusBar;',ctx);
+  ctx.update();assert.deepEqual(labels,[['aria-label','Reading mode']]);
+});
+
+test('floating outline offers a separate theme button beside Exit, without dragging', () => {
+  const header=html.match(/<div class="reading-controls">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="outline-list"/);
+  assert.ok(header);
+  assert.match(header[1],/class="reading-actions"[\s\S]*?id="reading-theme-toggle" onclick="toggleTheme\(\)"[\s\S]*?id="reading-exit-btn"/);
+  assert.match(header[1],/id="reading-theme-label">夜间<\/span>/);
+  assert.match(html,/\.app\.reading-mode \.reading-controls \{[\s\S]*?display: flex;/);
+  assert.match(html,/event\.target\.closest\('button'\)\) return;/);
+  const fn=html.match(/function beginReadingOutlineDrag\(event\) \{[\s\S]*?\n    \}/);
+  assert.ok(fn);
+  const ctx={readingMode:true,readingDrag:null};
+  vm.runInNewContext(fn[0]+'\nthis.start=beginReadingOutlineDrag;',ctx);
+  ctx.start({button:0,target:{closest(){return {};}}});
+  assert.equal(ctx.readingDrag,null);
 });
 
 test('editable filename and count are centered, with flexible filename width', () => {
