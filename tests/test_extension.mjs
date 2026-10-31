@@ -12,29 +12,45 @@ const i18n = readFileSync('i18n.js', 'utf8');
 function workerHarness(fetchImpl = async url => ({
   ok: true, url, headers: {get:()=> 'text/html; charset=utf-8'},
   text: async () => '<html><body><article>Static capture works</article></body></html>'
-})) {
-  const state = { handler: null, injected: null, created: null };
+}), options = {}) {
+  const state = {handler:null,injected:null,created:null,onNavigationError:null,onBeforeNavigate:null};
   const listeners = {updated:new Set(),removed:new Set()};
   const chrome = {
-    runtime: {onMessage:{addListener(fn){state.handler=fn;}}},
-    tabs: {
-      create:async options=>{state.created=options;return {id:41};},
+    runtime:{onMessage:{addListener(fn){state.handler=fn;}}},
+    webNavigation:{
+      onBeforeNavigate:{addListener(fn){state.onBeforeNavigate=fn;}},
+      onErrorOccurred:{addListener(fn){state.onNavigationError=fn;}}
+    },
+    tabs:{
+      create:async opts=>{
+        state.created=opts;
+        if(options.navigationError) state.onNavigationError({tabId:41,frameId:0,error:options.navigationError});
+        return {id:41};
+      },
+      query:async()=>options.existingTabs||[],
       get:async()=>({status:'complete'}),
       onUpdated:{addListener:fn=>listeners.updated.add(fn),removeListener:fn=>listeners.updated.delete(fn)},
       onRemoved:{addListener:fn=>listeners.removed.add(fn),removeListener:fn=>listeners.removed.delete(fn)}
     },
-    scripting: {executeScript:async opts=>{state.injected=opts;return [{result:{
-      success:true,html:'<!doctype html><html><head><title>Rendered</title></head><body><article>Rendered article</article></body></html>',
-      title:'Rendered',finalUrl:state.created.url,mode:'browser'
-    }}];}}
+    scripting:{executeScript:async opts=>{
+      state.injected=opts;
+      if(options.injectError)throw new Error(options.injectError);
+      return [{result:{
+        success:true,html:'<!doctype html><html><head><title>Rendered</title></head><body><article>Rendered article</article></body></html>',
+        title:'Rendered',finalUrl:state.created?.url||opts.target.tabId,mode:'browser'
+      }}];
+    }}
   };
-  vm.runInNewContext(workerSource,{chrome,URL,fetch:fetchImpl,AbortController,setTimeout,clearTimeout,location:{href:'https://example.com/'}},{filename:'extension/background.js'});
+  vm.runInNewContext(workerSource,{
+    chrome,URL,fetch:fetchImpl,AbortController,setTimeout,clearTimeout,
+    location:{href:'https://example.com/'}
+  },{filename:'extension/background.js'});
   function ask({url='https://mp.weixin.qq.com/s/demo',mode='static',type='FETCH'}={}, sender={
     tab:{id:5},frameId:0,url:'file:///C:/editor/markdown-editor.html'
   }) {
     return new Promise(resolve=>{
-      const accepted = state.handler({channel:'lengyi-extension-v1',requestId:'unit',type,url,mode},sender,resolve);
-      if (!accepted) resolve({ignored:true});
+      const accepted=state.handler({channel:'lengyi-extension-v1',requestId:'unit',type,url,mode},sender,resolve);
+      if(!accepted)resolve({ignored:true});
     });
   }
   return {state,ask};
@@ -43,7 +59,7 @@ function workerHarness(fetchImpl = async url => ({
 test('Manifest V3 uses only browser APIs, not localhost service, native messaging or runtime npm modules',()=>{
   assert.equal(manifest.manifest_version,3);
   assert.equal(manifest.background.service_worker,'background.js');
-  assert.deepEqual(manifest.permissions.sort(),['scripting','tabs']);
+  assert.deepEqual(manifest.permissions.sort(),['scripting','tabs','webNavigation']);
   assert.ok(manifest.host_permissions.includes('https://*/*'));
   assert.ok(manifest.host_permissions.includes('http://*/*'));
   assert.deepEqual(manifest.content_scripts[0].js,['editor-bridge.js']);
@@ -61,13 +77,14 @@ test('Manifest V3 uses only browser APIs, not localhost service, native messagin
 test('Editor uses extension only and retains the HTML-to-Markdown/manual HTML path',()=>{
   assert.match(html, /id="web-fetch-mode"/);
   assert.match(html, /value="browser"/);
+  assert.match(html, /value="existing"/);
   assert.match(html, /value="static"/);
   assert.match(html, /function extensionRequest\(/);
   assert.match(html, /await extensionRequest\('PING'/);
   assert.match(html, /await extensionRequest\('FETCH'/);
   assert.match(html, /function convertAndInsert\(/);
   assert.match(html, /document\.getElementById\('manual-html'\)\.value/);
-  for (const key of ['extensionModeLabel','extensionModeBrowser','extensionModeStatic',
+  for (const key of ['extensionModeLabel','extensionModeBrowser','extensionModeExisting','extensionNetworkHint','extensionModeStatic',
     'extensionHint','urlStatusExtensionSuccess','urlStatusExtensionFailed','urlStatusExtensionMissing']) {
     assert.equal((i18n.match(new RegExp('^    '+key+':','gm'))||[]).length,10,key);
   }
@@ -114,6 +131,60 @@ test('Browser mode opens a real tab and invokes extension-owned DOM extraction',
   assert.equal(typeof h.state.injected.func,'function');
   assert.match(h.state.injected.func.toString(),/document\.querySelector/);
   assert.equal(h.state.injected.args[0],4*1024*1024);
+});
+
+test('Browser mode reuses already-open exact article tab without opening another',async()=>{
+  const h=workerHarness(undefined,{existingTabs:[
+    {id:93,status:'complete',url:'https://example.com/article#section'}
+  ]});
+  const result=await h.ask({url:'https://example.com/article',mode:'browser'});
+  assert.equal(result.success,true);
+  assert.equal(h.state.created,null,'must not open duplicate tab');
+  assert.equal(h.state.injected.target.tabId,93);
+});
+
+test('Existing-tab mode refuses to open a new tab if URL is not already loaded',async()=>{
+  const h=workerHarness();
+  const result=await h.ask({url:'https://example.com/article',mode:'existing'});
+  assert.equal(result.success,false);
+  assert.match(result.error,/尚未找到已打开/);
+  assert.equal(h.state.created,null);
+});
+
+test('Existing-tab mode captures a manually loaded and signed-in page',async()=>{
+  const h=workerHarness(undefined,{existingTabs:[
+    {id:81,status:'complete',url:'https://mp.weixin.qq.com/s/demo'}
+  ]});
+  const result=await h.ask({url:'https://mp.weixin.qq.com/s/demo',mode:'existing'});
+  assert.equal(result.success,true);
+  assert.equal(h.state.created,null);
+  assert.equal(h.state.injected.target.tabId,81);
+});
+
+test('Navigation errors are reported with browser NET error instead of raw Frame ID',async()=>{
+  const h=workerHarness(undefined,{navigationError:'net::ERR_PROXY_CONNECTION_FAILED'});
+  const result=await h.ask({url:'https://example.com/article',mode:'browser'});
+  assert.equal(result.success,false);
+  assert.match(result.error,/ERR_PROXY_CONNECTION_FAILED/);
+  assert.match(result.error,/VPN\/代理/);
+  assert.doesNotMatch(result.error,/^Frame with ID/);
+  assert.equal(h.state.injected,null,'must not inject into an error page');
+});
+
+test('Chrome error page injection exception yields actionable message instead of internal frame error',async()=>{
+  const h=workerHarness(undefined,{injectError:'Frame with ID 0 is showing error page'});
+  const result=await h.ask({url:'https://example.com/article',mode:'browser'});
+  assert.equal(result.success,false);
+  assert.match(result.error,/无法在 Chrome\/Edge 打开/);
+  assert.match(result.error,/Frame with ID 0 is showing error page/);
+  assert.match(result.error,/检查 VPN\/代理/);
+});
+
+test('Non-main-frame navigation error must not block article capture',async()=>{
+  const h=workerHarness();
+  h.state.onNavigationError({tabId:41,frameId:2,error:'net::ERR_ABORTED'});
+  const result=await h.ask({url:'https://example.com/article',mode:'browser'});
+  assert.equal(result.success,true);
 });
 
 test('Rendered DOM extractor returns sanitized article metadata and resolves relative links',async()=>{
