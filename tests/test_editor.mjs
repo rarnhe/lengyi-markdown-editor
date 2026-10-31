@@ -567,7 +567,7 @@ test('responsive overflow moves one control at a time using actual available wid
   assert.match(html,/applyLanguage\(\);\s*applyToolbarOverflow\(\);/);
   assert.match(html,/function saveToLocal\(\)/);
   assert.match(html,/function openFindModal\(/);
-  assert.match(html,/e\.key === 's'[\s\S]*?saveToLocal\(\)/);
+  assert.match(html,/e\.key === 's'[\s\S]*?exportFile\(\)/);
   assert.match(html,/e\.key === 'f'[\s\S]*?openFindModal\(\)/);
 });
 
@@ -700,7 +700,7 @@ test('textarea measurement uses its actual client width, accounting for scrollba
     body:{appendChild(){},removeChild(){}}
   };
   const ta={value:'a\n'.repeat(1000),selectionStart:100,clientWidth:441};
-  const ctx={document:doc,getComputedStyle(){return {
+  const ctx={document:doc,imageDataCollapsed:true,getComputedStyle(){return {
     paddingTop:'28px',paddingBottom:'28px',fontSize:'16px',
     lineHeight:'28.8px',fontFamily:'monospace'
   };}};
@@ -1203,4 +1203,100 @@ test('Enter or blur exports a new filename once; Escape and unchanged name do no
   assert.equal(ctx.downloads,3,'Escape cancels without download');
   assert.match(html,/function exportFile\(\) \{\s*const blob = new Blob\(\[getMarkdown\(\)\]/);
   assert.match(html,/a\.download = name;/);
+});
+
+
+test('expanded Base64 uses native textarea wrapping; folded mode retains its accurate mirror', () => {
+  const expanded=html.match(/function measureExpandedTextareaHeadingTop\(ta\) \{[\s\S]*?\n    \}/);
+  const dispatch=html.match(/function measureTextareaHeadingTop\(ta\) \{[\s\S]*?\n    \}/);
+  assert.ok(expanded && dispatch);
+  assert.match(expanded[0],/ta\.cloneNode\(false\)/);
+  assert.match(expanded[0],/ta\.clientWidth \+ 'px'/);
+  assert.match(expanded[0],/mirror\.value = ta\.value\.slice\(0, ta\.selectionStart\) \+ 'X'/);
+  assert.match(dispatch[0],/if \(!imageDataCollapsed\) return measureExpandedTextareaHeadingTop\(ta\)/);
+  const style={
+    fontFamily:'Arial',fontSize:'16px',lineHeight:'28.8px',
+    paddingTop:'28px',paddingBottom:'28px',padding:'28px 32px',
+    whiteSpace:'pre-wrap',wordBreak:'break-all'
+  };
+  let lastMirror;
+  const ta={
+    value:'intro\n'+'![img](data:image/png;base64,'+'Q'.repeat(30000)+')\n## Last',
+    clientWidth:441,selectionStart:0,
+    cloneNode(){
+      const x={
+        value:'',style:{},removeAttribute(){},setAttribute(){},tabIndex:0,
+        scrollHeight:3000
+      };
+      lastMirror=x;return x;
+    }
+  };
+  ta.selectionStart=ta.value.indexOf('## Last');
+  const ctx={imageDataCollapsed:false,document:{body:{appendChild(){},removeChild(){}}},
+    getComputedStyle(){return style;}};
+  vm.runInNewContext(expanded[0]+'\n'+dispatch[0]+'\nthis.measure=measureTextareaHeadingTop;',ctx);
+  assert.equal(ctx.measure(ta),2915.2);
+  assert.equal(lastMirror.style.width,'441px');
+  assert.equal(lastMirror.style.whiteSpace,'pre-wrap');
+  assert.equal(lastMirror.style.wordBreak,'break-all');
+  assert.equal(lastMirror.value,ta.value.slice(0,ta.selectionStart)+'X');
+  assert.equal(lastMirror.style.height,'0');
+  assert.equal(lastMirror.style.overflow,'hidden');
+  // Restoring folded state goes to the previous mirror, not the native clone.
+  ctx.imageDataCollapsed=true;
+  const marker={offsetTop:172};
+  const div={style:{},appendChild(){},textContent:''};
+  ctx.document.createElement=type=>type==='span'?marker:div;
+  assert.equal(ctx.measure(ta),144);
+});
+
+test('outline targets map through actual folded placeholders, including IDs crossing 9 to 10', () => {
+  const fn=html.match(/function textareaPositionForMarkdown\(position\) \{[\s\S]*?\n    \}/);
+  assert.ok(fn);
+  assert.doesNotMatch(fn[0],/collapseImageData\(/);
+  const values=Array.from({length:14},(_,i)=>
+    '![img'+i+'](data:image/png;base64,'+'Q'.repeat(500)+')\n');
+  const raw=values.join('')+'## Heading After Images';
+  const map=new Map();
+  let next=0;
+  const displayed=raw.replace(/data:image\/png;base64,Q{500}/g,value=>{
+    const key='⟦Base64图片#'+(++next)+'已折叠⟧';
+    map.set(key,value);return key;
+  });
+  const editor={value:displayed};
+  const ctx={editor,imageDataCollapsed:true,imageDataMap:map,
+    IMAGE_MARKER_RE:/⟦Base64图片#\d+已折叠⟧/g};
+  vm.runInNewContext(fn[0]+'\nthis.position=textareaPositionForMarkdown;',ctx);
+  const rawStart=raw.indexOf('## Heading After Images');
+  assert.equal(ctx.position(rawStart),displayed.indexOf('## Heading After Images'));
+  const afterEach=values.reduce((arr,val,i)=>{
+    const offset=arr.length?arr[arr.length-1]+val.length:val.length;
+    arr.push(offset);return arr;
+  },[]);
+  for(let i=0;i<afterEach.length;i++){
+    const expected=displayed.indexOf('![img'+(i+1)+']',0);
+    if(i+1<values.length)assert.equal(ctx.position(afterEach[i]),expected);
+  }
+  ctx.imageDataCollapsed=false;
+  assert.equal(ctx.position(rawStart),rawStart);
+});
+
+test('editor Ctrl/Cmd+S downloads expanded Markdown, keeping localStorage autosave unchanged', () => {
+  const fn=html.match(/function handleEditorKeydown\(e\) \{[\s\S]*?\n    \}/);
+  assert.ok(fn);
+  const ctx={exports:0,saves:0,
+    exportFile(){ctx.exports++;},saveToLocal(){ctx.saves++;}};
+  vm.runInNewContext(fn[0]+'\nthis.keydown=handleEditorKeydown;',ctx);
+  for(const controls of [{ctrlKey:true,metaKey:false},{ctrlKey:false,metaKey:true}]){
+    let prevented=false;
+    ctx.keydown({...controls,key:'s',shiftKey:false,preventDefault(){prevented=true;}});
+    assert.equal(prevented,true);
+  }
+  assert.equal(ctx.exports,2);
+  assert.equal(ctx.saves,0);
+  assert.match(html,/editor\.addEventListener\('keydown', handleEditorKeydown\)/);
+  assert.match(html,/function exportFile\(\) \{\s*const blob = new Blob\(\[getMarkdown\(\)\]/);
+  assert.match(html,/function autoSave\(\) \{[\s\S]*?localStorage\.setItem\(STORAGE_KEY, getMarkdown\(\)\)/);
+  // The browser owns Save As / same-name conflict decisions; no filesystem overwrite API.
+  assert.doesNotMatch(fn[0],/showSaveFilePicker|createWritable|writeFile/);
 });

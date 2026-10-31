@@ -46,7 +46,7 @@ It is **just one HTML file**. Double-click to write. Everything is stored locall
 - **Standard and Reading modes**: Standard shows the editor, live preview, and outline. Reading mode hides editing controls and floats a draggable outline over a full-width preview; use its Exit Reading Mode button or Escape to return.
 - **Editable filename and save-as download**: the full filename appears in bold immediately to the left of the opening/import timestamp in the Live Preview header. It grows to the left, with its right edge held 10px from the time, and never extends past the left edge of the rendered Markdown text. Edit the name and press Enter or click elsewhere to download the current Markdown under its new name (Escape cancels); unchanged names do not download again. Whether a Save As dialog appears or the file downloads automatically depends on browser settings. This does **not** rename or silently overwrite the original file on disk.
 - **Base64 folding**: the Show/Hide Base64 button appears and is enabled only if the Markdown contains an embedded Base64 image; it disappears again when the image is removed, without affecting the preview.
-- **Draggable split and independent scrolling**: resize the panes while keeping each pane's scroll position independent. Collapsing the editor hides its scrollable textarea completely, just as collapsing the outline hides its list. Mouse-wheel, trackpad, and direct scrollbar dragging all mirror the movement to the other pane. The amount is scaled by each pane's remaining distance to the top or bottom, so both can reach that edge together while retaining independent intermediate positions; selecting an outline heading aligns both headings to the top.
+- **Draggable split and independent scrolling**: resize the panes while keeping each pane's scroll position independent. Outline clicks align both panes' headings to the top in **folded and expanded Base64 modes**. The expanded mode measures exact native textarea line wraps to avoid drift after multiple embedded images. Collapsing the editor hides its scrollable textarea completely, just as collapsing the outline hides its list. Mouse-wheel, trackpad, and direct scrollbar dragging all mirror the movement to the other pane. The amount is scaled by each pane's remaining distance to the top or bottom, so both can reach that edge together while retaining independent intermediate positions; selecting an outline heading aligns both headings to the top.
 
 ### 🛠️ Rich Editing Tools
 
@@ -73,7 +73,7 @@ Language preference is persisted to `localStorage`.
 
 ### 💾 Local Auto-Save
 
-- Auto-saves content to browser `localStorage` every 500ms.
+- Auto-saves content to browser `localStorage` every 500ms; Ctrl/Cmd+S in the editor also triggers a separate Markdown download. A browser download cannot force overwriting a prior disk file; duplicate-name behavior is controlled by the browser.
 - Content, filename, split ratio, collapsed states, theme, and language all survive page refresh.
 
 ### 📤 Multi-Format Export
@@ -90,7 +90,7 @@ Language preference is persisted to `localStorage`.
 
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl + S` | Save |
+| `Ctrl + S` / `Cmd + S` | Download the current Markdown file while focused in the editor (same filename; browser controls overwrite/renaming) |
 | `Ctrl + Z` | Undo |
 | `Ctrl + Y` / `Ctrl + Shift + Z` | Redo |
 | `Ctrl + B` | Bold |
