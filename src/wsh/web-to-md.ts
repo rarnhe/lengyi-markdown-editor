@@ -47,8 +47,24 @@ function checkUrl(raw: string): string {
   }
   return raw;
 }
+// Only opt into a local HTTP/Mixed proxy explicitly; do not infer a SOCKS
+// port from the browser or system proxy. WinHTTP SetProxy accepts host:port.
+function winHttpProxyServer(): string {
+  var raw: string = shell.ExpandEnvironmentStrings("%MD_EDITOR_HTTP_PROXY%");
+  if (!raw || raw === "%MD_EDITOR_HTTP_PROXY%") return "";
+  raw = raw.replace(/^\s+|\s+$/g, "");
+  if (!raw) return "";
+  raw = raw.replace(/^http:\/\//i, "");
+  var match: RegExpExecArray | null = /^(127\.0\.0\.1|localhost):(\d{1,5})$/i.exec(raw);
+  var port: number = match ? Number(match[2]) : 0;
+  if (!match || port < 1 || port > 65535) {
+    throw new Error("MD_EDITOR_HTTP_PROXY must be a local HTTP/Mixed proxy, e.g. 127.0.0.1:7890 (SOCKS5 is not supported)");
+  }
+  return match[1] + ":" + port;
+}
 function fetchRaw(url: string): string {
   var current: string = checkUrl(url);
+  var proxyServer: string = winHttpProxyServer();
   var attempt: number;
   for (attempt = 0; attempt <= 2; attempt++) {
     try {
@@ -56,7 +72,12 @@ function fetchRaw(url: string): string {
       for (redirects = 0; redirects <= 5; redirects++) {
         var req: any = new ActiveXObject("WinHttp.WinHttpRequest.5.1");
         req.SetTimeouts(5000, 5000, 25000, 25000);
-        // WinHTTP can follow redirects automatically; never expose this helper outside loopback.
+        if (proxyServer) {
+          // 2 = HTTPREQUEST_PROXYSETTING_PROXY; use per-request override.
+          // Leave the default WinHTTP configuration untouched when unset.
+          req.SetProxy(2, proxyServer, "<local>");
+        }
+        // WinHTTP automatically follows redirects; proxy does not relax URL security.
         req.Open("GET", current, false);
         req.SetRequestHeader("User-Agent",
           attempt % 2 === 0 ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125.0.0.0 Safari/537.36" :
@@ -189,8 +210,17 @@ function processQueue(): void {
       utf8Write(responsePath, jsonStringify({ success: true, html: html, length: html.length }));
     } catch (e) {
       var error: string = String((e as any).message || e);
-      utf8Write(responsePath, jsonStringify({ success: false, error: error,
-        hint: "For login-required or dynamically rendered pages, use browser mode with Edge WebDriver." }));
+      var hint: string;
+      if (/MD_EDITOR_HTTP_PROXY|proxy|代理|服务器建立连接|server|connect|SSL|TLS|certificate|证书|resolve|DNS|timeout|超时/i.test(error)) {
+        hint = "连接目标网站失败：检查 VPN 的 HTTP/Mixed 代理端口、MD_EDITOR_HTTP_PROXY 环境变量、DNS 和 HTTPS 证书；这不一定是动态渲染问题。";
+      } else if (/HTTP 40[13]/.test(error)) {
+        hint = "站点可能要求登录或拒绝访问，可尝试 Edge WebDriver 浏览器模式。";
+      } else {
+        hint = String(data && data.mode === "browser" ?
+          "请确认 Edge 和对应版本的 WebDriver 可用。" :
+          "如需登录或 JavaScript 渲染正文，请尝试 Edge WebDriver 浏览器模式。");
+      }
+      utf8Write(responsePath, jsonStringify({ success: false, error: error, hint: hint }));
     }
     try { fso.DeleteFile(requestPath, true); } catch (ignore) {}
   }
@@ -225,6 +255,8 @@ function selfTest(): void {
   catch (e) { blocked = true; }
   if (!blocked) throw new Error("Loopback URL should be blocked");
   checkUrl("https://example.com/article");
+  // Explicit environment configuration is validated without dialing a proxy.
+  winHttpProxyServer();
   WScript.Echo("WSH_SELF_TEST_OK");
 }
 function bookmark(): void {
