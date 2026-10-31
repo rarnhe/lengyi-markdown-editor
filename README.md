@@ -184,6 +184,24 @@ If login or CAPTCHA is required, complete it in the new tab and retry.
 Static mode uses extension-side `fetch` without authentication cookies.
 The extension requests access to HTTP(S) sites and does not circumvent authentication,
 CAPTCHA or site policies. No content is sent to public CORS proxy services.
+### Troubleshooting Chrome error pages
+
+If the target tab shows a Chrome network error, a script injection may fail with
+`Frame with ID 0 is showing error page`. The extension now tracks main-frame
+navigation failures with `webNavigation.onErrorOccurred`, reports the real
+error code (for example, `net::ERR_PROXY_CONNECTION_FAILED`), and does not
+inject into known error pages.
+
+Three modes are available: **Render in browser** first reuses an existing,
+fully loaded tab with exactly the same URL; **Capture existing tab** never
+opens a new tab; **Fetch raw HTML** makes an unauthenticated extension fetch.
+
+For an existing tab, open the exact article URL yourself in the *same browser
+profile*, wait until the real article loads, then select **Capture existing tab**
+in the editor and enter the same URL. If Chrome itself cannot open the
+website, check VPN/proxy, DNS, TLS certificates and whether the URL was copied
+correctly. The extension cannot bypass a broken network connection.
+
 ### Troubleshooting extension connectivity
 
 When "extension not connected" is shown, keep the editor tab active and click
