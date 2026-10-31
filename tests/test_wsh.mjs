@@ -4,6 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { spawnSync, spawn } from 'node:child_process';
+import { createServer } from 'node:http';
 
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 const tsconfig = JSON.parse(readFileSync('tsconfig.wsh.json', 'utf8'));
@@ -83,6 +84,52 @@ test('Windows cscript rejects loopback targets and exposes browser bookmarklet',
     { encoding:'utf8', timeout:30000 });
   assert.equal(bookmark.status, 0, bookmark.stdout+bookmark.stderr);
   assert.match(bookmark.stdout, /javascript:/);
+});
+
+
+test('Windows cscript uses MD_EDITOR_HTTP_PROXY to fetch through a real local HTTP proxy', async t => {
+  if (process.platform !== 'win32') return t.skip('requires Windows WSH');
+  const seen = [];
+  const proxy = createServer((req, res) => {
+    seen.push(req.url);
+    res.writeHead(200, {'Content-Type':'text/html; charset=utf-8'});
+    res.end('<html><body>wsh-local-http-proxy-ok</body></html>');
+  });
+  await new Promise((resolve, reject) => {
+    proxy.once('error',reject);
+    proxy.listen(0, '127.0.0.1', resolve);
+  });
+  const address = proxy.address();
+  const port = address.port;
+  const target = 'http://example.com/wsh-proxy-assertion';
+
+  function execute(proxyValue) {
+    return new Promise((resolve, reject) => {
+      const child = spawn('cscript.exe',
+        ['//nologo', 'dist\\web-to-md.js', '--once', target, 'static'],
+        { env: { ...process.env, MD_EDITOR_HTTP_PROXY: proxyValue },
+          windowsHide: true, stdio: ['ignore','pipe','pipe'] });
+      let output = '', errors = '';
+      const timer = setTimeout(() => { child.kill(); reject(new Error('cscript proxy test timed out')); }, 12000);
+      child.stdout.on('data', part => { output += part.toString(); });
+      child.stderr.on('data', part => { errors += part.toString(); });
+      child.on('error', err => { clearTimeout(timer); reject(err); });
+      child.on('close', code => { clearTimeout(timer); resolve({code,output,errors}); });
+    });
+  }
+
+  try {
+    const viaProxy = await execute('http://127.0.0.1:' + port);
+    assert.equal(viaProxy.code,0,viaProxy.output + viaProxy.errors);
+    assert.match(viaProxy.output,/wsh-local-http-proxy-ok/);
+    assert.ok(seen.some(url => url.includes('/wsh-proxy-assertion')), 'HTTP proxy did not receive request');
+
+    const invalid = await execute('socks5://127.0.0.1:' + port);
+    assert.notEqual(invalid.code,0,'SOCKS5 should not be accepted as an HTTP proxy');
+    assert.match(invalid.output,/MD_EDITOR_HTTP_PROXY must be a local HTTP\/Mixed proxy/);
+  } finally {
+    await new Promise(resolve => proxy.close(resolve));
+  }
 });
 
 test('Windows loopback HTTP bridge serves /health and sends /fetch to cscript', async t => {
