@@ -1120,21 +1120,23 @@ test('right-top code label follows fenced language and is empty without one', ()
   assert.match(html,/function updatePreview\(\) \{[\s\S]*?preview\.innerHTML =/);
 });
 
-test('filename max-width ends at the rendered Markdown text left edge', () => {
+test('centered filename and word count remain inside both rendered-text edges', () => {
   const fn=html.match(/function updateFilenameLimit\(\) \{[\s\S]*?\n    \}/);
   assert.ok(fn);
-  const slot={style:{}};
-  const markdown={getBoundingClientRect(){return {left:100};}};
+  const group={style:{}},slot={parentElement:group};
+  const markdown={getBoundingClientRect(){return {left:100,right:700};}};
+  const header={getBoundingClientRect(){return {left:100,right:700};}};
   const ctx={
-    filenameInput:{parentElement:slot},
+    filenameInput:{parentElement:slot,closest(){return header;}},
     preview:{querySelector(){return markdown;}},
-    documentTime:{getBoundingClientRect(){return {left:380};}},
-    getComputedStyle(){return {paddingLeft:'40px'};}
+    getComputedStyle(){return {paddingLeft:'40px',paddingRight:'40px'};}
   };
   vm.runInNewContext(fn[0]+'\nthis.limit=updateFilenameLimit;',ctx);
-  ctx.limit();assert.equal(slot.style.maxWidth,'230px');
-  ctx.documentTime.getBoundingClientRect=()=>({left:120});
-  ctx.limit();assert.equal(slot.style.maxWidth,'0px');
+  ctx.limit();assert.equal(group.style.maxWidth,'520px');
+  header.getBoundingClientRect=()=>({left:70,right:670});
+  ctx.limit();assert.equal(group.style.maxWidth,'460px');
+  header.getBoundingClientRect=()=>({left:-200,right:200});
+  ctx.limit();assert.equal(group.style.maxWidth,'0px');
   assert.match(html,/window\.addEventListener\('resize', updateFilenameLimit\)/);
   assert.match(html,/function applySplit\(\) \{[\s\S]*?updateFilenameLimit\(\);/);
 });
