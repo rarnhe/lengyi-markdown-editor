@@ -151,10 +151,69 @@ test('Rendered DOM extractor returns sanitized article metadata and resolves rel
   assert.equal(anchor.attributes.some(a=>a.name==='onclick'),false);
 });
 
+
+test('Editor extensionRequest resolves a null-source reply on file pages without false missing warnings',async()=>{
+  const start=html.indexOf('    function extensionRequest(');
+  const end=html.indexOf('    async function fetchUrl()',start);
+  assert.ok(start>0 && end>start);
+  let handler;
+  const pending=new Map();
+  const win={
+    addEventListener(name,fn){if(name==='message')handler=fn;},
+    removeEventListener(name,fn){if(handler===fn)handler=null;},
+    postMessage(data){
+      if(data.command==='PING'){
+        queueMicrotask(()=>handler({
+          source:null,origin:'null',
+          data:{channel:'lengyi-extension-v1',from:'extension',requestId:data.requestId,
+            success:true,installed:true}
+        }));
+      }
+    }
+  };
+  const root={hasAttribute:()=>true};
+  const context={
+    window:win,location:{protocol:'file:',origin:'null'},
+    document:{documentElement:root},Date,Math,setTimeout,clearTimeout
+  };
+  const script=html.slice(start,end);
+  const request=vm.runInNewContext(script+'\n extensionRequest;',context);
+  const reply=await request('PING',{},500);
+  assert.equal(reply.success,true);
+  assert.equal(reply.installed,true);
+});
+
+test('Editor extensionRequest rejects cross-window and cross-origin forged replies',async()=>{
+  const start=html.indexOf('    function extensionRequest(');
+  const end=html.indexOf('    async function fetchUrl()',start);
+  let handler;
+  const win={
+    addEventListener(name,fn){handler=fn;},
+    removeEventListener(){},
+    postMessage(data) {
+      queueMicrotask(()=>{
+        handler({source:{},origin:'null',data:{channel:'lengyi-extension-v1',from:'extension',requestId:data.requestId,success:true}});
+        handler({source:null,origin:'https://evil.example',data:{channel:'lengyi-extension-v1',from:'extension',requestId:data.requestId,success:true}});
+      });
+    }
+  };
+  const request=vm.runInNewContext(html.slice(start,end)+'\n extensionRequest;',{
+    window:win,location:{protocol:'file:',origin:'null'},
+    document:{documentElement:{hasAttribute:()=>true}},
+    Date,Math,setTimeout,clearTimeout
+  });
+  await assert.rejects(request('PING',{},45),/EXTENSION_TIMEOUT/);
+});
+
 test('Content script replies to editor PING/FETCH through bounded message bridge',async()=>{
   const sent=[];
   let listener;
   const page={};
+  const attributes={};
+  const root={
+    setAttribute(name,value){attributes[name]=value;},
+    hasAttribute(name){return Object.prototype.hasOwnProperty.call(attributes,name);}
+  };
   page.addEventListener=(event,fn)=>{if(event==='message')listener=fn;};
   page.postMessage=(response)=>sent.push(response);
   const runtime={sendMessage:async request=>({
@@ -162,18 +221,22 @@ test('Content script replies to editor PING/FETCH through bounded message bridge
   })};
   vm.runInNewContext(bridgeSource,{
     chrome:{runtime}, window:page,
-    location:{pathname:'/my/markdown-editor.html'},
-    document:{getElementById:id=>id==='editor'||id==='url-modal'?{}:null},
+    location:{pathname:'/my/markdown-editor.html',protocol:'file:',origin:'null'},
+    document:{documentElement:root,getElementById:id=>id==='editor'||id==='url-modal'?{}:null},
     URL
   },{filename:'extension/editor-bridge.js'});
   assert.equal(typeof listener,'function');
-  listener({source:page,data:{channel:'lengyi-extension-v1',from:'editor',requestId:'req1',command:'PING'}});
+  assert.equal(attributes['data-lengyi-extension-ready'],'1');
+  // Real browser extension environments can provide a null MessageEvent.source.
+  listener({source:null,origin:'null',data:{channel:'lengyi-extension-v1',from:'editor',requestId:'req1',command:'PING'}});
   assert.equal(sent[0].installed,true);
-  listener({source:page,data:{channel:'lengyi-extension-v1',from:'editor',requestId:'req2',command:'FETCH',
+  listener({source:page,origin:'null',data:{channel:'lengyi-extension-v1',from:'editor',requestId:'req2',command:'FETCH',
     payload:{url:'https://example.com/',mode:'browser'}}});
   await new Promise(resolve=>setImmediate(resolve));
   assert.equal(sent[1].requestId,'req2');
   assert.match(sent[1].html,/from extension/);
-  listener({source:{},data:{channel:'lengyi-extension-v1',from:'editor',requestId:'fake',command:'PING'}});
+  // Both a foreign WindowProxy and a foreign origin must be rejected.
+  listener({source:{},origin:'null',data:{channel:'lengyi-extension-v1',from:'editor',requestId:'fake',command:'PING'}});
+  listener({source:null,origin:'https://evil.example',data:{channel:'lengyi-extension-v1',from:'editor',requestId:'fake2',command:'PING'}});
   assert.equal(sent.length,2);
 });
