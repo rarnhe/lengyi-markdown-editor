@@ -233,8 +233,24 @@
     }
     return raw;
   }
+  function winHttpProxyServer() {
+    var raw = shell.ExpandEnvironmentStrings("%MD_EDITOR_HTTP_PROXY%");
+    if (!raw || raw === "%MD_EDITOR_HTTP_PROXY%")
+      return "";
+    raw = raw.replace(/^\s+|\s+$/g, "");
+    if (!raw)
+      return "";
+    raw = raw.replace(/^http:\/\//i, "");
+    var match = /^(127\.0\.0\.1|localhost):(\d{1,5})$/i.exec(raw);
+    var port = match ? Number(match[2]) : 0;
+    if (!match || port < 1 || port > 65535) {
+      throw new Error("MD_EDITOR_HTTP_PROXY must be a local HTTP/Mixed proxy, e.g. 127.0.0.1:7890 (SOCKS5 is not supported)");
+    }
+    return match[1] + ":" + port;
+  }
   function fetchRaw(url) {
     var current = checkUrl(url);
+    var proxyServer = winHttpProxyServer();
     var attempt;
     for (attempt = 0; attempt <= 2; attempt++) {
       try {
@@ -242,6 +258,9 @@
         for (redirects = 0; redirects <= 5; redirects++) {
           var req = new ActiveXObject("WinHttp.WinHttpRequest.5.1");
           req.SetTimeouts(5e3, 5e3, 25e3, 25e3);
+          if (proxyServer) {
+            req.SetProxy(2, proxyServer, "<local>");
+          }
           req.Open("GET", current, false);
           req.SetRequestHeader("User-Agent", attempt % 2 === 0 ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125.0.0.0 Safari/537.36" : "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0");
           req.SetRequestHeader("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
@@ -392,11 +411,15 @@
         utf8Write(responsePath, jsonStringify({ success: true, html: html, length: html.length }));
       } catch (e) {
         var error = String(e.message || e);
-        utf8Write(responsePath, jsonStringify({
-          success: false,
-          error: error,
-          hint: "For login-required or dynamically rendered pages, use browser mode with Edge WebDriver."
-        }));
+        var hint;
+        if (/MD_EDITOR_HTTP_PROXY|proxy|代理|服务器建立连接|server|connect|SSL|TLS|certificate|证书|resolve|DNS|timeout|超时/i.test(error)) {
+          hint = "\u8FDE\u63A5\u76EE\u6807\u7F51\u7AD9\u5931\u8D25\uFF1A\u68C0\u67E5 VPN \u7684 HTTP/Mixed \u4EE3\u7406\u7AEF\u53E3\u3001MD_EDITOR_HTTP_PROXY \u73AF\u5883\u53D8\u91CF\u3001DNS \u548C HTTPS \u8BC1\u4E66\uFF1B\u8FD9\u4E0D\u4E00\u5B9A\u662F\u52A8\u6001\u6E32\u67D3\u95EE\u9898\u3002";
+        } else if (/HTTP 40[13]/.test(error)) {
+          hint = "\u7AD9\u70B9\u53EF\u80FD\u8981\u6C42\u767B\u5F55\u6216\u62D2\u7EDD\u8BBF\u95EE\uFF0C\u53EF\u5C1D\u8BD5 Edge WebDriver \u6D4F\u89C8\u5668\u6A21\u5F0F\u3002";
+        } else {
+          hint = String(data && data.mode === "browser" ? "\u8BF7\u786E\u8BA4 Edge \u548C\u5BF9\u5E94\u7248\u672C\u7684 WebDriver \u53EF\u7528\u3002" : "\u5982\u9700\u767B\u5F55\u6216 JavaScript \u6E32\u67D3\u6B63\u6587\uFF0C\u8BF7\u5C1D\u8BD5 Edge WebDriver \u6D4F\u89C8\u5668\u6A21\u5F0F\u3002");
+        }
+        utf8Write(responsePath, jsonStringify({ success: false, error: error, hint: hint }));
       }
       try {
         fso.DeleteFile(requestPath, true);
@@ -440,6 +463,7 @@
     if (!blocked)
       throw new Error("Loopback URL should be blocked");
     checkUrl("https://example.com/article");
+    winHttpProxyServer();
     WScript.Echo("WSH_SELF_TEST_OK");
   }
   function bookmark() {
