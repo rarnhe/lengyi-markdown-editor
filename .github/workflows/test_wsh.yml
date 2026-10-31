@@ -1,0 +1,66 @@
+name: Windows WSH TypeScript ES5 checks
+
+on:
+  push:
+    branches: [main, "codex/**"]
+    paths-ignore:
+      - test_report.md
+      - test_report_wsh.md
+      - dist/web-to-md.js
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  wsh:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Install build-only tooling
+        run: npm install --no-audit --no-fund --no-package-lock
+      - name: Reserve loopback URL for non-admin HTTP bridge
+        shell: pwsh
+        run: |
+          netsh http add urlacl url=http://127.0.0.1:8765/ user=Everyone
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to reserve URL ACL' }
+      - name: Build TS to ES5 and execute cscript and loopback integration assertions
+        run: node tests/run_wsh_tests.mjs
+      - name: Upload built runtime and report (including failures)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: wsh-runtime-and-report
+          path: |
+            dist/web-to-md.js
+            test_report_wsh.md
+      - name: Commit generated JS to branch so end users need no Node.js
+        if: success() && github.event_name == 'push' && startsWith(github.ref, 'refs/heads/codex/')
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f dist/web-to-md.js
+          git diff --cached --quiet
+          if ($LASTEXITCODE -ne 0) {
+            git commit -m "build(wsh): publish cscript-ready JavaScript [skip ci]"
+            git push
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to publish runtime' }
+          }
+      - name: Commit latest WSH test report to main
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        run: |
+          git add -f test_report_wsh.md
+          git diff --cached --quiet
+          if ($LASTEXITCODE -ne 0) {
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "docs: refresh WSH test report [skip ci]"
+            git push
+          }
