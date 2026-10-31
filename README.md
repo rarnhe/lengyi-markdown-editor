@@ -112,7 +112,7 @@ Language preference is persisted to `localStorage`.
 - **Math**: `KaTeX` (`$...$` inline, `$$...$$` block)
 - **Diagrams**: `Mermaid 10` (mind maps and flowcharts)
 - **Image export**: `dom-to-image-more`
-- **Local proxy**: `Python 3` + `http.server` (optional, for webpage-to-Markdown)
+- **Local proxy**: Windows `cscript.exe` (JScript/COM) + PowerShell loopback transport bridge; no Node.js or Python needed after compilation
 
 ### Core Design
 
@@ -132,7 +132,7 @@ Language preference is persisted to `localStorage`.
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
-                   web-to-md-proxy.py (optional)
+                   dist/web-to-md.js (optional)
                     web fetching + anti-bot bypass
 ```
 
@@ -144,7 +144,10 @@ Language preference is persisted to `localStorage`.
 .
 ├── markdown-editor.html    # Main editor (single-file app)
 ├── i18n.js                 # i18n dictionary (10 languages)
-├── web-to-md-proxy.py      # Optional local proxy script
+├── dist/web-to-md.js      # Built, cscript-ready Windows proxy (Node not needed at runtime)
+├── scripts/wsh-http-bridge.ps1 # Loopback HTTP listener (PowerShell)
+├── src/wsh/               # TypeScript sources and JSON compatibility
+├── tests/test_wsh.mjs     # Windows build / runtime assertions
 └── README.md               # This file
 ```
 
@@ -162,33 +165,45 @@ git clone https://github.com/woyin2024/lengyi-markdown-editor.git
 markdown-editor.html
 ```
 
-### Option 2: Local Server (Recommended)
+### Option 2: Windows local proxy (no Node.js or Python at runtime)
 
-```bash
-cd markdown-editor
+The checked-in build can be launched from Windows CMD:
 
-# Python 3
-python -m http.server 8080
-
-# Or Node.js
-npx serve .
-
-# Open in browser
-open http://localhost:8080/markdown-editor.html
+```bat
+cscript //nologo dist\web-to-md.js --self-test
+cscript //nologo dist\web-to-md.js --serve
 ```
 
-### Option 3: Use the Local Proxy (Webpage to Markdown)
+Open `markdown-editor.html`, select **Webpage to Markdown → Use local proxy**.
+For JavaScript-rendered pages, select **Render with Edge** as well. Dynamic mode
+requires a separately installed `msedgedriver.exe` matching the local Edge version,
+available on PATH or via `MD_EDITOR_WEBDRIVER`. The browser uses a dedicated profile.
+
+The loopback HTTP listener uses Windows PowerShell/.NET HttpListener. If Windows
+reports an access-denied URL-ACL error, reserve the loopback prefix once from an
+elevated CMD for the current account:
+
+```bat
+netsh http add urlacl url=http://127.0.0.1:8765/ user=%USERNAME%
+```
+
+Generate a browser bookmarklet (extract current rendered page text):
+
+```bat
+cscript //nologo dist\web-to-md.js --bookmark
+```
+
+### Developer-only build (Node.js is NOT shipped/required at runtime)
 
 ```bash
-# Install requests (optional, recommended)
-pip install requests
-
-# Start the proxy
-python web-to-md-proxy.py
-
-# Default port 8765
-# Check "Use local proxy" in the editor
+npm install --no-package-lock
+npm run build:wsh
+node tests/run_wsh_tests.mjs
 ```
+
+Build pipeline: TypeScript 5.9 `tsc --target ES5 --module none` →
+esbuild `--target=es5` → `dist/web-to-md.js` →
+Windows runner executes `cscript //nologo distweb-to-md.js --self-test`.
 
 ---
 

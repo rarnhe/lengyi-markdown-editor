@@ -111,7 +111,7 @@ AI 时代，Markdown 这件事，本该足够简单。
 - **数学公式**：`KaTeX`（支持 `$...$` 行内公式和 `$$...$$` 块级公式）
 - **图表渲染**：`Mermaid 10`支持思维导图和流程图
 - **图片导出**：`dom-to-image-more`
-- **本地代理**：`Python 3` + `http.server`（可选，用于网页转 Markdown）
+- **本地代理**：Windows `cscript.exe`（JScript + COM）及 PowerShell 本地监听桥接；编译后无需 Node.js 或 Python
 
 ### 核心设计
 
@@ -131,7 +131,7 @@ AI 时代，Markdown 这件事，本该足够简单。
 └─────────────────────────────────────────────────────────────┘
                               │
                               ▼
-                   web-to-md-proxy.py (可选)
+                   dist/web-to-md.js (可选)
                     网页抓取 + 反爬绕过
 ```
 ---
@@ -142,7 +142,10 @@ AI 时代，Markdown 这件事，本该足够简单。
 .
 ├── markdown-editor.html    # 主编辑器（单文件应用）
 ├── i18n.js                 # 多语言字典（10 种语言）
-├── web-to-md-proxy.py      # 本地代理脚本（可选）
+├── dist/web-to-md.js      # cscript 可直接执行的预构建产物
+├── scripts/wsh-http-bridge.ps1 # PowerShell 本地监听桥接
+├── src/wsh/               # TypeScript 源码与 JScript JSON 兼容实现
+├── tests/test_wsh.mjs     # Windows 构建与执行断言
 └── README.md               # 本文件
 ```
 
@@ -160,33 +163,45 @@ git clone https://github.com/woyin2024/lengyi-markdown-editor.git
 markdown-editor.html
 ```
 
-### 方式二：本地服务器（推荐）
+### 方式二：Windows 本地代理（运行时完全不依赖 Node.js / Python）
 
-```bash
-cd markdown-editor
+仓库内包含已编译的 `dist/web-to-md.js`，Windows CMD 中直接运行：
 
-# Python 3
-python -m http.server 8080
-
-# 或 Node.js
-npx serve .
-
-# 打开浏览器访问
-open http://localhost:8080/markdown-editor.html
+```bat
+cscript //nologo dist\web-to-md.js --self-test
+cscript //nologo dist\web-to-md.js --serve
 ```
 
-### 方式三：使用本地代理（网页转 Markdown）
+打开 `markdown-editor.html`，在「网页转MD」窗口勾选「使用本地代理」。
+动态页面另外勾选「使用 Edge 浏览器渲染动态网页」；此模式需要自行准备与
+Edge 版本匹配的 `msedgedriver.exe`，将其加入 PATH 或设置环境变量
+`MD_EDITOR_WEBDRIVER`。浏览器使用独立配置目录，不继承普通浏览器登录状态。
 
-```bash
-# 安装 requests（可选，推荐）
-pip install requests
+本地 API 保持 `http://127.0.0.1:8765/fetch` 兼容，
+PowerShell/.NET HttpListener 仅作为 HTTP 监听桥接，抓取与浏览器控制逻辑由 cscript 执行。
+如果出现 Windows URL-ACL 权限问题，可从管理员 CMD 为当前用户注册本机地址一次：
 
-# 启动代理
-python web-to-md-proxy.py
-
-# 默认端口 8765
-# 在编辑器中勾选「使用本地代理」即可
+```bat
+netsh http add urlacl url=http://127.0.0.1:8765/ user=%USERNAME%
 ```
+
+生成浏览器书签提取工具：
+
+```bat
+cscript //nologo dist\web-to-md.js --bookmark
+```
+
+### 开发者构建（Node.js 仅编译/测试时使用）
+
+```bat
+npm install --no-package-lock
+npm run build:wsh
+node tests/run_wsh_tests.mjs
+```
+
+构建链：TypeScript 5.9 → `tsc --target ES5 --module none` →
+`esbuild --target=es5` → `dist/web-to-md.js`。
+Windows Actions 真正执行 `cscript //nologo distweb-to-md.js --self-test`。
 
 ---
 

@@ -26,8 +26,8 @@ const i18n = {
 <p><b>网页转 Markdown</b></p>
 <ul>
   <li>点「网页转 MD」输入网页链接，可自动提取正文。</li>
-  <li>知乎、微信公众号等建议勾选「使用本地代理」，先运行同目录的 <code>web-to-md-proxy.py</code>。</li>
-  <li>需要登录的页面，可运行 <code>python web-to-md-proxy.py --bookmark</code> 生成书签小工具提取。</li>
+  <li>知乎、微信公众号等建议勾选「使用本地代理」，先运行同目录的 <code>dist\\web-to-md.js</code>。</li>
+  <li>需要登录的页面，可运行 <code>cscript //nologo dist\\web-to-md.js --bookmark</code> 生成书签小工具提取。</li>
 </ul>
 <p><b>常用快捷键</b>：<code>Ctrl+S</code> 下载 Markdown，<code>Ctrl+Z</code> 撤销，<code>Ctrl+Y / Ctrl+Shift+Z</code> 重做，<code>Ctrl+B</code> 加粗，<code>Ctrl+I</code> 斜体，<code>Ctrl+U</code> 下划线，<code>Ctrl+K</code> 链接，<code>Ctrl+Shift+K</code> 图片，<code>Ctrl+F</code> 查找，<code>Ctrl+H</code> 替换，<code>Tab</code> 插入 4 空格缩进。</p>
 <p style="color:var(--text-muted);font-size:12px;">本编辑器由「沃垠AI」主理人冷逸开发，功能建议请联系微信：lengcp2013</p>`,
@@ -104,6 +104,7 @@ const i18n = {
     urlLabel: '网页地址',
     urlPlaceholder: 'https://example.com/article',
     useProxy: '使用本地代理（推荐，可解决知乎/微信公众号）',
+    browserRender: '使用 Edge 浏览器渲染动态网页（需 WebDriver）',
     proxyPlaceholder: '本地代理地址',
     fetchBtn: '尝试获取',
     manualLabel: '网页 HTML 源码（手动粘贴）',
@@ -218,8 +219,8 @@ const i18n = {
 <p><b>網頁轉 Markdown</b></p>
 <ul>
   <li>點「網頁轉 MD」輸入網頁連結，可自動提取正文。</li>
-  <li>知乎、微信公眾號等建議勾選「使用本機代理」，先執行同目錄的 <code>web-to-md-proxy.py</code>。</li>
-  <li>需要登入的頁面，可執行 <code>python web-to-md-proxy.py --bookmark</code> 生成書籤小工具提取。</li>
+  <li>知乎、微信公眾號等建議勾選「使用本機代理」，先執行同目錄的 <code>dist\\web-to-md.js</code>。</li>
+  <li>需要登入的頁面，可執行 <code>cscript //nologo dist\\web-to-md.js --bookmark</code> 生成書籤小工具提取。</li>
 </ul>
 <p><b>常用快捷鍵</b>：<code>Ctrl+S</code> 下載 Markdown，<code>Ctrl+Z</code> 復原，<code>Ctrl+Y / Ctrl+Shift+Z</code> 重做，<code>Ctrl+B</code> 粗體，<code>Ctrl+I</code> 斜體，<code>Ctrl+U</code> 底線，<code>Ctrl+K</code> 連結，<code>Ctrl+Shift+K</code> 圖片，<code>Ctrl+F</code> 尋找，<code>Ctrl+H</code> 取代，<code>Tab</code> 插入 4 空格縮排。</p>
 <p style="color:var(--text-muted);font-size:12px;">本編輯器由「沃垠AI」主理人冷逸開發，功能建議請聯繫微信：lengcp2013</p>`,
@@ -296,6 +297,7 @@ const i18n = {
     urlLabel: '網頁地址',
     urlPlaceholder: 'https://example.com/article',
     useProxy: '使用本機代理（建議，可解決知乎/微信公眾號）',
+    browserRender: '使用 Edge 瀏覽器渲染動態網頁（需 WebDriver）',
     proxyPlaceholder: '本機代理地址',
     fetchBtn: '嘗試取得',
     manualLabel: '網頁 HTML 原始碼（手動貼上）',
@@ -410,8 +412,8 @@ const i18n = {
 <p><b>Web to Markdown</b></p>
 <ul>
   <li>Click “Web → MD” and enter a URL to extract the article body.</li>
-  <li>For Zhihu, WeChat articles, etc., enable “Use local proxy” and run <code>web-to-md-proxy.py</code> in the same folder first.</li>
-  <li>For pages that require login, run <code>python web-to-md-proxy.py --bookmark</code> to generate a bookmarklet.</li>
+  <li>For Zhihu, WeChat articles, etc., enable “Use local proxy” and run <code>dist\\web-to-md.js</code> in the same folder first.</li>
+  <li>For pages that require login, run <code>cscript //nologo dist\\web-to-md.js --bookmark</code> to generate a bookmarklet.</li>
 </ul>
 <p><b>Common shortcuts</b>: <code>Ctrl+S</code> Download Markdown, <code>Ctrl+Z</code> Undo, <code>Ctrl+Y / Ctrl+Shift+Z</code> Redo, <code>Ctrl+B</code> Bold, <code>Ctrl+I</code> Italic, <code>Ctrl+U</code> Underline, <code>Ctrl+K</code> Link, <code>Ctrl+Shift+K</code> Image, <code>Ctrl+F</code> Find, <code>Ctrl+H</code> Replace, <code>Tab</code> insert 4-space indent.</p>
 <p style="color:var(--text-muted);font-size:12px;">Developed by Leng Yi of Woyin AI. Feedback via WeChat: lengcp2013</p>`,
@@ -488,6 +490,7 @@ const i18n = {
     urlLabel: 'Web Address',
     urlPlaceholder: 'https://example.com/article',
     useProxy: 'Use local proxy (recommended for Zhihu/WeChat articles)',
+    browserRender: 'Render dynamic webpages with Edge (requires WebDriver)',
     proxyPlaceholder: 'Local proxy address',
     fetchBtn: 'Fetch',
     manualLabel: 'Page HTML source (paste manually)',
@@ -602,8 +605,8 @@ const i18n = {
 <p><b>Web を Markdown に</b></p>
 <ul>
   <li>🌐 をクリックして Web ページのリンクを入力すると、本文を自動抽出します。</li>
-  <li>知乎、微信公众号などは「ローカルプロキシを使用」にチェックし、同じフォルダの <code>web-to-md-proxy.py</code> を事前に実行してください。</li>
-  <li>ログインが必要なページは、<code>python web-to-md-proxy.py --bookmark</code> を実行してブックマークレットを生成して抽出します。</li>
+  <li>知乎、微信公众号などは「ローカルプロキシを使用」にチェックし、同じフォルダの <code>dist\\web-to-md.js</code> を事前に実行してください。</li>
+  <li>ログインが必要なページは、<code>cscript //nologo dist\\web-to-md.js --bookmark</code> を実行してブックマークレットを生成して抽出します。</li>
 </ul>
 <p><b>よく使うショートカット</b>：<code>Ctrl+S</code> Markdown をダウンロード、<code>Ctrl+Z</code> 元に戻す、<code>Ctrl+Y / Ctrl+Shift+Z</code> やり直す、<code>Ctrl+B</code> 太字、<code>Ctrl+I</code> 斜体、<code>Ctrl+U</code> 下線、<code>Ctrl+K</code> リンク、<code>Ctrl+Shift+K</code> 画像、<code>Ctrl+F</code> 検索、<code>Ctrl+H</code> 置換、<code>Tab</code> 4 スペース字下げ。</p>
 <p style="color:var(--text-muted);font-size:12px;">本エディタは「沃垠AI」の主理人である冷逸（Leng Yi）によって開発されました。機能提案は WeChat: lengcp2013 まで</p>`,
@@ -680,6 +683,7 @@ const i18n = {
     urlLabel: 'Web アドレス',
     urlPlaceholder: 'https://example.com/article',
     useProxy: 'ローカルプロキシを使用（推奨、知乎/WeChat 記事対応）',
+    browserRender: 'Edge で動的ページを描画（WebDriver が必要）',
     proxyPlaceholder: 'ローカルプロキシアドレス',
     fetchBtn: '取得を試す',
     manualLabel: 'Web HTML ソース（手動貼り付け）',
@@ -794,8 +798,8 @@ const i18n = {
 <p><b>Web을 Markdown으로</b></p>
 <ul>
   <li>🌐을 클릭하고 웹 페이지 링크를 입력하면 본문을 자동으로 추출합니다.</li>
-  <li>知乎, 微信公众号 등은「로컬 프록시 사용」을 체크하고 같은 폴더의 <code>web-to-md-proxy.py</code>를 미리 실행하세요.</li>
-  <li>로그인이 필요한 페이지는 <code>python web-to-md-proxy.py --bookmark</code>를 실행해 북마크릿을 생성해 추출하세요.</li>
+  <li>知乎, 微信公众号 등은「로컬 프록시 사용」을 체크하고 같은 폴더의 <code>dist\\web-to-md.js</code>를 미리 실행하세요.</li>
+  <li>로그인이 필요한 페이지는 <code>cscript //nologo dist\\web-to-md.js --bookmark</code>를 실행해 북마크릿을 생성해 추출하세요.</li>
 </ul>
 <p><b>자주 사용하는 단축키</b>: <code>Ctrl+S</code> Markdown 다운로드, <code>Ctrl+Z</code> 실행 취소, <code>Ctrl+Y / Ctrl+Shift+Z</code> 다시 실행, <code>Ctrl+B</code> 굵게, <code>Ctrl+I</code> 기울임, <code>Ctrl+U</code> 밑줄, <code>Ctrl+K</code> 링크, <code>Ctrl+Shift+K</code> 이미지, <code>Ctrl+F</code> 찾기, <code>Ctrl+H</code> 바꾸기, <code>Tab</code> 4칸 들여쓰기.</p>
 <p style="color:var(--text-muted);font-size:12px;">본 편집기는 「沃垠AI」대표 랭이(Leng Yi)가 개발했습니다. 기능 제안은 WeChat: lengcp2013</p>`,
@@ -872,6 +876,7 @@ const i18n = {
     urlLabel: '웹 주소',
     urlPlaceholder: 'https://example.com/article',
     useProxy: '로컬 프록시 사용 (추천, Zhihu/WeChat 기사 지원)',
+    browserRender: 'Edge에서 동적 웹페이지 렌더링 (WebDriver 필요)',
     proxyPlaceholder: '로컬 프록시 주소',
     fetchBtn: '가져오기 시도',
     manualLabel: '웹 HTML 소스 (수동 붙여넣기)',
@@ -986,8 +991,8 @@ const i18n = {
 <p><b>Web a Markdown</b></p>
 <ul>
   <li>Haz clic en 🌐 e introduce una URL para extraer el cuerpo del artículo.</li>
-  <li>Para Zhihu, artículos de WeChat, etc., activa “Usar proxy local” y ejecuta <code>web-to-md-proxy.py</code> en la misma carpeta primero.</li>
-  <li>Para páginas que requieren inicio de sesión, ejecuta <code>python web-to-md-proxy.py --bookmark</code> para generar un bookmarklet.</li>
+  <li>Para Zhihu, artículos de WeChat, etc., activa “Usar proxy local” y ejecuta <code>dist\\web-to-md.js</code> en la misma carpeta primero.</li>
+  <li>Para páginas que requieren inicio de sesión, ejecuta <code>cscript //nologo dist\\web-to-md.js --bookmark</code> para generar un bookmarklet.</li>
 </ul>
 <p><b>Atajos comunes</b>: <code>Ctrl+S</code> Descargar Markdown, <code>Ctrl+Z</code> Deshacer, <code>Ctrl+Y / Ctrl+Shift+Z</code> Rehacer, <code>Ctrl+B</code> Negrita, <code>Ctrl+I</code> Cursiva, <code>Ctrl+U</code> Subrayado, <code>Ctrl+K</code> Enlace, <code>Ctrl+Shift+K</code> Imagen, <code>Ctrl+F</code> Buscar, <code>Ctrl+H</code> Reemplazar, <code>Tab</code> insertar sangría de 4 espacios.</p>
 <p style="color:var(--text-muted);font-size:12px;">Desarrollado por Leng Yi de Woyin AI. Sugerencias por WeChat: lengcp2013</p>`,
@@ -1064,6 +1069,7 @@ const i18n = {
     urlLabel: 'Dirección web',
     urlPlaceholder: 'https://example.com/article',
     useProxy: 'Usar proxy local (recomendado para Zhihu/WeChat)',
+    browserRender: 'Renderizar páginas dinámicas con Edge (requiere WebDriver)',
     proxyPlaceholder: 'Dirección del proxy local',
     fetchBtn: 'Intentar obtener',
     manualLabel: 'Fuente HTML de la página (pegar manualmente)',
@@ -1178,8 +1184,8 @@ const i18n = {
 <p><b>Web vers Markdown</b></p>
 <ul>
   <li>Cliquez sur 🌐 et saisissez une URL pour extraire le corps de l’article.</li>
-  <li>Pour Zhihu, les articles WeChat, etc., activez « Utiliser le proxy local » et exécutez d’abord <code>web-to-md-proxy.py</code> dans le même dossier.</li>
-  <li>Pour les pages nécessitant une connexion, exécutez <code>python web-to-md-proxy.py --bookmark</code> pour générer un bookmarklet.</li>
+  <li>Pour Zhihu, les articles WeChat, etc., activez « Utiliser le proxy local » et exécutez d’abord <code>dist\\web-to-md.js</code> dans le même dossier.</li>
+  <li>Pour les pages nécessitant une connexion, exécutez <code>cscript //nologo dist\\web-to-md.js --bookmark</code> pour générer un bookmarklet.</li>
 </ul>
 <p><b>Raccourcis courants</b> : <code>Ctrl+S</code> Télécharger Markdown, <code>Ctrl+Z</code> Annuler, <code>Ctrl+Y / Ctrl+Shift+Z</code> Rétablir, <code>Ctrl+B</code> Gras, <code>Ctrl+I</code> Italique, <code>Ctrl+U</code> Souligné, <code>Ctrl+K</code> Lien, <code>Ctrl+Shift+K</code> Image, <code>Ctrl+F</code> Rechercher, <code>Ctrl+H</code> Remplacer, <code>Tab</code> insérer une indentation de 4 espaces.</p>
 <p style="color:var(--text-muted);font-size:12px;">Développé par Leng Yi de Woyin AI. Suggestions via WeChat : lengcp2013</p>`,
@@ -1256,6 +1262,7 @@ const i18n = {
     urlLabel: 'Adresse Web',
     urlPlaceholder: 'https://example.com/article',
     useProxy: 'Utiliser le proxy local (recommandé pour Zhihu/WeChat)',
+    browserRender: 'Rendu des pages dynamiques avec Edge (WebDriver requis)',
     proxyPlaceholder: 'Adresse du proxy local',
     fetchBtn: 'Essayer de récupérer',
     manualLabel: 'Source HTML de la page (coller manuellement)',
@@ -1370,8 +1377,8 @@ const i18n = {
 <p><b>Web zu Markdown</b></p>
 <ul>
   <li>Klicke auf 🌐 und gib eine URL ein, um den Artikeltext zu extrahieren.</li>
-  <li>Für Zhihu, WeChat-Artikel usw. aktiviere „Lokalen Proxy verwenden“ und führe zuerst <code>web-to-md-proxy.py</code> im selben Ordner aus.</li>
-  <li>Für Seiten mit Anmeldung führe <code>python web-to-md-proxy.py --bookmark</code> aus, um ein Bookmarklet zu erzeugen.</li>
+  <li>Für Zhihu, WeChat-Artikel usw. aktiviere „Lokalen Proxy verwenden“ und führe zuerst <code>dist\\web-to-md.js</code> im selben Ordner aus.</li>
+  <li>Für Seiten mit Anmeldung führe <code>cscript //nologo dist\\web-to-md.js --bookmark</code> aus, um ein Bookmarklet zu erzeugen.</li>
 </ul>
 <p><b>Häufige Tastenkürzel</b>: <code>Ctrl+S</code> Markdown herunterladen, <code>Ctrl+Z</code> Rückgängig, <code>Ctrl+Y / Ctrl+Shift+Z</code> Wiederherstellen, <code>Ctrl+B</code> Fett, <code>Ctrl+I</code> Kursiv, <code>Ctrl+U</code> Unterstrichen, <code>Ctrl+K</code> Link, <code>Ctrl+Shift+K</code> Bild, <code>Ctrl+F</code> Suchen, <code>Ctrl+H</code> Ersetzen, <code>Tab</code> 4 Leerzeichen Einzug einfügen.</p>
 <p style="color:var(--text-muted);font-size:12px;">Entwickelt von Leng Yi von Woyin AI. Feedback über WeChat: lengcp2013</p>`,
@@ -1448,6 +1455,7 @@ const i18n = {
     urlLabel: 'Web-Adresse',
     urlPlaceholder: 'https://example.com/article',
     useProxy: 'Lokalen Proxy verwenden (empfohlen für Zhihu/WeChat)',
+    browserRender: 'Dynamische Webseiten mit Edge rendern (WebDriver erforderlich)',
     proxyPlaceholder: 'Adresse des lokalen Proxys',
     fetchBtn: 'Abrufen',
     manualLabel: 'HTML-Quelle der Seite (manuell einfügen)',
@@ -1562,8 +1570,8 @@ const i18n = {
 <p><b>Web в Markdown</b></p>
 <ul>
   <li>Кликните 🌐 и введите URL, чтобы извлечь тело статьи.</li>
-  <li>Для Zhihu, статей WeChat и т. п. включите «Использовать локальный прокси» и заранее запустите <code>web-to-md-proxy.py</code> из той же папки.</li>
-  <li>Для страниц, требующих входа, запустите <code>python web-to-md-proxy.py --bookmark</code>, чтобы создать букмарклет.</li>
+  <li>Для Zhihu, статей WeChat и т. п. включите «Использовать локальный прокси» и заранее запустите <code>dist\\web-to-md.js</code> из той же папки.</li>
+  <li>Для страниц, требующих входа, запустите <code>cscript //nologo dist\\web-to-md.js --bookmark</code>, чтобы создать букмарклет.</li>
 </ul>
 <p><b>Частые горячие клавиши</b>: <code>Ctrl+S</code> Скачать Markdown, <code>Ctrl+Z</code> Отменить, <code>Ctrl+Y / Ctrl+Shift+Z</code> Повторить, <code>Ctrl+B</code> Жирный, <code>Ctrl+I</code> Курсив, <code>Ctrl+U</code> Подчеркнутый, <code>Ctrl+K</code> Ссылка, <code>Ctrl+Shift+K</code> Изображение, <code>Ctrl+F</code> Найти, <code>Ctrl+H</code> Заменить, <code>Tab</code> вставить отступ в 4 пробела.</p>
 <p style="color:var(--text-muted);font-size:12px;">Разработано Лэн И (Leng Yi) из Woyin AI. Предложения по WeChat: lengcp2013</p>`,
@@ -1640,6 +1648,7 @@ const i18n = {
     urlLabel: 'Адрес страницы',
     urlPlaceholder: 'https://example.com/article',
     useProxy: 'Использовать локальный прокси (рекомендуется для Zhihu/WeChat)',
+    browserRender: 'Отображать динамические страницы в Edge (нужен WebDriver)',
     proxyPlaceholder: 'Адрес локального прокси',
     fetchBtn: 'Попробовать получить',
     manualLabel: 'Исходный HTML страницы (вставить вручную)',
@@ -1754,8 +1763,8 @@ const i18n = {
 <p><b>Web para Markdown</b></p>
 <ul>
   <li>Clique em 🌐 e insira uma URL para extrair o corpo do artigo.</li>
-  <li>Para Zhihu, artigos do WeChat etc., ative “Usar proxy local” e execute <code>web-to-md-proxy.py</code> na mesma pasta primeiro.</li>
-  <li>Para páginas que exigem login, execute <code>python web-to-md-proxy.py --bookmark</code> para gerar um bookmarklet.</li>
+  <li>Para Zhihu, artigos do WeChat etc., ative “Usar proxy local” e execute <code>dist\\web-to-md.js</code> na mesma pasta primeiro.</li>
+  <li>Para páginas que exigem login, execute <code>cscript //nologo dist\\web-to-md.js --bookmark</code> para gerar um bookmarklet.</li>
 </ul>
 <p><b>Atalhos comuns</b>: <code>Ctrl+S</code> Baixar Markdown, <code>Ctrl+Z</code> Desfazer, <code>Ctrl+Y / Ctrl+Shift+Z</code> Refazer, <code>Ctrl+B</code> Negrito, <code>Ctrl+I</code> Itálico, <code>Ctrl+U</code> Sublinhado, <code>Ctrl+K</code> Link, <code>Ctrl+Shift+K</code> Imagem, <code>Ctrl+F</code> Localizar, <code>Ctrl+H</code> Substituir, <code>Tab</code> inserir recuo de 4 espaços.</p>
 <p style="color:var(--text-muted);font-size:12px;">Desenvolvido por Leng Yi da Woyin AI. Sugestões pelo WeChat: lengcp2013</p>`,
@@ -1832,6 +1841,7 @@ const i18n = {
     urlLabel: 'Endereço web',
     urlPlaceholder: 'https://example.com/article',
     useProxy: 'Usar proxy local (recomendado para Zhihu/WeChat)',
+    browserRender: 'Renderizar páginas dinâmicas com Edge (requer WebDriver)',
     proxyPlaceholder: 'Endereço do proxy local',
     fetchBtn: 'Tentar obter',
     manualLabel: 'Fonte HTML da página (colar manualmente)',

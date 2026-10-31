@@ -1325,8 +1325,8 @@
         <p><b>网页转 Markdown</b></p>
         <ul>
           <li>点「网页转 MD」输入网页链接，可自动提取正文。</li>
-          <li>知乎、微信公众号等建议勾选「使用本地代理」，先运行同目录的 <code>web-to-md-proxy.py</code>。</li>
-          <li>需要登录的页面，可运行 <code>python web-to-md-proxy.py --bookmark</code> 生成书签小工具提取。</li>
+          <li>知乎、微信公众号等建议勾选「使用本地代理」，先运行同目录的 <code>dist\web-to-md.js</code>。</li>
+          <li>需要登录的页面，可运行 <code>cscript //nologo dist\web-to-md.js --bookmark</code> 生成书签小工具提取。</li>
         </ul>
 
         <p><b>常用快捷键</b>：<code>Ctrl+S</code> 下载 Markdown，<code>Ctrl+Z</code> 撤销，<code>Ctrl+Y / Ctrl+Shift+Z</code> 重做，<code>Ctrl+B</code> 加粗，<code>Ctrl+I</code> 斜体，<code>Ctrl+U</code> 下划线，<code>Ctrl+K</code> 链接，<code>Ctrl+Shift+K</code> 图片，<code>Ctrl+F</code> 查找，<code>Ctrl+H</code> 替换，<code>Tab</code> 插入 4 空格缩进。</p>
@@ -1354,6 +1354,10 @@
           <label for="use-local-proxy" style="display:inline;margin:0;font-weight:normal;cursor:pointer;" data-i18n="useProxy">使用本地代理（推荐，可解决知乎/微信公众号）</label>
         </div>
         <input type="url" id="proxy-url" value="http://localhost:8765/fetch" data-i18n-placeholder="proxyPlaceholder" placeholder="本地代理地址" style="display:none;margin-bottom:10px;">
+        <div id="browser-render-row" style="display:none;align-items:center;gap:8px;margin-bottom:10px;">
+          <input type="checkbox" id="browser-render" style="width:auto;margin:0;">
+          <label for="browser-render" style="display:inline;margin:0;font-weight:normal;cursor:pointer;" data-i18n="browserRender">使用 Edge 浏览器渲染动态网页（需 WebDriver）</label>
+        </div>
         <button onclick="fetchUrl()" class="primary" data-i18n="fetchBtn">尝试获取</button>
         <div id="url-status" style="margin-top:10px;font-size:13px;color:var(--text-muted);"></div>
         <div id="manual-area" style="display:none;margin-top:14px;">
@@ -3492,6 +3496,8 @@ ${'</scr' + 'ipt>'}
       document.getElementById('manual-html').value = '';
       document.getElementById('use-local-proxy').checked = false;
       document.getElementById('proxy-url').style.display = 'none';
+      document.getElementById('browser-render').checked = false;
+      document.getElementById('browser-render-row').style.display = 'none';
       fetchedHtml = '';
     }
     function closeUrlModal() {
@@ -3603,6 +3609,7 @@ ${'</scr' + 'ipt>'}
     function toggleProxyInput() {
       const checked = document.getElementById('use-local-proxy').checked;
       document.getElementById('proxy-url').style.display = checked ? 'block' : 'none';
+      document.getElementById('browser-render-row').style.display = checked ? 'flex' : 'none';
     }
 
     // 尝试通过本地代理或公共 CORS 代理获取网页
@@ -3626,7 +3633,9 @@ ${'</scr' + 'ipt>'}
 
       // 优先使用本地代理（可绕过 CORS 和大部分反爬）
       if (useLocalProxy) {
-        const proxyUrl = (proxyUrlInput.value.trim() || 'http://localhost:8765/fetch') + '?url=' + encodeURIComponent(url);
+        const proxyUrl = (proxyUrlInput.value.trim() || 'http://localhost:8765/fetch') +
+          '?url=' + encodeURIComponent(url) +
+          (document.getElementById('browser-render').checked ? '&mode=browser' : '');
         let data = null;
         try {
           const response = await fetch(proxyUrl);
