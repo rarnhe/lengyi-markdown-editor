@@ -24,6 +24,25 @@ If hosted elsewhere, explicitly add the trusted editor origin to
 `content_scripts.matches` and reload the extension. Do **not** use `<all_urls>`
 for the editor message bridge.
 
+## Browser error pages and existing-tab capture
+
+If a newly created tab shows `chrome-error://` or the extension reports
+`Frame with ID 0 is showing error page`, the navigation failed *before*
+DOM extraction. The extension now requests `webNavigation` permission and
+reports the main-frame `net::ERR_*` error where available; these are
+network/site failures, **not proof of an extension messaging failure**.
+
+- **Render in browser** first reuses an already loaded exact-URL tab; if none
+  exists it creates a visible tab. It does not inject into known error pages.
+- **Capture existing tab** opens no tab: manually open the exact article URL,
+  wait for the content to load, then enter the same URL in the editor and
+  choose this mode. Use it for a page you have logged into yourself.
+- **Fetch raw HTML** can help for simple static websites; it does not carry
+  login cookies or run website scripts.
+
+If the browser itself cannot display the site, fix the VPN/HTTPS/network or
+broken URL first. An extension cannot make an inaccessible website load.
+
 ## Troubleshooting: "extension not connected"
 
 1. Open the editor in the **same Chrome/Edge browser profile** where the unpacked
