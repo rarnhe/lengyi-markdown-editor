@@ -13,6 +13,7 @@
     "noEmitOnError": true
   },
   "files": [
+    "src/wsh/json-compat.ts",
     "src/wsh/web-to-md.ts"
   ]
 }
