@@ -1353,7 +1353,7 @@
           <input type="checkbox" id="use-local-proxy" style="width:auto;margin:0;" onchange="toggleProxyInput()">
           <label for="use-local-proxy" style="display:inline;margin:0;font-weight:normal;cursor:pointer;" data-i18n="useProxy">使用本地代理（推荐，可解决知乎/微信公众号）</label>
         </div>
-        <input type="url" id="proxy-url" value="http://localhost:8765/fetch" data-i18n-placeholder="proxyPlaceholder" placeholder="本地代理地址" style="display:none;margin-bottom:10px;">
+        <input type="url" id="proxy-url" value="http://127.0.0.1:8765/fetch" data-i18n-placeholder="proxyPlaceholder" placeholder="本地代理地址" style="display:none;margin-bottom:10px;">
         <div id="browser-render-row" style="display:none;align-items:center;gap:8px;margin-bottom:10px;">
           <input type="checkbox" id="browser-render" style="width:auto;margin:0;">
           <label for="browser-render" style="display:inline;margin:0;font-weight:normal;cursor:pointer;" data-i18n="browserRender">使用 Edge 浏览器渲染动态网页（需 WebDriver）</label>
@@ -3633,7 +3633,7 @@ ${'</scr' + 'ipt>'}
 
       // 优先使用本地代理（可绕过 CORS 和大部分反爬）
       if (useLocalProxy) {
-        const proxyUrl = (proxyUrlInput.value.trim() || 'http://localhost:8765/fetch') +
+        const proxyUrl = (proxyUrlInput.value.trim() || 'http://127.0.0.1:8765/fetch') +
           '?url=' + encodeURIComponent(url) +
           (document.getElementById('browser-render').checked ? '&mode=browser' : '');
         let data = null;
