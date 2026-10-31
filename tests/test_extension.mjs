@@ -1,0 +1,144 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync, existsSync } from 'node:fs';
+import vm from 'node:vm';
+
+const manifest = JSON.parse(readFileSync('extension/manifest.json', 'utf8'));
+const workerSource = readFileSync('extension/background.js', 'utf8');
+const bridgeSource = readFileSync('extension/editor-bridge.js', 'utf8');
+const html = readFileSync('markdown-editor.html', 'utf8');
+const i18n = readFileSync('i18n.js', 'utf8');
+
+function workerHarness(fetchImpl = async url => ({
+  ok: true, url, headers: {get:()=> 'text/html; charset=utf-8'},
+  text: async () => '<html><body><article>Static capture works</article></body></html>'
+})) {
+  const state = { handler: null, injected: null, created: null };
+  const listeners = {updated:new Set(),removed:new Set()};
+  const chrome = {
+    runtime: {onMessage:{addListener(fn){state.handler=fn;}}},
+    tabs: {
+      create:async options=>{state.created=options;return {id:41};},
+      get:async()=>({status:'complete'}),
+      onUpdated:{addListener:fn=>listeners.updated.add(fn),removeListener:fn=>listeners.updated.delete(fn)},
+      onRemoved:{addListener:fn=>listeners.removed.add(fn),removeListener:fn=>listeners.removed.delete(fn)}
+    },
+    scripting: {executeScript:async opts=>{state.injected=opts;return [{result:{
+      success:true,html:'<!doctype html><html><head><title>Rendered</title></head><body><article>Rendered article</article></body></html>',
+      title:'Rendered',finalUrl:state.created.url,mode:'browser'
+    }}];}}
+  };
+  vm.runInNewContext(workerSource,{chrome,URL,fetch:fetchImpl,AbortController,setTimeout,clearTimeout,location:{href:'https://example.com/'}},{filename:'extension/background.js'});
+  function ask({url='https://mp.weixin.qq.com/s/demo',mode='static',type='FETCH'}={}, sender={
+    tab:{id:5},frameId:0,url:'file:///C:/editor/markdown-editor.html'
+  }) {
+    return new Promise(resolve=>{
+      const accepted = state.handler({channel:'lengyi-extension-v1',requestId:'unit',type,url,mode},sender,resolve);
+      if (!accepted) resolve({ignored:true});
+    });
+  }
+  return {state,ask};
+}
+
+test('Manifest V3 uses only browser APIs, not localhost service, native messaging or runtime npm modules',()=>{
+  assert.equal(manifest.manifest_version,3);
+  assert.equal(manifest.background.service_worker,'background.js');
+  assert.deepEqual(manifest.permissions.sort(),['scripting','tabs']);
+  assert.ok(manifest.host_permissions.includes('https://*/*'));
+  assert.ok(manifest.host_permissions.includes('http://*/*'));
+  assert.deepEqual(manifest.content_scripts[0].js,['editor-bridge.js']);
+  for (const match of ['file:///*','http://localhost/*','http://127.0.0.1/*']) {
+    assert.ok(manifest.content_scripts[0].matches.includes(match),match);
+  }
+  assert.equal(manifest.externally_connectable,undefined);
+  assert.equal(existsSync('web-to-md-proxy.py'),false);
+  assert.equal(existsSync('package.json'),false);
+  for (const source of [workerSource,bridgeSource,html]) {
+    assert.doesNotMatch(source, /http:\/\/(?:localhost|127\.0\.0\.1):8765|api\.allorigins\.win|api\.codetabs\.com|web-to-md-proxy\.py/);
+  }
+});
+
+test('Editor uses extension only and retains the HTML-to-Markdown/manual HTML path',()=>{
+  assert.match(html, /id="web-fetch-mode"/);
+  assert.match(html, /value="browser"/);
+  assert.match(html, /value="static"/);
+  assert.match(html, /function extensionRequest\(/);
+  assert.match(html, /await extensionRequest\('PING'/);
+  assert.match(html, /await extensionRequest\('FETCH'/);
+  assert.match(html, /function convertAndInsert\(/);
+  assert.match(html, /document\.getElementById\('manual-html'\)\.value/);
+  for (const key of ['extensionModeLabel','extensionModeBrowser','extensionModeStatic',
+    'extensionHint','urlStatusExtensionSuccess','urlStatusExtensionFailed','urlStatusExtensionMissing']) {
+    assert.equal((i18n.match(new RegExp('^    '+key+':','gm'))||[]).length,10,key);
+  }
+});
+
+test('Service worker rejects non-editor senders, unexpected events and unsafe URLs',async()=>{
+  const h=workerHarness();
+  const external = await h.ask({}, {tab:{id:5},frameId:0,url:'https://evil.example/markdown-editor.html'});
+  assert.equal(external.ignored,true);
+  const subframe = await h.ask({}, {tab:{id:5},frameId:1,url:'file:///C:/markdown-editor.html'});
+  assert.equal(subframe.ignored,true);
+  const wrongType=await h.ask({type:'OTHER'});
+  assert.equal(wrongType.ignored,true);
+  for(const bad of ['file:///etc/passwd','http://localhost/secret','http://127.0.0.1/',
+    'http://10.0.0.1/','http://192.168.0.1/','https://user:pass@example.com/',
+    'http://169.254.169.254/latest/meta-data/','http://example.com:2222/a']) {
+    const result=await h.ask({url:bad});
+    assert.equal(result.success,false,bad);
+  }
+});
+
+test('Static mode fetches via extension with omitted credentials and returns HTML',async()=>{
+  const seen=[];
+  const h=workerHarness(async(url,options)=>{
+    seen.push({url,options});
+    return {ok:true,url,headers:{get:()=> 'text/html'},text:async()=> '<html><body>Safe static article</body></html>'};
+  });
+  const result=await h.ask({url:'https://example.com/article',mode:'static'});
+  assert.equal(result.success,true);
+  assert.match(result.html,/Safe static article/);
+  assert.equal(seen.length,1);
+  assert.equal(seen[0].options.credentials,'omit');
+  assert.equal(h.state.created,null);
+});
+
+test('Browser mode opens a real tab and invokes extension-owned DOM extraction',async()=>{
+  const h=workerHarness();
+  const result=await h.ask({url:'https://example.com/article',mode:'browser'});
+  assert.equal(result.success,true);
+  assert.match(result.html,/Rendered article/);
+  assert.equal(h.state.created.active,true);
+  assert.equal(h.state.created.url,'https://example.com/article');
+  assert.equal(h.state.injected.target.tabId,41);
+  assert.equal(typeof h.state.injected.func,'function');
+  assert.match(h.state.injected.func.toString(),/document\.querySelector/);
+  assert.equal(h.state.injected.args[0],4*1024*1024);
+});
+
+test('Content script replies to editor PING/FETCH through bounded message bridge',async()=>{
+  const sent=[];
+  let listener;
+  const page={};
+  page.addEventListener=(event,fn)=>{if(event==='message')listener=fn;};
+  page.postMessage=(response)=>sent.push(response);
+  const runtime={sendMessage:async request=>({
+    success:true,html:'<article>from extension</article>',requestId:request.requestId
+  })};
+  vm.runInNewContext(bridgeSource,{
+    chrome:{runtime}, window:page,
+    location:{pathname:'/my/markdown-editor.html'},
+    document:{getElementById:id=>id==='editor'||id==='url-modal'?{}:null},
+    URL
+  },{filename:'extension/editor-bridge.js'});
+  assert.equal(typeof listener,'function');
+  listener({source:page,data:{channel:'lengyi-extension-v1',from:'editor',requestId:'req1',command:'PING'}});
+  assert.equal(sent[0].installed,true);
+  listener({source:page,data:{channel:'lengyi-extension-v1',from:'editor',requestId:'req2',command:'FETCH',
+    payload:{url:'https://example.com/',mode:'browser'}}});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(sent[1].requestId,'req2');
+  assert.match(sent[1].html,/from extension/);
+  listener({source:{},data:{channel:'lengyi-extension-v1',from:'editor',requestId:'fake',command:'PING'}});
+  assert.equal(sent.length,2);
+});
