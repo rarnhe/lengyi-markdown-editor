@@ -289,24 +289,20 @@
       font-weight: 600;
     }
     .preview-pane .pane-header { justify-content: center; }
-    .preview-title-group { display: inline-flex; align-items: center; justify-content: center; gap: 10px; position: relative; }
-    #word-count { color: #2563eb; font-weight: 600; }
+    .preview-title-group { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-width: 0; }
+    #word-count { color: #2563eb; font-weight: 600; flex: 0 0 auto; white-space: nowrap; }
     [data-theme="dark"] #word-count { color: #60a5fa; }
     .editor-pane .pane-header { position: relative; justify-content: center; }
     .editor-heading { display: flex; align-items: center; justify-content: center; gap: 10px; }
-    #document-time, .preview-title-group #filename {
+    .preview-title-group #filename {
       color: var(--text-muted); font-family: inherit; font-size: 11px;
       font-variant-numeric: tabular-nums; text-transform: none;
       letter-spacing: normal; white-space: nowrap;
       border: none; background: transparent; padding: 0;
+      font-weight: 700; text-align: right; text-overflow: ellipsis;
     }
-    /* The timestamp stays anchored: the filename grows left, never into preview text. */
-    .preview-title-group .filename-slot {
-      display: flex; position: absolute; right: calc(100% + 10px);
-      min-width: 0; max-width: 0;
-    }
-    .preview-title-group #filename { font-weight: 700; text-align: right; text-overflow: ellipsis; }
-    .preview-title-group #document-time { font-weight: 400; }
+    /* Center filename and word count as one group; only filename may shrink. */
+    .preview-title-group .filename-slot { display: flex; flex: 0 1 auto; min-width: 0; }
     /* Match the outline's collapsed list: hide the editor's scrollable body. */
     .editor-pane.collapsed #editor { display: none; }
     .editor-pane .pane-header > .collapse-btn { position: absolute; right: 12px; }
@@ -1233,8 +1229,6 @@
         <div class="pane-header">
           <div class="preview-title-group">
             <div class="filename-slot"><input type="text" id="filename" value="未命名文档.md" data-i18n-title="filenameTitle" title="文件名" aria-label="文件名"></div>
-            <time id="document-time" aria-live="polite"></time>
-            <span class="pane-title" data-i18n="previewPaneTitle">实时预览</span>
             <span id="word-count">0 字</span>
           </div>
         </div>
@@ -1500,25 +1494,24 @@
     const preview = document.getElementById('preview');
     const filenameInput = document.getElementById('filename');
     let committedFilename = filenameInput.value;
-    const documentTime = document.getElementById('document-time');
     const htmlOpenedAt = new Date();
     let markdownImportedAt = null;
+    let lastSavedAt = null;
     function formatDocumentTime(date) {
       const pad = value => String(value).padStart(2, '0');
       return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) +
         ' ' + pad(date.getHours()) + ':' + pad(date.getMinutes()) + ':' + pad(date.getSeconds());
     }
-    function updateDocumentTime() {
-      const time = markdownImportedAt || htmlOpenedAt;
-      documentTime.textContent = t(markdownImportedAt ? 'importTime' : 'openTime', formatDocumentTime(time));
-      documentTime.dateTime = time.toISOString();
-      documentTime.title = documentTime.textContent;
-    }
     function setDocumentImportTime(isMarkdown) {
       markdownImportedAt = isMarkdown ? new Date() : null;
-      updateDocumentTime();
+      lastSavedAt = null;
+      syncDocumentTitle();
     }
-    // Size the read-only filename to the measured text instead of a fixed box.
+    function markDocumentSaved() {
+      lastSavedAt = new Date();
+      syncDocumentTitle();
+    }
+    // Size the editable filename to its measured text instead of a fixed box.
     function updateFilenameWidth() {
       const slot = filenameInput.parentElement;
       const context = document.createElement('canvas').getContext('2d');
@@ -1531,10 +1524,14 @@
     function updateFilenameLimit() {
       const markdown = preview.querySelector('.markdown-body');
       if (!markdown) return;
-      const textLeft = markdown.getBoundingClientRect().left +
-        (parseFloat(getComputedStyle(markdown).paddingLeft) || 0);
-      const available = Math.max(0, Math.floor(documentTime.getBoundingClientRect().left - 10 - textLeft));
-      filenameInput.parentElement.style.maxWidth = available + 'px';
+      const bounds = markdown.getBoundingClientRect();
+      const style = getComputedStyle(markdown);
+      const textLeft = bounds.left + (parseFloat(style.paddingLeft) || 0);
+      const textRight = bounds.right - (parseFloat(style.paddingRight) || 0);
+      const headerBounds = filenameInput.closest('.pane-header').getBoundingClientRect();
+      const center = (headerBounds.left + headerBounds.right) / 2;
+      const available = Math.max(0, Math.floor(2 * Math.min(center - textLeft, textRight - center)));
+      filenameInput.parentElement.parentElement.style.maxWidth = available + 'px';
     }
 
     // Enter and blur commit only changed names; Escape cancels without a download.
@@ -1573,7 +1570,9 @@
     filenameInput.addEventListener('blur', commitFilenameChange);
 
     function syncDocumentTitle() {
-      document.title = filenameInput.value.trim() || t('filenameDefault');
+      const time = lastSavedAt || markdownImportedAt || htmlOpenedAt;
+      const label = t(lastSavedAt ? 'saveTime' : 'openTime', formatDocumentTime(time));
+      document.title = (filenameInput.value.trim() || t('filenameDefault')) + '-' + label;
     }
     const wordCount = document.getElementById('word-count');
     const saveHint = document.getElementById('save-hint');
@@ -1771,7 +1770,6 @@
       syncDocumentTitle();
       updateFilenameWidth();
       updateFilenameLimit();
-      updateDocumentTime();
       updateThemeButton();
       document.getElementById('more-toggle').setAttribute('aria-label', t('moreMenu'));
     }
@@ -2538,6 +2536,7 @@
       saveTimer = setTimeout(() => {
         localStorage.setItem(STORAGE_KEY, getMarkdown());
         localStorage.setItem(FILENAME_KEY, filenameInput.value);
+        markDocumentSaved();
         showSaveHint();
       }, 500);
     }
@@ -2552,6 +2551,7 @@
     function saveToLocal() {
       localStorage.setItem(STORAGE_KEY, getMarkdown());
       localStorage.setItem(FILENAME_KEY, filenameInput.value);
+      markDocumentSaved();
       showSaveHint();
       showToast(t('toastSaved'));
     }
@@ -2572,6 +2572,7 @@
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      markDocumentSaved();
       showToast(t('toastExported'));
     }
 
@@ -3919,14 +3920,20 @@ ${'</scr' + 'ipt>'}
       }
     });
 
+    // Listen at document level so editor Ctrl/Cmd+S works reliably after mouse focus.
+    // Do not intercept shortcuts used outside the editor.
+    document.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' &&
+          (e.target === editor || document.activeElement === editor)) {
+        e.preventDefault();
+        exportFile();
+      }
+    });
+
     // 快捷键
     function handleEditorKeydown(e) {
       if (e.ctrlKey || e.metaKey) {
-        if (e.key === 's') {
-          e.preventDefault();
-          // Auto-save already covers localStorage; Ctrl/Cmd+S downloads the .md.
-          exportFile();
-        } else if (e.key === 'z' && !e.shiftKey) {
+        if (e.key === 'z' && !e.shiftKey) {
           e.preventDefault();
           undo();
         } else if (e.key === 'y' || (e.key === 'z' && e.shiftKey)) {

@@ -152,16 +152,20 @@ test('import/export have no separate frame and share the utilities row', () => {
 test('editable filename preserves imported name, browser title and export behavior', () => {
   const fn=html.match(/function syncDocumentTitle\(\) \{[\s\S]*?\n    \}/);
   assert.ok(fn);
-  const ctx={filenameInput:{value:'Report.md'},document:{title:'before'},t:()=> 'Untitled.md'};
+  const ctx={filenameInput:{value:'Report.md'},document:{title:'before'},
+    htmlOpenedAt:{},markdownImportedAt:null,lastSavedAt:null,
+    formatDocumentTime:()=> '2026-10-31 13:44:00',
+    t:(key,val)=>key==='filenameDefault'?'Untitled.md':key+':'+val};
   vm.runInNewContext(fn[0]+'\nthis.sync=syncDocumentTitle;',ctx);
-  ctx.sync();assert.equal(ctx.document.title,'Report.md');
+  ctx.sync();assert.equal(ctx.document.title,'Report.md-openTime:2026-10-31 13:44:00');
   ctx.filenameInput.value='Imported.md';ctx.sync();
-  assert.equal(ctx.document.title,'Imported.md');
+  assert.equal(ctx.document.title,'Imported.md-openTime:2026-10-31 13:44:00');
   const header=html.match(/<div class="preview-title-group">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="preview-content"/);
   assert.ok(header);
   assert.match(header[1],/<input type="text" id="filename"[^>]*value="未命名文档.md"/);
   assert.doesNotMatch(header[1],/readonly|aria-readonly/);
-  assert.match(header[1],/id="filename"[\s\S]*?id="document-time"/);
+  assert.match(header[1],/id="filename"[\s\S]*?id="word-count"/);
+  assert.doesNotMatch(header[1],/id="document-time"|data-i18n="previewPaneTitle"/);
   assert.match(html,/filenameInput\.addEventListener\('input', updateFilenameWidth\)/);
   assert.match(html,/filenameInput\.addEventListener\('keydown'/);
   assert.match(html,/filenameInput\.addEventListener\('blur', commitFilenameChange\)/);
@@ -448,56 +452,50 @@ test('Reading mode translations, refresh restore and outline navigation remain f
 });
 
 
-test('preview header centers the title beside a blue word count', () => {
-  const section = html.match(/<div class="pane preview-pane">([\s\S]*?)<div class="preview-content"/);
+
+test('preview title centers just the filename and word count', () => {
+  const section=html.match(/<div class="pane preview-pane">([\s\S]*?)<div class="preview-content"/);
   assert.ok(section);
-  assert.match(section[1], /class="preview-title-group"[\s\S]*?data-i18n="previewPaneTitle"[\s\S]*?id="word-count"/);
-  assert.match(html, /\.preview-pane \.pane-header \{ justify-content: center; \}/);
-  assert.match(html, /\.preview-title-group \{[^}]*gap: 10px/);
-  assert.match(html, /#word-count \{ color: #2563eb;/);
-  assert.match(html, /\[data-theme="dark"\] #word-count \{ color: #60a5fa;/);
-  assert.match(html, /\.app\.reading-mode \.preview-pane \.pane-header \{ display: none !important; \}/);
+  assert.match(section[1],/class="preview-title-group"[\s\S]*?id="filename"[\s\S]*?id="word-count"/);
+  assert.doesNotMatch(section[1],/document-time|data-i18n="previewPaneTitle"/);
+  assert.match(html,/\.preview-pane \.pane-header \{ justify-content: center; \}/);
+  assert.match(html,/\.preview-title-group \{[^}]*justify-content: center; gap: 10px;/);
+  assert.match(html,/#word-count \{ color: #2563eb; font-weight: 600; flex: 0 0 auto; white-space: nowrap;/);
+  assert.match(html,/\[data-theme="dark"\] #word-count \{ color: #60a5fa;/);
+  assert.match(html,/\.app\.reading-mode \.preview-pane \.pane-header \{ display: none !important; \}/);
 });
 
-test('document timestamp shows HTML opening time, then successful Markdown import time', () => {
-  assert.match(html, /class="preview-title-group"[\s\S]*?<time id="document-time" aria-live="polite"><\/time>[\s\S]*?data-i18n="previewPaneTitle"/);
-  assert.match(html, /#document-time, \.preview-title-group #filename \{[^}]*border: none; background: transparent; padding: 0;/);
-  assert.match(html, /class="preview-title-group"[\s\S]*?class="filename-slot"[\s\S]*?id="filename"[\s\S]*?id="document-time"/);
-  assert.doesNotMatch(html, /class="editor-heading"[\s\S]*?id="filename"[\s\S]*?data-i18n="editorPaneTitle"/);
-  assert.doesNotMatch(html, /id="file-path"|filePathInput|setFilePath|FILE_PATH_KEY/);
-  const formatter=html.match(/function formatDocumentTime\(date\) \{[\s\S]*?\n    \}/);
-  const render=html.match(/function updateDocumentTime\(\) \{[\s\S]*?\n    \}/);
-  const setter=html.match(/function setDocumentImportTime\(isMarkdown\) \{[\s\S]*?\n    \}/);
-  assert.ok(formatter && render && setter);
-  const fakeDate=(year,month,day,hour,minute,second)=>({
-    getFullYear(){return year;},getMonth(){return month - 1;},
-    getDate(){return day;},getHours(){return hour;},
-    getMinutes(){return minute;},getSeconds(){return second;},
-    toISOString(){return year+'-ISO';}
+test('browser tab title shows opening time and updates to saved time', () => {
+  const format=html.match(/function formatDocumentTime\(date\) \{[\s\S]*?\n    \}/);
+  const openedFn=html.match(/function setDocumentImportTime\(isMarkdown\) \{[\s\S]*?\n    \}/);
+  const savedFn=html.match(/function markDocumentSaved\(\) \{[\s\S]*?\n    \}/);
+  const titleFn=html.match(/function syncDocumentTitle\(\) \{[\s\S]*?\n    \}/);
+  assert.ok(format&&openedFn&&savedFn&&titleFn);
+  const date=(h,m,s)=>({
+    getFullYear:()=>2026,getMonth:()=>9,getDate:()=>31,
+    getHours:()=>h,getMinutes:()=>m,getSeconds:()=>s
   });
-  const opened=fakeDate(2026,10,30,11,53,7);
-  const imported=fakeDate(2026,10,30,12,8,9);
-  const time={textContent:'',title:'',dateTime:''};
-  const ctx={
-    documentTime:time,htmlOpenedAt:opened,markdownImportedAt:null,
-    t:(key,value)=>key+':'+value,
-    Date:function(){return imported;}
+  const opened=date(9,5,7),imported=date(10,6,8),saved=date(11,7,9);
+  const queue=[imported,saved],ctx={
+    document:{title:''},filenameInput:{value:'report.md'},
+    htmlOpenedAt:opened,markdownImportedAt:null,lastSavedAt:null,
+    t:(k,v)=>k+':'+v,Date:function(){return queue.shift();}
   };
-  vm.runInNewContext(formatter[0]+'\n'+render[0]+'\n'+setter[0]+
-    '\nthis.update=updateDocumentTime;this.setImport=setDocumentImportTime;',ctx);
-  ctx.update();
-  assert.equal(time.textContent,'openTime:2026-10-30 11:53:07');
-  assert.equal(time.dateTime,'2026-ISO');
-  ctx.setImport(true);
-  assert.equal(time.textContent,'importTime:2026-10-30 12:08:09');
-  ctx.setImport(false);
-  assert.equal(time.textContent,'openTime:2026-10-30 11:53:07');
-  assert.match(html,/setDocumentImportTime\(\/\\\.\(md\|markdown\)\$\/i\.test\(file\.name\)\)/);
-  assert.match(html,/if \(confirm\(t\('confirmClear'\)\)\) \{\s*setDocumentImportTime\(false\)/);
-  assert.match(html,/function applyLanguage\(\) \{[\s\S]*?updateDocumentTime\(\);/);
-  assert.doesNotMatch(html,/localStorage\.setItem\(FILE_PATH_KEY/);
-  for (const key of ['openTime','importTime']) {
-    assert.equal((i18n.match(new RegExp('^    '+key+':','gm'))||[]).length,10,key);
+  vm.runInNewContext([format[0],openedFn[0],savedFn[0],titleFn[0],
+    'this.title=syncDocumentTitle;this.open=setDocumentImportTime;this.save=markDocumentSaved;'].join('\n'),ctx);
+  ctx.title();assert.equal(ctx.document.title,'report.md-openTime:2026-10-31 09:05:07');
+  ctx.open(true);assert.equal(ctx.document.title,'report.md-openTime:2026-10-31 10:06:08');
+  ctx.save();assert.equal(ctx.document.title,'report.md-saveTime:2026-10-31 11:07:09');
+  ctx.filenameInput.value='renamed.md';ctx.title();
+  assert.equal(ctx.document.title,'renamed.md-saveTime:2026-10-31 11:07:09');
+  ctx.open(false);assert.equal(ctx.document.title,'renamed.md-openTime:2026-10-31 09:05:07');
+  assert.match(html,/function autoSave\(\) \{[\s\S]*?markDocumentSaved\(\)/);
+  assert.match(html,/function saveToLocal\(\) \{[\s\S]*?markDocumentSaved\(\)/);
+  assert.match(html,/function exportFile\(\) \{[\s\S]*?markDocumentSaved\(\)/);
+  assert.doesNotMatch(html,/id="document-time"|function updateDocumentTime\(/);
+  assert.ok(html.includes('setDocumentImportTime(/\\.(md|markdown)$/i.test(file.name))'));
+  for(const k of ['openTime','saveTime']) {
+    assert.equal((i18n.match(new RegExp('^    '+k+':','gm'))||[]).length,10,k);
   }
 });
 
@@ -567,7 +565,7 @@ test('responsive overflow moves one control at a time using actual available wid
   assert.match(html,/applyLanguage\(\);\s*applyToolbarOverflow\(\);/);
   assert.match(html,/function saveToLocal\(\)/);
   assert.match(html,/function openFindModal\(/);
-  assert.match(html,/e\.key === 's'[\s\S]*?exportFile\(\)/);
+  assert.match(html,/e\.key\.toLowerCase\(\) === 's'[\s\S]*?exportFile\(\)/);
   assert.match(html,/e\.key === 'f'[\s\S]*?openFindModal\(\)/);
 });
 
@@ -875,7 +873,7 @@ test('theme action swaps 夜间 and 日间 on click, language change and stored 
 test('filename is editable before preview time and commits on Enter or blur', () => {
   const heading=html.match(/<div class="preview-title-group">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="preview-content"/);
   assert.ok(heading);
-  assert.match(heading[1],/id="filename"[\s\S]*?id="document-time"/);
+  assert.match(heading[1],/id="filename"[\s\S]*?id="word-count"/);
   assert.doesNotMatch(heading[1],/readonly|aria-readonly/);
   assert.match(html,/filenameInput\.addEventListener\('keydown'/);
   assert.match(html,/filenameInput\.addEventListener\('blur', commitFilenameChange\)/);
@@ -957,35 +955,24 @@ test('Language button uses the correct chevron in inline and overflow layouts', 
 });
 
 
-test('editable filename grows left and remains bounded by preview text', () => {
-  assert.match(html,/\.preview-title-group \{[^}]*gap: 10px/);
-  assert.match(html,/#document-time, \.preview-title-group #filename \{[^}]*font-family: inherit; font-size: 11px;/);
-  assert.match(html,/\.preview-title-group \{[^}]*position: relative;/);
-  assert.match(html,/\.preview-title-group \.filename-slot \{[^}]*position: absolute; right: calc\(100% \+ 10px\);/);
-  assert.match(html,/\.preview-title-group #filename \{ font-weight: 700; text-align: right;/);
-  assert.match(html,/\.preview-title-group #document-time \{ font-weight: 400; \}/);
+
+test('editable filename and count are centered, with flexible filename width', () => {
+  assert.match(html,/\.preview-title-group \{[^}]*display: inline-flex;[^}]*justify-content: center; gap: 10px; min-width: 0;/);
+  assert.match(html,/\.preview-title-group \.filename-slot \{[^}]*flex: 0 1 auto; min-width: 0;/);
+  assert.match(html,/\.preview-title-group #filename \{[^}]*font-family: inherit; font-size: 11px;/);
+  assert.match(html,/font-weight: 700; text-align: right; text-overflow: ellipsis;/);
+  assert.doesNotMatch(html,/right: calc\(100% \+ 10px\)/);
   assert.match(html,/\.filename-slot input\[type="text"\] \{[^}]*padding: 0;[^}]*border: none;/);
   const fn=html.match(/function updateFilenameWidth\(\) \{[\s\S]*?\n    \}/);
   assert.ok(fn);
-  const slot={style:{}};
-  const input={value:'A.md',parentElement:slot};
-  const ctx={
-    filenameInput:input,
-    document:{createElement(type){
-      assert.equal(type,'canvas');
-      return {getContext(){return {font:'',measureText(value){
-        return {width:value.length*7.5};
-      }}}};
-    }},
-    getComputedStyle(){return {font:'600 12px sans-serif'};}
-  };
+  const slot={style:{}},input={value:'A.md',parentElement:slot};
+  const ctx={filenameInput:input,document:{createElement(type){
+      assert.equal(type,'canvas');return {getContext(){return {font:'',measureText(value){return {width:value.length*7.5};}}}};
+    }},getComputedStyle(){return {font:'600 12px sans-serif'};}};
   vm.runInNewContext(fn[0]+'\nthis.measureFilename=updateFilenameWidth;',ctx);
-  ctx.measureFilename();
-  assert.equal(slot.style.width,'31px');
-  input.value='LongerName.md';
-  ctx.measureFilename();
-  assert.equal(slot.style.width,'99px');
-  assert.match(html,/function applyLanguage\(\) \{[\s\S]*?updateFilenameWidth\(\);/);
+  ctx.measureFilename();assert.equal(slot.style.width,'31px');
+  input.value='LongerName.md';ctx.measureFilename();assert.equal(slot.style.width,'99px');
+  assert.match(html,/function applyLanguage\(\) \{[\s\S]*?updateFilenameWidth\(\)/);
   assert.match(html,/filenameInput\.value = name;\s*committedFilename = name;\s*syncDocumentTitle\(\);\s*updateFilenameWidth\(\)/);
 });
 
@@ -1100,22 +1087,19 @@ test('editor collapse hides scrollable textarea exactly as outline collapse hide
   assert.doesNotMatch(html,/\.editor-pane #editor \{ display: none; \}/);
 });
 
-test('preview title order preserves full filename, timestamp, preview label and word count', () => {
+
+test('preview title contains only full editable filename and word count in order', () => {
   const header=html.match(/<div class="preview-title-group">([\s\S]*?)<\/div>\s*<\/div>\s*<div class="preview-content"/);
   assert.ok(header);
-  const indices=['id="filename"','id="document-time"','data-i18n="previewPaneTitle"','id="word-count"']
-    .map(needle=>header[1].indexOf(needle));
-  assert.ok(indices.every(index=>index>=0));
-  assert.deepEqual(indices,[...indices].sort((a,b)=>a-b));
+  const indices=['id="filename"','id="word-count"'].map(x=>header[1].indexOf(x));
+  assert.ok(indices.every(i=>i>=0));assert.deepEqual(indices,[...indices].sort((a,b)=>a-b));
+  assert.doesNotMatch(header[1],/document-time|previewPaneTitle|实时预览/);
   const editorHeader=html.match(/<div class="editor-heading">([\s\S]*?)<\/div>/);
-  assert.ok(editorHeader);
-  assert.doesNotMatch(editorHeader[1],/id="filename"/);
+  assert.ok(editorHeader);assert.doesNotMatch(editorHeader[1],/id="filename"/);
   assert.equal((html.match(/id="filename"/g)||[]).length,1);
-  assert.equal((html.match(/id="document-time"/g)||[]).length,1);
+  assert.equal((html.match(/id="word-count"/g)||[]).length,1);
   assert.match(html,/filenameInput\.value = name;\s*committedFilename = name;\s*syncDocumentTitle\(\);\s*updateFilenameWidth\(\);/);
-  assert.match(html,/localStorage\.setItem\(FILENAME_KEY, filenameInput\.value\)/);
 });
-
 
 test('right-top code label follows fenced language and is empty without one', () => {
   assert.match(html,/\.preview-content pre\[data-language\]:not\(\[data-language=""\]\)::before \{/);
@@ -1136,21 +1120,23 @@ test('right-top code label follows fenced language and is empty without one', ()
   assert.match(html,/function updatePreview\(\) \{[\s\S]*?preview\.innerHTML =/);
 });
 
-test('filename max-width ends at the rendered Markdown text left edge', () => {
+test('centered filename and word count remain inside both rendered-text edges', () => {
   const fn=html.match(/function updateFilenameLimit\(\) \{[\s\S]*?\n    \}/);
   assert.ok(fn);
-  const slot={style:{}};
-  const markdown={getBoundingClientRect(){return {left:100};}};
+  const group={style:{}},slot={parentElement:group};
+  const markdown={getBoundingClientRect(){return {left:100,right:700};}};
+  const header={getBoundingClientRect(){return {left:100,right:700};}};
   const ctx={
-    filenameInput:{parentElement:slot},
+    filenameInput:{parentElement:slot,closest(){return header;}},
     preview:{querySelector(){return markdown;}},
-    documentTime:{getBoundingClientRect(){return {left:380};}},
-    getComputedStyle(){return {paddingLeft:'40px'};}
+    getComputedStyle(){return {paddingLeft:'40px',paddingRight:'40px'};}
   };
   vm.runInNewContext(fn[0]+'\nthis.limit=updateFilenameLimit;',ctx);
-  ctx.limit();assert.equal(slot.style.maxWidth,'230px');
-  ctx.documentTime.getBoundingClientRect=()=>({left:120});
-  ctx.limit();assert.equal(slot.style.maxWidth,'0px');
+  ctx.limit();assert.equal(group.style.maxWidth,'520px');
+  header.getBoundingClientRect=()=>({left:70,right:670});
+  ctx.limit();assert.equal(group.style.maxWidth,'460px');
+  header.getBoundingClientRect=()=>({left:-200,right:200});
+  ctx.limit();assert.equal(group.style.maxWidth,'0px');
   assert.match(html,/window\.addEventListener\('resize', updateFilenameLimit\)/);
   assert.match(html,/function applySplit\(\) \{[\s\S]*?updateFilenameLimit\(\);/);
 });
@@ -1329,22 +1315,33 @@ test('outline targets map through actual folded placeholders, including IDs cros
   assert.equal(ctx.position(rawStart),rawStart);
 });
 
-test('editor Ctrl/Cmd+S downloads expanded Markdown, keeping localStorage autosave unchanged', () => {
-  const fn=html.match(/function handleEditorKeydown\(e\) \{[\s\S]*?\n    \}/);
-  assert.ok(fn);
-  const ctx={exports:0,saves:0,
-    exportFile(){ctx.exports++;},saveToLocal(){ctx.saves++;}};
-  vm.runInNewContext(fn[0]+'\nthis.keydown=handleEditorKeydown;',ctx);
-  for(const controls of [{ctrlKey:true,metaKey:false},{ctrlKey:false,metaKey:true}]){
+
+test('editor Ctrl/Cmd+S triggers download only with editor focus and does not affect other shortcuts', () => {
+  const reg=html.match(/\/\/ Listen at document level[\s\S]*?document\.addEventListener\('keydown', e => \{[\s\S]*?\n    \}\);/);
+  assert.ok(reg);
+  const editor={},outside={},handlers={},doc={
+    activeElement:editor,addEventListener(name,fn){handlers[name]=fn;}
+  };
+  const ctx={editor,document:doc,downloads:0,exportFile(){ctx.downloads++;}};
+  vm.runInNewContext(reg[0],ctx);
+  for(const keys of [{ctrlKey:true,metaKey:false,key:'s'},{ctrlKey:false,metaKey:true,key:'s'},{ctrlKey:true,metaKey:false,key:'S'}]) {
     let prevented=false;
-    ctx.keydown({...controls,key:'s',shiftKey:false,preventDefault(){prevented=true;}});
+    handlers.keydown({...keys,target:editor,preventDefault(){prevented=true;}});
     assert.equal(prevented,true);
   }
-  assert.equal(ctx.exports,2);
-  assert.equal(ctx.saves,0);
+  assert.equal(ctx.downloads,3);
+  doc.activeElement=outside;
+  let prevented=false;
+  handlers.keydown({ctrlKey:true,metaKey:false,key:'s',target:outside,preventDefault(){prevented=true;}});
+  assert.equal(prevented,false);
+  assert.equal(ctx.downloads,3);
+  handlers.keydown({ctrlKey:true,metaKey:false,key:'s',target:editor,preventDefault(){}});
+  assert.equal(ctx.downloads,4);
+  const original=html.match(/function handleEditorKeydown\(e\) \{[\s\S]*?\n    \}/);
+  assert.ok(original);
+  assert.doesNotMatch(original[0],/e\.key === 's'|exportFile\(/);
   assert.match(html,/editor\.addEventListener\('keydown', handleEditorKeydown\)/);
   assert.match(html,/function exportFile\(\) \{\s*const blob = new Blob\(\[getMarkdown\(\)\]/);
   assert.match(html,/function autoSave\(\) \{[\s\S]*?localStorage\.setItem\(STORAGE_KEY, getMarkdown\(\)\)/);
-  // The browser owns Save As / same-name conflict decisions; no filesystem overwrite API.
-  assert.doesNotMatch(fn[0],/showSaveFilePicker|createWritable|writeFile/);
 });
+
