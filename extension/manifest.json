@@ -30,7 +30,8 @@
     }
   ],
   "action": {
-    "default_title": "Lengyi Markdown: open markdown-editor.html and select Web to MD"
+    "default_title": "Lengyi Markdown: open markdown-editor.html and select Web to MD",
+    "default_popup": "popup.html"
   },
   "minimum_chrome_version": "114"
 }
