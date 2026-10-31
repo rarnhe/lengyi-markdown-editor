@@ -1,0 +1,13 @@
+{
+  "name": "lengyi-markdown-editor-wsh-build",
+  "private": true,
+  "description": "Build-time only TypeScript and esbuild toolchain for Windows Script Host proxy",
+  "scripts": {
+    "build:wsh": "node scripts/build-wsh.mjs",
+    "test:wsh": "node tests/test_wsh.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12",
+    "typescript": "5.9.3"
+  }
+}
