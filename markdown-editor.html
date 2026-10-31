@@ -2112,15 +2112,19 @@
     }
 
     // 与 textarea 的真实内容视口同宽，消除滚动条占宽带来的长文档换行累积误差。
-    // Native textarea wrapping is essential for long unbroken Base64 data URLs:
-    // a div mirror can accumulate line-height/wrap differences for each image.
+    // With expanded Base64, measuring only the prefix accumulates wrapping
+    // differences from every preceding image. Measure the shorter side of the
+    // heading using the same native textarea layout as the live editor.
     function measureExpandedTextareaHeadingTop(ta) {
       const style = getComputedStyle(ta);
+      const fromEnd = ta.selectionStart > ta.value.length / 2;
       const mirror = ta.cloneNode(false);
       mirror.removeAttribute('id');
       mirror.setAttribute('aria-hidden', 'true');
       mirror.tabIndex = -1;
-      mirror.value = ta.value.slice(0, ta.selectionStart) + 'X';
+      mirror.value = fromEnd
+        ? ta.value.slice(ta.selectionStart)
+        : ta.value.slice(0, ta.selectionStart) + 'X';
       ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'lineHeight',
        'letterSpacing', 'wordSpacing', 'tabSize', 'padding',
        'textAlign', 'textIndent', 'direction', 'whiteSpace', 'wordBreak',
@@ -2136,12 +2140,15 @@
       mirror.style.border = 'none';
       mirror.style.overflow = 'hidden';
       mirror.style.resize = 'none';
-      document.body.appendChild(mirror);
-      const top = mirror.scrollHeight -
-        (parseFloat(style.paddingTop) || 0) -
-        (parseFloat(style.paddingBottom) || 0) -
-        (parseFloat(style.lineHeight) || 0);
-      document.body.removeChild(mirror);
+      // Keep it inside .editor-pane to retain the original textarea CSS.
+      ta.parentElement.appendChild(mirror);
+      const top = fromEnd
+        ? ta.scrollHeight - mirror.scrollHeight
+        : mirror.scrollHeight -
+          (parseFloat(style.paddingTop) || 0) -
+          (parseFloat(style.paddingBottom) || 0) -
+          (parseFloat(style.lineHeight) || 0);
+      mirror.remove();
       return Math.max(0, top);
     }
 

@@ -1206,48 +1206,96 @@ test('Enter or blur exports a new filename once; Escape and unchanged name do no
 });
 
 
-test('expanded Base64 uses native textarea wrapping; folded mode retains its accurate mirror', () => {
+test('expanded Base64 uses shorter textarea segment; folded mode stays unchanged', () => {
   const expanded=html.match(/function measureExpandedTextareaHeadingTop\(ta\) \{[\s\S]*?\n    \}/);
   const dispatch=html.match(/function measureTextareaHeadingTop\(ta\) \{[\s\S]*?\n    \}/);
   assert.ok(expanded && dispatch);
   assert.match(expanded[0],/ta\.cloneNode\(false\)/);
   assert.match(expanded[0],/ta\.clientWidth \+ 'px'/);
-  assert.match(expanded[0],/mirror\.value = ta\.value\.slice\(0, ta\.selectionStart\) \+ 'X'/);
+  assert.match(expanded[0],/ta\.scrollHeight - mirror\.scrollHeight/);
+  assert.match(expanded[0],/ta\.parentElement\.appendChild\(mirror\)/);
   assert.match(dispatch[0],/if \(!imageDataCollapsed\) return measureExpandedTextareaHeadingTop\(ta\)/);
+
   const style={
     fontFamily:'Arial',fontSize:'16px',lineHeight:'28.8px',
     paddingTop:'28px',paddingBottom:'28px',padding:'28px 32px',
     whiteSpace:'pre-wrap',wordBreak:'break-all'
   };
-  let lastMirror;
+  const source='intro\n'+Array.from({length:14},(_,i)=>
+    '![img'+i+'](data:image/png;base64,'+'Q'.repeat(10000)+')\n').join('')+
+    '## Heading After 14 Images\nfooter';
+  const mirrors=[];
+  let attached=0;
+  const parent={appendChild(m){attached++;mirrors.push(m);}};
   const ta={
-    value:'intro\n'+'![img](data:image/png;base64,'+'Q'.repeat(30000)+')\n## Last',
-    clientWidth:441,selectionStart:0,
+    value:source,clientWidth:441,scrollHeight:400000,
+    selectionStart:source.indexOf('## Heading'),
+    parentElement:parent,
     cloneNode(){
-      const x={
+      return {
         value:'',style:{},removeAttribute(){},setAttribute(){},tabIndex:0,
-        scrollHeight:3000
+        scrollHeight:114,
+        remove(){attached--;}
       };
-      lastMirror=x;return x;
     }
   };
-  ta.selectionStart=ta.value.indexOf('## Last');
-  const ctx={imageDataCollapsed:false,document:{body:{appendChild(){},removeChild(){}}},
-    getComputedStyle(){return style;}};
+  const ctx={
+    imageDataCollapsed:false,document:{body:{appendChild(){},removeChild(){}}},
+    getComputedStyle(){return style;}
+  };
   vm.runInNewContext(expanded[0]+'\n'+dispatch[0]+'\nthis.measure=measureTextareaHeadingTop;',ctx);
+  // Many expanded Base64 images precede the heading: measure the short suffix.
+  assert.equal(ctx.measure(ta),399886);
+  assert.equal(attached,0);
+  assert.equal(mirrors[0].value,source.slice(ta.selectionStart));
+  assert.equal(mirrors[0].style.width,'441px');
+  assert.equal(mirrors[0].style.overflow,'hidden');
+  assert.equal(mirrors[0].style.height,'0');
+
+  // A heading before the images keeps the short prefix calculation.
+  ta.selectionStart=source.indexOf('![img0]');
+  ta.cloneNode=()=>({
+    value:'',style:{},removeAttribute(){},setAttribute(){},tabIndex:0,
+    scrollHeight:3000,remove(){attached--;}
+  });
   assert.equal(ctx.measure(ta),2915.2);
-  assert.equal(lastMirror.style.width,'441px');
-  assert.equal(lastMirror.style.whiteSpace,'pre-wrap');
-  assert.equal(lastMirror.style.wordBreak,'break-all');
-  assert.equal(lastMirror.value,ta.value.slice(0,ta.selectionStart)+'X');
-  assert.equal(lastMirror.style.height,'0');
-  assert.equal(lastMirror.style.overflow,'hidden');
-  // Restoring folded state goes to the previous mirror, not the native clone.
+  assert.equal(mirrors[1].value,source.slice(0,ta.selectionStart)+'X');
+  assert.equal(attached,0);
+
+  // Folded mode still follows the original div-mirror path.
   ctx.imageDataCollapsed=true;
   const marker={offsetTop:172};
   const div={style:{},appendChild(){},textContent:''};
   ctx.document.createElement=type=>type==='span'?marker:div;
+  ctx.document.body={appendChild(){},removeChild(){}};
   assert.equal(ctx.measure(ta),144);
+});
+
+test('expanded-mode measurement ignores the quantity of Base64 data before a late heading', () => {
+  const fn=html.match(/function measureExpandedTextareaHeadingTop\(ta\) \{[\s\S]*?\n    \}/);
+  assert.ok(fn);
+  const ctx={getComputedStyle(){return {paddingTop:'28px',paddingBottom:'28px',lineHeight:'28.8px'};}};
+  vm.runInNewContext(fn[0]+'\nthis.measure=measureExpandedTextareaHeadingTop;',ctx);
+  for(const n of [1,5,10,20]){
+    const prefix=Array.from({length:n},(_,i)=>
+      '![img'+i+'](data:image/png;base64,'+'Q'.repeat(12000)+')\n').join('');
+    const tail='## Final\na short paragraph';
+    const source=prefix+tail;
+    const cloneWidths=[];
+    const ta={
+      value:source,selectionStart:prefix.length,clientWidth:398,
+      scrollHeight:777000+n*28000,
+      parentElement:{appendChild(x){cloneWidths.push(x);}},
+      cloneNode(){
+        return {value:'',style:{},scrollHeight:115,
+          removeAttribute(){},setAttribute(){},remove(){}};
+      }
+    };
+    const top=ctx.measure(ta);
+    assert.equal(top,ta.scrollHeight-115);
+    assert.equal(cloneWidths.length,1);
+    assert.equal(cloneWidths[0].value,tail);
+  }
 });
 
 test('outline targets map through actual folded placeholders, including IDs crossing 9 to 10', () => {
