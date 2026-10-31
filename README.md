@@ -179,6 +179,26 @@ For JavaScript-rendered pages, select **Render with Edge** as well. Dynamic mode
 requires a separately installed `msedgedriver.exe` matching the local Edge version,
 available on PATH or via `MD_EDITOR_WEBDRIVER`. The browser uses a dedicated profile.
 
+### VPN / WinHTTP outbound proxy
+
+WinHTTP may not use the same HTTP proxy as Edge/Chrome. If static fetching fails
+to connect, first confirm the actual **HTTP/Mixed** proxy port of the VPN
+(example 7890 is not a default requirement):
+
+```powershell
+curl.exe -I --proxy http://127.0.0.1:7890 https://mp.weixin.qq.com/
+$env:MD_EDITOR_HTTP_PROXY = "http://127.0.0.1:7890"
+cscript //nologo .\dist\web-to-md.js --once "https://mp.weixin.qq.com/" static
+cscript //nologo .\dist\web-to-md.js --serve
+```
+
+Only local HTTP/Mixed proxy endpoints (`127.0.0.1:port` or `localhost:port`,
+optionally prefixed with `http://`) are accepted. SOCKS5/authenticated/remote
+proxies are not supported. Unset means the existing WinHTTP configuration remains
+unchanged. Port 8765 is the **editor's inbound API**, not the VPN outbound proxy.
+Do not disable TLS certificate checks to work around SSL verification errors.
+
+
 The loopback HTTP listener uses Windows PowerShell/.NET HttpListener. If Windows
 reports an access-denied URL-ACL error, reserve the loopback prefix once from an
 elevated CMD for the current account:
