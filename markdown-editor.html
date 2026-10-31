@@ -143,24 +143,16 @@
     #more-menu > .dropdown > button {
       justify-content: flex-start; text-align: left; gap: 8px;
     }
-    #more-menu > .dropdown > button .language-overflow-chevron,
     #more-menu > .dropdown > button .view-overflow-chevron { margin-left: auto; }
     #more-menu > #view-dropdown > .dropdown-menu,
     #more-menu > #export-dropdown > .dropdown-menu {
       top: 0; left: auto; right: calc(100% + 6px); margin-top: 0;
     }
     #toolbar-utilities > button,
-    #toolbar-utilities > label,
-    #toolbar-utilities > #lang-dropdown > button { display: inline-flex; }
-    #toolbar-utilities .language-overflow-chevron,
+    #toolbar-utilities > label { display: inline-flex; }
     #toolbar-utilities .view-overflow-chevron { display: none; }
-    #more-menu .language-inline-chevron,
     #more-menu .view-inline-chevron { display: none; }
-    #more-menu .language-overflow-chevron,
     #more-menu .view-overflow-chevron { display: inline; }
-    /* An inline language menu next to ⋮ must open inward, not off-screen. */
-    #toolbar-utilities #lang-menu { left: auto; right: 0; top: 100%; margin-top: 8px; }
-    #more-menu #lang-menu { left: auto; top: 0; right: calc(100% + 6px); margin-top: 0; }
     /* Only when every secondary action is tucked away, compress formatting labels. */
     .editor-toolbar.format-compact .format-group > button span { display: none; }
     .editor-toolbar.format-compact .format-group > button span[data-i18n="codeBlock"] { display: inline; }
@@ -589,6 +581,17 @@
     .statusbar .save-hint { color: var(--accent); opacity: 0; transition: opacity .3s ease; font-weight: 500; }
     .statusbar .save-hint.show { opacity: 1; }
     .statusbar #status-right { opacity: 0.7; }
+    .status-left { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    #preview-progress { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    #lang-dropdown > button {
+      font: inherit; color: inherit; background: transparent; border: 0;
+      padding: 0; cursor: pointer;
+    }
+    #lang-dropdown > button:hover { color: var(--accent); }
+    #lang-menu {
+      top: auto; bottom: 100%; left: 0; margin: 0 0 8px;
+      max-height: min(60vh, 360px); overflow-y: auto;
+    }
     /* 模态框 */
     .modal-overlay {
       position: fixed;
@@ -1176,6 +1179,7 @@
             <div class="dropdown-item" onclick="openExportImageModal(); closeExportMenu();" data-i18n="exportImage">导出图片 (.png)</div>
           </div>
         </div>
+        <button type="button" id="web-to-md-action" onclick="openUrlModal()" data-i18n-title="urlTitle"><svg class="icon"><use href="#icon-globe"></use></svg> <span data-i18n="webToMd">网页转MD</span></button>
         <div class="dropdown" id="view-dropdown">
           <button onclick="toggleViewMenu()" data-i18n-title="view" title="视图布局"><svg class="icon"><use href="#icon-layout"></use></svg> <span data-i18n="view">视图</span> <svg class="icon icon-sm view-inline-chevron"><use href="#icon-chevron-down"></use></svg><svg class="icon icon-sm view-overflow-chevron"><use href="#icon-chevron-left"></use></svg></button>
           <div class="dropdown-menu" id="view-menu">
@@ -1183,27 +1187,8 @@
             <div class="dropdown-item" onclick="toggleFullscreen(); closeViewMenu();" data-i18n="systemFullscreen">系统全屏</div>
           </div>
         </div>
-        <button type="button" id="theme-toggle" onclick="toggleTheme()" title="夜间"><svg class="icon"><use href="#icon-moon"></use></svg> <span id="theme-label">夜间</span></button>
-
-        <button type="button" id="web-to-md-action" onclick="openUrlModal()" data-i18n-title="urlTitle"><svg class="icon"><use href="#icon-globe"></use></svg> <span data-i18n="webToMd">网页转MD</span></button>
-            <div class="dropdown submenu" id="lang-dropdown">
-              <button type="button" class="dropdown-item" onclick="toggleLangMenu()" data-i18n-title="langLabel"><svg class="icon"><use href="#icon-globe"></use></svg><span data-i18n="langLabel">语言</span><svg class="icon icon-sm language-inline-chevron"><use href="#icon-chevron-down"></use></svg><svg class="icon icon-sm language-overflow-chevron"><use href="#icon-chevron-left"></use></svg></button>
-          <div class="dropdown-menu" id="lang-menu">
-            <div class="dropdown-item" onclick="setLanguage('zh-CN'); closeLangMenu(); closeMoreMenu();">简体中文</div>
-            <div class="dropdown-item" onclick="setLanguage('zh-TW'); closeLangMenu(); closeMoreMenu();">繁體中文</div>
-            <div class="dropdown-item" onclick="setLanguage('en'); closeLangMenu(); closeMoreMenu();">English</div>
-            <div class="dropdown-item" onclick="setLanguage('ja'); closeLangMenu(); closeMoreMenu();">日本語</div>
-            <div class="dropdown-item" onclick="setLanguage('ko'); closeLangMenu(); closeMoreMenu();">한국어</div>
-            <div class="dropdown-item" onclick="setLanguage('es'); closeLangMenu(); closeMoreMenu();">Español</div>
-            <div class="dropdown-item" onclick="setLanguage('fr'); closeLangMenu(); closeMoreMenu();">Français</div>
-            <div class="dropdown-item" onclick="setLanguage('de'); closeLangMenu(); closeMoreMenu();">Deutsch</div>
-            <div class="dropdown-item" onclick="setLanguage('ru'); closeLangMenu(); closeMoreMenu();">Русский</div>
-            <div class="dropdown-item" onclick="setLanguage('pt'); closeLangMenu(); closeMoreMenu();">Português</div>
-          </div>
-            </div>
-
-        <button type="button" id="clear-action" onclick="clearDoc()" data-i18n-title="clear"><svg class="icon"><use href="#icon-trash"></use></svg> <span data-i18n="clear">清空</span></button>
         <button type="button" id="help-action" onclick="openHelp()" data-i18n-title="helpTitle"><svg class="icon"><use href="#icon-help"></use></svg> <span data-i18n="help">帮助</span></button>
+        <button type="button" id="theme-toggle" onclick="toggleTheme()" title="夜间"><svg class="icon"><use href="#icon-moon"></use></svg> <span id="theme-label">夜间</span></button>
       </div>
       <div class="more-actions" id="more-actions" hidden>
         <div class="dropdown" id="more-dropdown">
@@ -1229,7 +1214,6 @@
         <div class="pane-header">
           <div class="preview-title-group">
             <div class="filename-slot"><input type="text" id="filename" value="未命名文档.md" data-i18n-title="filenameTitle" title="文件名" aria-label="文件名"></div>
-            <span id="word-count">0 字</span>
           </div>
         </div>
         <div class="preview-content" id="preview"></div>
@@ -1249,7 +1233,25 @@
     </div>
 
     <div class="statusbar">
-      <span id="status-left">自动保存已启用</span>
+      <div class="status-left" id="status-left">
+        <span id="preview-progress">100%</span>
+        <span id="word-count">0 字</span>
+        <div class="dropdown" id="lang-dropdown">
+          <button type="button" id="lang-trigger" onclick="toggleLangMenu()" data-i18n-title="langLabel" title="语言" aria-haspopup="true" aria-expanded="false"><span id="lang-label">中文</span></button>
+          <div class="dropdown-menu" id="lang-menu">
+            <div class="dropdown-item" onclick="setLanguage('zh-CN'); closeLangMenu();">简体中文</div>
+            <div class="dropdown-item" onclick="setLanguage('zh-TW'); closeLangMenu();">繁體中文</div>
+            <div class="dropdown-item" onclick="setLanguage('en'); closeLangMenu();">English</div>
+            <div class="dropdown-item" onclick="setLanguage('ja'); closeLangMenu();">日本語</div>
+            <div class="dropdown-item" onclick="setLanguage('ko'); closeLangMenu();">한국어</div>
+            <div class="dropdown-item" onclick="setLanguage('es'); closeLangMenu();">Español</div>
+            <div class="dropdown-item" onclick="setLanguage('fr'); closeLangMenu();">Français</div>
+            <div class="dropdown-item" onclick="setLanguage('de'); closeLangMenu();">Deutsch</div>
+            <div class="dropdown-item" onclick="setLanguage('ru'); closeLangMenu();">Русский</div>
+            <div class="dropdown-item" onclick="setLanguage('pt'); closeLangMenu();">Português</div>
+          </div>
+        </div>
+      </div>
       <span class="save-hint" id="save-hint">✓ 已保存</span>
       <span id="status-right">Ctrl+S 下载 Markdown · Ctrl+B 加粗 · Ctrl+I 斜体 · Ctrl+U 下划线 · Ctrl+Z 撤销 · Ctrl+Y 重做</span>
     </div>
@@ -1496,7 +1498,6 @@
     let committedFilename = filenameInput.value;
     const htmlOpenedAt = new Date();
     let markdownImportedAt = null;
-    let lastSavedAt = null;
     function formatDocumentTime(date) {
       const pad = value => String(value).padStart(2, '0');
       return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) +
@@ -1504,11 +1505,6 @@
     }
     function setDocumentImportTime(isMarkdown) {
       markdownImportedAt = isMarkdown ? new Date() : null;
-      lastSavedAt = null;
-      syncDocumentTitle();
-    }
-    function markDocumentSaved() {
-      lastSavedAt = new Date();
       syncDocumentTitle();
     }
     // Size the editable filename to its measured text instead of a fixed box.
@@ -1570,8 +1566,8 @@
     filenameInput.addEventListener('blur', commitFilenameChange);
 
     function syncDocumentTitle() {
-      const time = lastSavedAt || markdownImportedAt || htmlOpenedAt;
-      const label = t(lastSavedAt ? 'saveTime' : 'openTime', formatDocumentTime(time));
+      const time = markdownImportedAt || htmlOpenedAt;
+      const label = t(markdownImportedAt ? 'importTime' : 'openTime', formatDocumentTime(time));
       document.title = (filenameInput.value.trim() || t('filenameDefault')) + '-' + label;
     }
     const wordCount = document.getElementById('word-count');
@@ -1721,6 +1717,11 @@
     // Base64 folding END
 
     let currentLang = 'zh-CN';
+    const languageNames = {
+      'zh-CN': '中文', 'zh-TW': '繁體中文', en: 'English', ja: '日本語',
+      ko: '한국어', es: 'Español', fr: 'Français', de: 'Deutsch',
+      ru: 'Русский', pt: 'Português'
+    };
 
     function t(key, ...args) {
       const dict = i18n[currentLang] || i18n['zh-CN'];
@@ -1783,15 +1784,16 @@
       const statusLeft = document.getElementById('status-left');
       const statusRight = document.getElementById('status-right');
       const saveHint = document.getElementById('save-hint');
-      if (statusLeft) statusLeft.textContent = t('autosaveEnabled');
+      const langLabel = document.getElementById('lang-label');
+      if (langLabel) langLabel.textContent = languageNames[currentLang] || languageNames['zh-CN'];
       if (statusRight) statusRight.textContent = t('statusShortcuts');
       if (saveHint) saveHint.textContent = '✓ ' + t('saved');
     }
 
     // Measure the real toolbar's rendered content. Keep the formatting group and ⋮
     // on a single row, moving rightmost controls one at a time, only when necessary.
-    const toolbarActionIds = ['import-action', 'export-dropdown', 'view-dropdown',
-      'theme-toggle', 'web-to-md-action', 'lang-dropdown', 'clear-action', 'help-action'];
+    const toolbarActionIds = ['import-action', 'export-dropdown', 'web-to-md-action',
+      'view-dropdown', 'help-action', 'theme-toggle'];
     let toolbarLayoutBusy = false;
     function applyToolbarOverflow() {
       if (toolbarLayoutBusy) return;
@@ -1838,21 +1840,21 @@
       const menu = document.getElementById('more-menu');
       const opened = menu.classList.toggle('show');
       document.getElementById('more-toggle').setAttribute('aria-expanded', String(opened));
-      if (!opened) closeLangMenu();
     }
 
     function closeMoreMenu() {
       document.getElementById('more-menu').classList.remove('show');
       document.getElementById('more-toggle').setAttribute('aria-expanded', 'false');
-      closeLangMenu();
     }
 
     function toggleLangMenu() {
-      document.getElementById('lang-menu').classList.toggle('show');
+      const opened = document.getElementById('lang-menu').classList.toggle('show');
+      document.getElementById('lang-trigger').setAttribute('aria-expanded', String(opened));
     }
 
     function closeLangMenu() {
       document.getElementById('lang-menu').classList.remove('show');
+      document.getElementById('lang-trigger').setAttribute('aria-expanded', 'false');
     }
     let fetchedHtml = '';
     let editorCollapsed = false;
@@ -1972,6 +1974,17 @@
       return Math.max(0, pane.scrollHeight - pane.clientHeight);
     }
 
+    // How far the visible bottom of the rendered preview has reached.
+    function updatePreviewProgress() {
+      const height = preview.scrollHeight;
+      const percent = height <= 0 ? 100 : Math.max(0, Math.min(100,
+        Math.round((preview.scrollTop + preview.clientHeight) / height * 100)));
+      document.getElementById('preview-progress').textContent = percent + '%';
+    }
+    const previewBodyObserver = typeof ResizeObserver === 'undefined'
+      ? null : new ResizeObserver(updatePreviewProgress);
+    window.addEventListener('resize', updatePreviewProgress);
+
     function directionalScrollMovement(delta, sourceBefore, sourceMax, otherBefore, otherMax) {
       if (!delta) return 0;
       const down = delta > 0;
@@ -2012,7 +2025,10 @@
     observedScrollTop.set(editor, editor.scrollTop);
     observedScrollTop.set(preview, preview.scrollTop);
     editor.addEventListener('scroll', () => trackPaneScroll(editor, preview), { passive: true });
-    preview.addEventListener('scroll', () => trackPaneScroll(preview, editor), { passive: true });
+    preview.addEventListener('scroll', () => {
+      trackPaneScroll(preview, editor);
+      updatePreviewProgress();
+    }, { passive: true });
 
     // 大纲：从 Markdown 源码提取标题（跳过代码块内的内容）
     let outlineVisible = true;
@@ -2442,6 +2458,11 @@
       }
 
       preview.innerHTML = '<div class="markdown-body">' + html + '</div>';
+      if (previewBodyObserver) {
+        previewBodyObserver.disconnect();
+        previewBodyObserver.observe(preview);
+        previewBodyObserver.observe(preview.querySelector('.markdown-body'));
+      }
       // The existing Marked renderer supplies language-* classes for fenced code.
       // Annotate only the preview; unlabelled blocks keep an empty top-right.
       preview.querySelectorAll('pre > code[class*="language-"]').forEach(code => {
@@ -2465,6 +2486,7 @@
 
       renderMermaidBlocks();
       renderOutline();
+      updatePreviewProgress();
     }
 
     function protectMath(text) {
@@ -2536,7 +2558,6 @@
       saveTimer = setTimeout(() => {
         localStorage.setItem(STORAGE_KEY, getMarkdown());
         localStorage.setItem(FILENAME_KEY, filenameInput.value);
-        markDocumentSaved();
         showSaveHint();
       }, 500);
     }
@@ -2551,7 +2572,6 @@
     function saveToLocal() {
       localStorage.setItem(STORAGE_KEY, getMarkdown());
       localStorage.setItem(FILENAME_KEY, filenameInput.value);
-      markDocumentSaved();
       showSaveHint();
       showToast(t('toastSaved'));
     }
@@ -2572,7 +2592,6 @@
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      markDocumentSaved();
       showToast(t('toastExported'));
     }
 
@@ -2945,17 +2964,6 @@ ${'</scr' + 'ipt>'}
         });
       }
       updatePreview();
-    }
-
-    // 清空文档
-    function clearDoc() {
-      if (confirm(t('confirmClear'))) {
-        setDocumentImportTime(false);
-        setMarkdown('');
-        updatePreview();
-        updateCount();
-        saveToLocal();
-      }
     }
 
     // 历史记录
@@ -3912,8 +3920,6 @@ ${'</scr' + 'ipt>'}
       }
       const moreDropdown = document.getElementById('more-dropdown');
       const moreMenu = document.getElementById('more-menu');
-      // A click on the inline Language trigger is outside ⋮, but must not
-      // immediately close Language through closeMoreMenu() when ⋮ is closed.
       if (moreDropdown && moreMenu.classList.contains('show') &&
           !moreDropdown.contains(e.target)) {
         closeMoreMenu();
