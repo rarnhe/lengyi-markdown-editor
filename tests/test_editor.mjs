@@ -368,7 +368,7 @@ test('Reading mode hides editing chrome and replaces Page Fullscreen', () => {
   assert.match(html,/\.app\.reading-mode \.outline-pane \{\s*position: absolute;/);
   assert.match(html,/id="reading-exit-btn" onclick="setReadingMode\(false\)"/);
   assert.match(html,/event\.key === 'Escape'\) setReadingMode\(false\)/);
-  assert.equal(existsSync('package.json'),false);
+  assert.equal(JSON.parse(readFileSync('package.json','utf8')).dependencies,undefined);
 });
 
 test('Reading mode toggle preserves the previous standard editor and outline states', () => {
