@@ -1325,8 +1325,9 @@
         <p><b>网页转 Markdown</b></p>
         <ul>
           <li>点「网页转 MD」输入网页链接，可自动提取正文。</li>
-          <li>知乎、微信公众号等建议勾选「使用本地代理」，先运行同目录的 <code>web-to-md-proxy.py</code>。</li>
-          <li>需要登录的页面，可运行 <code>python web-to-md-proxy.py --bookmark</code> 生成书签小工具提取。</li>
+          <li>「网页转 MD」使用 Chrome/Edge 扩展提取网页，不需要 Python、Node.js 或本地代理。</li>
+          <li>在浏览器扩展管理页加载本仓库 extension 文件夹；如果直接双击打开 HTML，还须启用「允许访问文件网址」。</li>
+          <li>选择「浏览器动态渲染」可打开网站并执行页面 JavaScript；需要登录时在新标签页完成登录后重试。</li>
         </ul>
 
         <p><b>常用快捷键</b>：<code>Ctrl+S</code> 下载 Markdown，<code>Ctrl+Z</code> 撤销，<code>Ctrl+Y / Ctrl+Shift+Z</code> 重做，<code>Ctrl+B</code> 加粗，<code>Ctrl+I</code> 斜体，<code>Ctrl+U</code> 下划线，<code>Ctrl+K</code> 链接，<code>Ctrl+Shift+K</code> 图片，<code>Ctrl+F</code> 查找，<code>Ctrl+H</code> 替换，<code>Tab</code> 插入 4 空格缩进。</p>
@@ -1349,11 +1350,12 @@
       <div class="modal-body">
         <label for="url-input" data-i18n="urlLabel">网页地址</label>
         <input type="url" id="url-input" data-i18n-placeholder="urlPlaceholder" placeholder="https://example.com/article">
-        <div style="display:flex;align-items:center;gap:8px;margin:8px 0 10px;">
-          <input type="checkbox" id="use-local-proxy" style="width:auto;margin:0;" onchange="toggleProxyInput()">
-          <label for="use-local-proxy" style="display:inline;margin:0;font-weight:normal;cursor:pointer;" data-i18n="useProxy">使用本地代理（推荐，可解决知乎/微信公众号）</label>
-        </div>
-        <input type="url" id="proxy-url" value="http://localhost:8765/fetch" data-i18n-placeholder="proxyPlaceholder" placeholder="本地代理地址" style="display:none;margin-bottom:10px;">
+        <label for="web-fetch-mode" data-i18n="extensionModeLabel">网页抓取方式</label>
+        <select id="web-fetch-mode" style="width:100%;margin-bottom:8px;">
+          <option value="browser" data-i18n="extensionModeBrowser">浏览器动态渲染（推荐，可处理登录网页）</option>
+          <option value="static" data-i18n="extensionModeStatic">直接获取 HTML（仅静态页面）</option>
+        </select>
+        <p style="margin:0 0 10px;font-size:12px;color:var(--text-muted);" data-i18n="extensionHint">需要先安装 Chrome/Edge 扩展；不需要本地 HTTP 服务。</p>
         <button onclick="fetchUrl()" class="primary" data-i18n="fetchBtn">尝试获取</button>
         <div id="url-status" style="margin-top:10px;font-size:13px;color:var(--text-muted);"></div>
         <div id="manual-area" style="display:none;margin-top:14px;">
@@ -3490,8 +3492,7 @@ ${'</scr' + 'ipt>'}
       document.getElementById('url-status').style.color = 'var(--text-muted)';
       document.getElementById('manual-area').style.display = 'none';
       document.getElementById('manual-html').value = '';
-      document.getElementById('use-local-proxy').checked = false;
-      document.getElementById('proxy-url').style.display = 'none';
+      document.getElementById('web-fetch-mode').value = 'browser';
       fetchedHtml = '';
     }
     function closeUrlModal() {
@@ -3600,93 +3601,74 @@ ${'</scr' + 'ipt>'}
       status.textContent = count > 0 ? t('statusReplacedCount', count) : t('statusNoMatch');
     }
 
-    function toggleProxyInput() {
-      const checked = document.getElementById('use-local-proxy').checked;
-      document.getElementById('proxy-url').style.display = checked ? 'block' : 'none';
+    // The editor communicates with the browser extension using window.postMessage
+    // and the installed content-script bridge. No local server or public CORS proxy.
+    function extensionRequest(command, payload = {}, timeoutMs = 3000) {
+      const channel = 'lengyi-extension-v1';
+      const requestId = (crypto.randomUUID ? crypto.randomUUID() :
+        String(Date.now()) + '-' + Math.random().toString(36).slice(2));
+      return new Promise((resolve, reject) => {
+        const cleanup = () => {
+          clearTimeout(timer);
+          window.removeEventListener('message', onMessage);
+        };
+        const onMessage = event => {
+          const data = event.data;
+          if (event.source !== window || !data || data.channel !== channel ||
+              data.from !== 'extension' || data.requestId !== requestId) return;
+          cleanup();
+          if (data.success === false) reject(new Error(data.error || 'Browser extension failed'));
+          else resolve(data);
+        };
+        const timer = setTimeout(() => {
+          cleanup();
+          reject(new Error('EXTENSION_TIMEOUT'));
+        }, timeoutMs);
+        window.addEventListener('message', onMessage);
+        window.postMessage({channel,from:'editor',requestId,command,payload}, '*');
+      });
     }
 
-    // 尝试通过本地代理或公共 CORS 代理获取网页
     async function fetchUrl() {
-      const urlInput = document.getElementById('url-input');
+      const url = document.getElementById('url-input').value.trim();
       const status = document.getElementById('url-status');
       const manualArea = document.getElementById('manual-area');
-      const useLocalProxy = document.getElementById('use-local-proxy').checked;
-      const proxyUrlInput = document.getElementById('proxy-url');
-      const url = urlInput.value.trim();
-
+      const mode = document.getElementById('web-fetch-mode').value;
       if (!url) {
         status.textContent = t('urlStatusEmptyUrl');
         status.style.color = 'var(--danger)';
         return;
       }
-
+      try {
+        const parsed = new URL(url);
+        if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Only HTTP/HTTPS URLs are supported');
+      } catch (err) {
+        status.textContent = t('urlStatusExtensionFailed', err.message);
+        status.style.color = 'var(--danger)';
+        manualArea.style.display = 'block';
+        return;
+      }
+      fetchedHtml = '';
       status.textContent = t('urlStatusFetching');
       status.style.color = 'var(--text-muted)';
-      fetchedHtml = '';
-
-      // 优先使用本地代理（可绕过 CORS 和大部分反爬）
-      if (useLocalProxy) {
-        const proxyUrl = (proxyUrlInput.value.trim() || 'http://localhost:8765/fetch') + '?url=' + encodeURIComponent(url);
-        let data = null;
+      try {
         try {
-          const response = await fetch(proxyUrl);
-          if (!response.ok) throw new Error('Local proxy response not ok');
-          data = await response.json();
-          if (data.success === false) {
-            throw new Error(data.error || 'Unknown proxy error');
-          }
-          fetchedHtml = data.html || data.content || '';
-          if (!fetchedHtml) throw new Error('Local proxy returned empty content');
-          status.textContent = t('urlStatusLocalSuccess');
-          status.style.color = 'var(--accent)';
-          manualArea.style.display = 'none';
-          return;
+          await extensionRequest('PING', {}, 1800);
         } catch (err) {
-          const hint = data?.hint ? data.hint : '';
-          status.innerHTML = t('urlStatusLocalFailed', err.message) + (hint ? '<br><small>' + hint + '</small>' : '');
-          status.style.color = 'var(--danger)';
-          manualArea.style.display = 'block';
-          return;
+          throw new Error('EXTENSION_MISSING');
         }
+        const result = await extensionRequest('FETCH', {url,mode}, 55000);
+        fetchedHtml = result.html || '';
+        if (!fetchedHtml) throw new Error('Browser extension returned empty HTML');
+        status.textContent = t('urlStatusExtensionSuccess');
+        status.style.color = 'var(--accent)';
+        manualArea.style.display = 'none';
+      } catch (err) {
+        status.textContent = err.message === 'EXTENSION_MISSING' ?
+          t('urlStatusExtensionMissing') : t('urlStatusExtensionFailed', err.message);
+        status.style.color = 'var(--danger)';
+        manualArea.style.display = 'block';
       }
-
-      // 公共代理 fallback
-      const proxies = [
-        { url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url), type: 'text' },
-        { url: 'https://api.allorigins.win/get?url=' + encodeURIComponent(url), type: 'json', field: 'contents' },
-        { url: 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url), type: 'text' }
-      ];
-
-      let lastError = '';
-      for (const proxy of proxies) {
-        try {
-          const response = await fetch(proxy.url);
-          if (!response.ok) throw new Error('Proxy response not ok');
-          let text;
-          if (proxy.type === 'json') {
-            const data = await response.json();
-            text = data[proxy.field];
-            // allorigins 有时返回 base64
-            if (typeof text === 'string' && /^[A-Za-z0-9+/=]+$/.test(text) && text.length % 4 === 0) {
-              try { text = atob(text); } catch (e) {}
-            }
-          } else {
-            text = await response.text();
-          }
-          if (!text || text.length < 100) throw new Error('Content too short');
-          fetchedHtml = text;
-          status.textContent = t('urlStatusPublicSuccess');
-          status.style.color = 'var(--accent)';
-          manualArea.style.display = 'none';
-          return;
-        } catch (err) {
-          lastError = err.message;
-        }
-      }
-
-      status.textContent = t('urlStatusPublicFailed', lastError);
-      status.style.color = 'var(--danger)';
-      manualArea.style.display = 'block';
     }
 
     // 提取网页元信息
