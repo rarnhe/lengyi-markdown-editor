@@ -27,6 +27,7 @@ try {
   }
   check('Extension background syntax', ['--check', 'extension/background.js']);
   check('Extension content bridge syntax', ['--check', 'extension/editor-bridge.js']);
+  check('Extension popup diagnostics syntax', ['--check', 'extension/popup.js']);
   check('Extension runtime + isolation tests', ['--test', 'tests/test_extension.mjs']);
   check('Regression tests', ['--test', 'tests/test_editor.mjs']);
 } finally {
