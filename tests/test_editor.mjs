@@ -635,7 +635,7 @@ test('native scroll events mirror wheel and scrollbar dragging, without a feedba
   left.scrollTop=70;ctx.track(left,right);
   assert.equal(right.scrollTop,0);
   assert.match(html,/editor\.addEventListener\('scroll', \(\) => trackPaneScroll\(editor, preview\), \{ passive: true \}\)/);
-  assert.match(html,/preview\.addEventListener\('scroll', \(\) => trackPaneScroll\(preview, editor\), \{ passive: true \}\)/);
+  assert.match(html,/preview\.addEventListener\('scroll', \(\) => \{[\s\S]*?trackPaneScroll\(preview, editor\);[\s\S]*?updatePreviewProgress\(\);[\s\S]*?\}, \{ passive: true \}\)/);
   assert.doesNotMatch(html,/addEventListener\('wheel'/);
 });
 
@@ -819,7 +819,7 @@ test('cleaned help content and documentation reflect the current menu and wheel 
 });
 
 
-test('More menu toggles, closes on outside click, and cleans up language submenu', () => {
+test('More menu toggles independently of the footer language menu', () => {
   const start=html.match(/function toggleMoreMenu\(\) \{[\s\S]*?\n    \}/);
   const end=html.match(/function closeMoreMenu\(\) \{[\s\S]*?\n    \}/);
   assert.ok(start && end);
@@ -834,10 +834,10 @@ test('More menu toggles, closes on outside click, and cleans up language submenu
   vm.runInNewContext(start[0]+'\n'+end[0]+'\nthis.toggle=toggleMoreMenu;this.close=closeMoreMenu;',ctx);
   ctx.toggle();assert.equal(open.state,true);assert.equal(attrs['aria-expanded'],'true');
   ctx.toggle();assert.equal(open.state,false);assert.equal(attrs['aria-expanded'],'false');
-  assert.equal(ctx.closedLanguages,1);
+  assert.equal(ctx.closedLanguages,0);
   ctx.toggle();ctx.close();
   assert.equal(open.state,false);assert.equal(attrs['aria-expanded'],'false');
-  assert.equal(ctx.closedLanguages,2);
+  assert.equal(ctx.closedLanguages,0);
 });
 
 test('theme action swaps 夜间 and 日间 on click, language change and stored dark theme', () => {
@@ -1028,14 +1028,14 @@ test('View menu chevron points left in overflow while remaining down inline', ()
   assert.match(html,/#more-menu \.view-overflow-chevron \{ display: inline; \}/);
 });
 
-test('Export View and Language overflow triggers are left-aligned and keep menus', () => {
+test('Export and View overflow triggers are left-aligned and keep menus', () => {
   const css=[...html.matchAll(/#more-menu > \.dropdown > button \{([\s\S]*?)\}/g)];
   assert.ok(css.length);
   assert.match(css[css.length-1][1],/justify-content: flex-start; text-align: left;/);
   assert.doesNotMatch(css[css.length-1][1],/justify-content: space-between/);
   assert.match(html,/#more-menu > #view-dropdown > \.dropdown-menu/);
   assert.match(html,/#more-menu > #export-dropdown > \.dropdown-menu/);
-  assert.match(html,/#more-menu #lang-menu \{ left: auto; top: 0; right: calc\(100% \+ 6px\);/);
+  assert.doesNotMatch(html,/#more-menu #lang-menu/);
   assert.match(html,/id="export-dropdown"[\s\S]*?id="export-menu"/);
 });
 
