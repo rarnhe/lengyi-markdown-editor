@@ -193,6 +193,8 @@ Generate a browser bookmarklet (extract current rendered page text):
 cscript //nologo dist\web-to-md.js --bookmark
 ```
 
+**Security boundary:** this is a loopback-only tool for trusted URLs, not a hardened general-purpose proxy. Hostname resolution and WinHTTP automatic redirects are not yet fully protected against internal-network pivots; never expose port 8765 outside the local machine.
+
 ### Developer-only build (Node.js is NOT shipped/required at runtime)
 
 ```bash
