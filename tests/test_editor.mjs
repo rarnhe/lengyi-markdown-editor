@@ -459,45 +459,38 @@ test('preview header centers the title beside a blue word count', () => {
   assert.match(html, /\.app\.reading-mode \.preview-pane \.pane-header \{ display: none !important; \}/);
 });
 
-test('document timestamp shows HTML opening time, then successful Markdown import time', () => {
-  assert.match(html, /class="preview-title-group"[\s\S]*?<time id="document-time" aria-live="polite"><\/time>[\s\S]*?data-i18n="previewPaneTitle"/);
-  assert.match(html, /#document-time, \.preview-title-group #filename \{[^}]*border: none; background: transparent; padding: 0;/);
-  assert.match(html, /class="preview-title-group"[\s\S]*?class="filename-slot"[\s\S]*?id="filename"[\s\S]*?id="document-time"/);
-  assert.doesNotMatch(html, /class="editor-heading"[\s\S]*?id="filename"[\s\S]*?data-i18n="editorPaneTitle"/);
-  assert.doesNotMatch(html, /id="file-path"|filePathInput|setFilePath|FILE_PATH_KEY/);
-  const formatter=html.match(/function formatDocumentTime\(date\) \{[\s\S]*?\n    \}/);
-  const render=html.match(/function updateDocumentTime\(\) \{[\s\S]*?\n    \}/);
-  const setter=html.match(/function setDocumentImportTime\(isMarkdown\) \{[\s\S]*?\n    \}/);
-  assert.ok(formatter && render && setter);
-  const fakeDate=(year,month,day,hour,minute,second)=>({
-    getFullYear(){return year;},getMonth(){return month - 1;},
-    getDate(){return day;},getHours(){return hour;},
-    getMinutes(){return minute;},getSeconds(){return second;},
-    toISOString(){return year+'-ISO';}
+
+test('browser tab title shows opening time and updates to saved time', () => {
+  const format=html.match(/function formatDocumentTime\(date\) \{[\s\S]*?\n    \}/);
+  const openedFn=html.match(/function setDocumentImportTime\(isMarkdown\) \{[\s\S]*?\n    \}/);
+  const savedFn=html.match(/function markDocumentSaved\(\) \{[\s\S]*?\n    \}/);
+  const titleFn=html.match(/function syncDocumentTitle\(\) \{[\s\S]*?\n    \}/);
+  assert.ok(format&&openedFn&&savedFn&&titleFn);
+  const date=(h,m,s)=>({
+    getFullYear:()=>2026,getMonth:()=>9,getDate:()=>31,
+    getHours:()=>h,getMinutes:()=>m,getSeconds:()=>s
   });
-  const opened=fakeDate(2026,10,30,11,53,7);
-  const imported=fakeDate(2026,10,30,12,8,9);
-  const time={textContent:'',title:'',dateTime:''};
-  const ctx={
-    documentTime:time,htmlOpenedAt:opened,markdownImportedAt:null,
-    t:(key,value)=>key+':'+value,
-    Date:function(){return imported;}
+  const opened=date(9,5,7),imported=date(10,6,8),saved=date(11,7,9);
+  const queue=[imported,saved],ctx={
+    document:{title:''},filenameInput:{value:'report.md'},
+    htmlOpenedAt:opened,markdownImportedAt:null,lastSavedAt:null,
+    t:(k,v)=>k+':'+v,Date:function(){return queue.shift();}
   };
-  vm.runInNewContext(formatter[0]+'\n'+render[0]+'\n'+setter[0]+
-    '\nthis.update=updateDocumentTime;this.setImport=setDocumentImportTime;',ctx);
-  ctx.update();
-  assert.equal(time.textContent,'openTime:2026-10-30 11:53:07');
-  assert.equal(time.dateTime,'2026-ISO');
-  ctx.setImport(true);
-  assert.equal(time.textContent,'importTime:2026-10-30 12:08:09');
-  ctx.setImport(false);
-  assert.equal(time.textContent,'openTime:2026-10-30 11:53:07');
-  assert.match(html,/setDocumentImportTime\(\/\\\.\(md\|markdown\)\$\/i\.test\(file\.name\)\)/);
-  assert.match(html,/if \(confirm\(t\('confirmClear'\)\)\) \{\s*setDocumentImportTime\(false\)/);
-  assert.match(html,/function applyLanguage\(\) \{[\s\S]*?updateDocumentTime\(\);/);
-  assert.doesNotMatch(html,/localStorage\.setItem\(FILE_PATH_KEY/);
-  for (const key of ['openTime','importTime']) {
-    assert.equal((i18n.match(new RegExp('^    '+key+':','gm'))||[]).length,10,key);
+  vm.runInNewContext([format[0],openedFn[0],savedFn[0],titleFn[0],
+    'this.title=syncDocumentTitle;this.open=setDocumentImportTime;this.save=markDocumentSaved;'].join('\n'),ctx);
+  ctx.title();assert.equal(ctx.document.title,'report.md-openTime:2026-10-31 09:05:07');
+  ctx.open(true);assert.equal(ctx.document.title,'report.md-openTime:2026-10-31 10:06:08');
+  ctx.save();assert.equal(ctx.document.title,'report.md-saveTime:2026-10-31 11:07:09');
+  ctx.filenameInput.value='renamed.md';ctx.title();
+  assert.equal(ctx.document.title,'renamed.md-saveTime:2026-10-31 11:07:09');
+  ctx.open(false);assert.equal(ctx.document.title,'renamed.md-openTime:2026-10-31 09:05:07');
+  assert.match(html,/function autoSave\(\) \{[\s\S]*?markDocumentSaved\(\)/);
+  assert.match(html,/function saveToLocal\(\) \{[\s\S]*?markDocumentSaved\(\)/);
+  assert.match(html,/function exportFile\(\) \{[\s\S]*?markDocumentSaved\(\)/);
+  assert.doesNotMatch(html,/id="document-time"|function updateDocumentTime\(/);
+  assert.match(html,/setDocumentImportTime\(\/\.\(md\|markdown\)\$\/i\.test\(file\.name\)\)/);
+  for(const k of ['openTime','saveTime']) {
+    assert.equal((i18n.match(new RegExp('^    '+k+':','gm'))||[]).length,10,k);
   }
 });
 
@@ -1329,22 +1322,33 @@ test('outline targets map through actual folded placeholders, including IDs cros
   assert.equal(ctx.position(rawStart),rawStart);
 });
 
-test('editor Ctrl/Cmd+S downloads expanded Markdown, keeping localStorage autosave unchanged', () => {
-  const fn=html.match(/function handleEditorKeydown\(e\) \{[\s\S]*?\n    \}/);
-  assert.ok(fn);
-  const ctx={exports:0,saves:0,
-    exportFile(){ctx.exports++;},saveToLocal(){ctx.saves++;}};
-  vm.runInNewContext(fn[0]+'\nthis.keydown=handleEditorKeydown;',ctx);
-  for(const controls of [{ctrlKey:true,metaKey:false},{ctrlKey:false,metaKey:true}]){
+
+test('editor Ctrl/Cmd+S triggers download only with editor focus and does not affect other shortcuts', () => {
+  const reg=html.match(/\/\/ Listen at document level[\s\S]*?document\.addEventListener\('keydown', e => \{[\s\S]*?\n    \}\);/);
+  assert.ok(reg);
+  const editor={},outside={},handlers={},doc={
+    activeElement:editor,addEventListener(name,fn){handlers[name]=fn;}
+  };
+  const ctx={editor,document:doc,downloads:0,exportFile(){ctx.downloads++;}};
+  vm.runInNewContext(reg[0],ctx);
+  for(const keys of [{ctrlKey:true,metaKey:false,key:'s'},{ctrlKey:false,metaKey:true,key:'s'},{ctrlKey:true,metaKey:false,key:'S'}]) {
     let prevented=false;
-    ctx.keydown({...controls,key:'s',shiftKey:false,preventDefault(){prevented=true;}});
+    handlers.keydown({...keys,target:editor,preventDefault(){prevented=true;}});
     assert.equal(prevented,true);
   }
-  assert.equal(ctx.exports,2);
-  assert.equal(ctx.saves,0);
+  assert.equal(ctx.downloads,3);
+  doc.activeElement=outside;
+  let prevented=false;
+  handlers.keydown({ctrlKey:true,metaKey:false,key:'s',target:outside,preventDefault(){prevented=true;}});
+  assert.equal(prevented,false);
+  assert.equal(ctx.downloads,3);
+  handlers.keydown({ctrlKey:true,metaKey:false,key:'s',target:editor,preventDefault(){}});
+  assert.equal(ctx.downloads,4);
+  const original=html.match(/function handleEditorKeydown\(e\) \{[\s\S]*?\n    \}/);
+  assert.ok(original);
+  assert.doesNotMatch(original[0],/e\.key === 's'|exportFile\(/);
   assert.match(html,/editor\.addEventListener\('keydown', handleEditorKeydown\)/);
   assert.match(html,/function exportFile\(\) \{\s*const blob = new Blob\(\[getMarkdown\(\)\]/);
   assert.match(html,/function autoSave\(\) \{[\s\S]*?localStorage\.setItem\(STORAGE_KEY, getMarkdown\(\)\)/);
-  // The browser owns Save As / same-name conflict decisions; no filesystem overwrite API.
-  assert.doesNotMatch(fn[0],/showSaveFilePicker|createWritable|writeFile/);
 });
+
