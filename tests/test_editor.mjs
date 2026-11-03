@@ -693,29 +693,41 @@ test('image export success/error notifications stay in front of the blurred over
   assert.match(html,/id="export-image-preview"/);
 });
 
-test('textarea measurement uses its actual client width, accounting for scrollbar wrapping', () => {
+test('outline measures the actual top of a zero-height marker using textarea content viewport width', () => {
   const fn=html.match(/function measureTextareaHeadingTop\(ta\) \{[\s\S]*?\n    \}/);
   assert.ok(fn);
-  const marker={offsetTop:660,textContent:''};
-  const mirror={style:{},appendChild(child){this.marker=child;},textContent:''};
+  const append=[];
+  const marker={style:{},getBoundingClientRect(){return {top:609.375};}};
+  const mirror={style:{},appendChild(node){append.push(node);},
+    getBoundingClientRect(){return {top:100};},remove(){this.removed=true;}};
   const doc={
-    createElement(type){return type==='span'?marker:mirror;},
-    body:{appendChild(){},removeChild(){}}
+    createElement(tag){return tag==='span'?marker:mirror;},
+    createTextNode(value){return {textContent:value};}
   };
-  const ta={value:'a\n'.repeat(1000),selectionStart:100,clientWidth:441};
-  const ctx={document:doc,imageDataCollapsed:true,getComputedStyle(){return {
-    paddingTop:'28px',paddingBottom:'28px',fontSize:'16px',
-    lineHeight:'28.8px',fontFamily:'monospace'
-  };}};
+  const ta={
+    value:'first\n'+'A'.repeat(15000)+'\n## Heading\n'+'B'.repeat(150000),
+    selectionStart:15006,clientWidth:441,
+    get scrollHeight(){throw Error('do not use rounded textarea scrollHeight');},
+    parentElement:{appendChild(el){assert.equal(el,mirror);}}
+  };
+  const css={padding:'28px 32px',whiteSpace:'pre-wrap',wordBreak:'break-all',
+    fontFamily:'monospace',fontSize:'16px',lineHeight:'28.8px'};
+  const ctx={document:doc,getComputedStyle(){return css;}};
   vm.runInNewContext(fn[0]+'\nthis.measure=measureTextareaHeadingTop;',ctx);
-  assert.equal(ctx.measure(ta),632);
+  assert.equal(ctx.measure(ta),509.375);
+  assert.equal(append[0].textContent,ta.value.slice(0,ta.selectionStart));
   assert.equal(mirror.style.width,'441px');
+  assert.equal(mirror.style.boxSizing,'border-box');
   assert.equal(mirror.style.whiteSpace,'pre-wrap');
   assert.equal(mirror.style.wordBreak,'break-all');
-  assert.equal(mirror.style.overflowWrap,'break-word');
-  assert.equal(mirror.textContent,ta.value.substring(0,100));
-  assert.match(fn[0],/mirror\.style\.width = ta\.clientWidth/);
-  assert.doesNotMatch(fn[0],/mirror\.style\.width = style\.width/);
+  assert.equal(marker.style.display,'inline-block');
+  assert.equal(marker.style.width,'0');
+  assert.equal(marker.style.height,'0');
+  assert.equal(marker.style.verticalAlign,'top');
+  assert.equal(mirror.removed,true);
+  // The target includes top padding; subtracting it exposes the previous line.
+  assert.equal(509.375,609.375-100);
+  assert.doesNotMatch(fn[0],/paddingTop|ta\.scrollHeight|mirror\.scrollHeight/);
 });
 
 test('deep and last editor headings can always be brought to top with verified scroll room', () => {
@@ -742,7 +754,7 @@ test('deep and last editor headings can always be brought to top with verified s
   ctx.align(ta);
   assert.equal(ta.scrollTop,632);
   assert.equal(ta.scrolled.behavior,'instant');
-  assert.equal(ta.style.paddingBottom,'244px');
+  assert.equal(ta.style.paddingBottom,'524px');
   currentTarget=4400;
   ctx.align(ta);
   assert.equal(ta.scrollTop,4400);
@@ -1282,96 +1294,83 @@ test('Enter or blur exports a new filename once; Escape and unchanged name do no
 });
 
 
-test('expanded Base64 uses shorter textarea segment; folded mode stays unchanged', () => {
-  const expanded=html.match(/function measureExpandedTextareaHeadingTop\(ta\) \{[\s\S]*?\n    \}/);
-  const dispatch=html.match(/function measureTextareaHeadingTop\(ta\) \{[\s\S]*?\n    \}/);
-  assert.ok(expanded && dispatch);
-  assert.match(expanded[0],/ta\.cloneNode\(false\)/);
-  assert.match(expanded[0],/ta\.clientWidth \+ 'px'/);
-  assert.match(expanded[0],/ta\.scrollHeight - mirror\.scrollHeight/);
-  assert.match(expanded[0],/ta\.parentElement\.appendChild\(mirror\)/);
-  assert.match(dispatch[0],/if \(!imageDataCollapsed\) return measureExpandedTextareaHeadingTop\(ta\)/);
-
-  const style={
-    fontFamily:'Arial',fontSize:'16px',lineHeight:'28.8px',
-    paddingTop:'28px',paddingBottom:'28px',padding:'28px 32px',
-    whiteSpace:'pre-wrap',wordBreak:'break-all'
-  };
-  const source='intro\n'+Array.from({length:14},(_,i)=>
-    '![img'+i+'](data:image/png;base64,'+'Q'.repeat(10000)+')\n').join('')+
-    '## Heading After 14 Images\nfooter';
-  const mirrors=[];
-  let attached=0;
-  const parent={appendChild(m){attached++;mirrors.push(m);}};
-  const ta={
-    value:source,clientWidth:441,scrollHeight:400000,
-    selectionStart:source.indexOf('## Heading'),
-    parentElement:parent,
-    cloneNode(){
-      return {
-        value:'',style:{},removeAttribute(){},setAttribute(){},tabIndex:0,
-        scrollHeight:114,
-        remove(){attached--;}
-      };
-    }
-  };
+test('Base64 expanded and folded modes share the same exact marker-based geometry', () => {
+  const fn=html.match(/function measureTextareaHeadingTop\(ta\) \{[\s\S]*?\n    \}/);
+  assert.ok(fn);
+  assert.doesNotMatch(html,/function measureExpandedTextareaHeadingTop\(/);
+  assert.match(fn[0],/document\.createTextNode\(ta\.value\.slice\(0, ta\.selectionStart\)\)/);
+  assert.match(fn[0],/marker\.getBoundingClientRect\(\)\.top/);
+  assert.match(fn[0],/mirror\.getBoundingClientRect\(\)\.top/);
+  const marker={style:{},getBoundingClientRect(){return {top:402.25};}};
+  const mirror={style:{},getBoundingClientRect(){return {top:101};},
+    appendChild(node){this.children.push(node);},children:[],remove(){}};
   const ctx={
-    imageDataCollapsed:false,document:{body:{appendChild(){},removeChild(){}}},
-    getComputedStyle(){return style;}
+    document:{createElement:tag=>tag==='span'?marker:mirror,
+      createTextNode:value=>({textContent:value})},
+    getComputedStyle:()=>({fontSize:'16px',lineHeight:'28.8px',padding:'28px 32px'}),
   };
-  vm.runInNewContext(expanded[0]+'\n'+dispatch[0]+'\nthis.measure=measureTextareaHeadingTop;',ctx);
-  // Many expanded Base64 images precede the heading: measure the short suffix.
-  assert.equal(ctx.measure(ta),399886);
-  assert.equal(attached,0);
-  assert.equal(mirrors[0].value,source.slice(ta.selectionStart));
-  assert.equal(mirrors[0].style.width,'441px');
-  assert.equal(mirrors[0].style.overflow,'hidden');
-  assert.equal(mirrors[0].style.height,'0');
-
-  // A heading before the images keeps the short prefix calculation.
-  ta.selectionStart=source.indexOf('![img0]');
-  ta.cloneNode=()=>({
-    value:'',style:{},removeAttribute(){},setAttribute(){},tabIndex:0,
-    scrollHeight:3000,remove(){attached--;}
-  });
-  assert.equal(ctx.measure(ta),2915.2);
-  assert.equal(mirrors[1].value,source.slice(0,ta.selectionStart)+'X');
-  assert.equal(attached,0);
-
-  // Folded mode still follows the original div-mirror path.
-  ctx.imageDataCollapsed=true;
-  const marker={offsetTop:172};
-  const div={style:{},appendChild(){},textContent:''};
-  ctx.document.createElement=type=>type==='span'?marker:div;
-  ctx.document.body={appendChild(){},removeChild(){}};
-  assert.equal(ctx.measure(ta),144);
+  vm.runInNewContext(fn[0]+'\nthis.measure=measureTextareaHeadingTop;',ctx);
+  const prefix='![one](data:image/png;base64,'+'A'.repeat(20000)+')\n';
+  const heading='## Target\n';
+  const suffix='![two](data:image/png;base64,'+'B'.repeat(400000)+')';
+  const ta={value:prefix+heading+suffix,selectionStart:prefix.length,clientWidth:422,
+    parentElement:{appendChild(){}},
+    get scrollHeight(){throw Error('full textarea height must never be read');}};
+  const top=ctx.measure(ta);
+  assert.equal(top,301.25);
+  assert.equal(mirror.children[0].textContent,prefix);
+  // The Base64 that follows cannot change geometry of the heading.
+  mirror.children=[];
+  ta.value=prefix+heading+'![two](data:image/png;base64,'+'C'.repeat(800000)+')';
+  assert.equal(ctx.measure(ta),top);
+  assert.equal(mirror.children[0].textContent,prefix);
+  // A folded placeholder uses the exact same mirror; only its real text differs.
+  mirror.children=[];
+  ta.value='![one](⟦Base64图片#1已折叠⟧)\n'+heading;
+  ta.selectionStart=ta.value.indexOf(heading);
+  assert.equal(ctx.measure(ta),top);
+  assert.equal(mirror.children[0].textContent,ta.value.slice(0,ta.selectionStart));
 });
 
-test('expanded-mode measurement ignores the quantity of Base64 data before a late heading', () => {
-  const fn=html.match(/function measureExpandedTextareaHeadingTop\(ta\) \{[\s\S]*?\n    \}/);
+test('long Base64 on both sides of an outline heading never enters the geometry calculation as a suffix', () => {
+  const fn=html.match(/function measureTextareaHeadingTop\(ta\) \{[\s\S]*?\n    \}/);
   assert.ok(fn);
-  const ctx={getComputedStyle(){return {paddingTop:'28px',paddingBottom:'28px',lineHeight:'28.8px'};}};
-  vm.runInNewContext(fn[0]+'\nthis.measure=measureExpandedTextareaHeadingTop;',ctx);
-  for(const n of [1,5,10,20]){
-    const prefix=Array.from({length:n},(_,i)=>
-      '![img'+i+'](data:image/png;base64,'+'Q'.repeat(12000)+')\n').join('');
-    const tail='## Final\na short paragraph';
-    const source=prefix+tail;
-    const cloneWidths=[];
-    const ta={
-      value:source,selectionStart:prefix.length,clientWidth:398,
-      scrollHeight:777000+n*28000,
-      parentElement:{appendChild(x){cloneWidths.push(x);}},
-      cloneNode(){
-        return {value:'',style:{},scrollHeight:115,
-          removeAttribute(){},setAttribute(){},remove(){}};
-      }
-    };
+  let textNode='',appended=0;
+  const marker={style:{},getBoundingClientRect(){return {top:300.75};}};
+  const mirror={style:{},getBoundingClientRect(){return {top:100};},
+    appendChild(node){if(node===marker)appended++;},remove(){}};
+  const ctx={document:{
+    createElement:tag=>tag==='span'?marker:mirror,
+    createTextNode(value){textNode=value;return {textContent:value};}
+  },getComputedStyle:()=>({lineHeight:'28.8px',padding:'28px 32px',wordBreak:'break-all'})};
+  vm.runInNewContext(fn[0]+'\nthis.measure=measureTextareaHeadingTop;',ctx);
+  const before='intro\n'+Array.from({length:12},(_,i)=>
+    '![ppt'+i+'](data:image/png;base64,'+'Q'.repeat(25000)+')\n').join('');
+  const heading='## Between images\n';
+  const ta={selectionStart:before.length,clientWidth:400,
+    parentElement:{appendChild(){}},
+    get scrollHeight(){throw Error('suffix not relevant');}};
+  for(const afterSize of [100,12000,250000,750000]){
+    ta.value=before+heading+'![after](data:image/jpeg;base64,'+'R'.repeat(afterSize)+')';
     const top=ctx.measure(ta);
-    assert.equal(top,ta.scrollHeight-115);
-    assert.equal(cloneWidths.length,1);
-    assert.equal(cloneWidths[0].value,tail);
+    assert.equal(top,200.75);
+    assert.equal(textNode,before);
   }
+  assert.equal(appended,4);
+});
+
+test('the actual line marker is not affected by integer scrollHeight rounding', () => {
+  const fn=html.match(/function measureTextareaHeadingTop\(ta\) \{[\s\S]*?\n    \}/);
+  const marker={style:{},getBoundingClientRect(){return {top:10028.78125};}};
+  const mirror={style:{},getBoundingClientRect(){return {top:0};},
+    appendChild(){},remove(){}};
+  const ctx={document:{createElement:tag=>tag==='span'?marker:mirror,createTextNode:()=>({})},
+    getComputedStyle:()=>({padding:'28px 32px',lineHeight:'28.8px'})};
+  vm.runInNewContext(fn[0]+'\nthis.measure=measureTextareaHeadingTop;',ctx);
+  const ta={value:'X'.repeat(20000)+'\n## Target',selectionStart:20001,clientWidth:431,
+    parentElement:{appendChild(){}},
+    get scrollHeight(){throw Error('rounded scrollHeight would lose fractional pixel precision');}};
+  assert.equal(ctx.measure(ta),10028.78125);
 });
 
 test('outline targets map through actual folded placeholders, including IDs crossing 9 to 10', () => {
