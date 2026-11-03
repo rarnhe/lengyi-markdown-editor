@@ -43,7 +43,7 @@ class PandocProxyTests(unittest.TestCase):
             all_headers.update(headers)
         body = json.dumps(payload).encode('utf-8') if payload is not None else None
         if body is not None:
-            all_headers['Content-Type'] = 'application/json'
+            all_headers.setdefault('Content-Type', 'application/json')
         try:
             conn.request(method, endpoint, body=body, headers=all_headers)
             response = conn.getresponse()
