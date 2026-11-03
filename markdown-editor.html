@@ -299,21 +299,37 @@
     /* Match the outline's collapsed list: hide the editor's scrollable body. */
     .editor-pane.collapsed #editor { display: none; }
     .editor-pane .pane-header > .collapse-btn { position: absolute; right: 12px; }
-    #base64-toggle {
+    #base64-status {
       padding: 3px 8px;
-      border: 1px solid var(--border);
+      border: 1px solid rgba(45, 150, 94, .26);
       border-radius: var(--radius-sm);
-      background: var(--surface);
-      color: var(--text-secondary);
+      background: rgba(74, 183, 114, .10);
+      color: #24824d;
       font-size: 12px;
+      font-weight: 500;
       text-transform: none;
       letter-spacing: normal;
-      cursor: pointer;
+      white-space: nowrap;
+      cursor: default;
+      user-select: none;
     }
-    #base64-toggle:hover { background: var(--accent-soft); color: var(--accent); }
+    [data-theme="dark"] #base64-status { color: #8adfa8; background: rgba(74, 183, 114, .14); }
+    /* Passive comparison-style links between a Markdown image line and its
+       rendered image. SVG never captures typing, selection or splitter drags. */
+    #image-link-overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 4;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .app.reading-mode #image-link-overlay { display: none; }
+    @media (max-width: 768px) { #image-link-overlay { display: none; } }
     .editor-pane.collapsed .pane-header > .collapse-btn { position: static; }
     .editor-pane.collapsed .editor-heading { flex-direction: column; }
-    .editor-pane.collapsed #base64-toggle { display: none; }
+    .editor-pane.collapsed #base64-status { display: none; }
     .collapse-btn {
       display: inline-flex;
       align-items: center;
@@ -1222,7 +1238,7 @@
         <div class="pane-header">
           <div class="editor-heading">
             <span class="pane-title" data-i18n="editorPaneTitle">编辑</span>
-            <button type="button" id="base64-toggle" onclick="toggleBase64()" aria-pressed="false" hidden disabled data-i18n-title="showBase64" title="显示 Base64">显示 Base64</button>
+            <span id="base64-status" role="status" aria-live="polite" hidden data-i18n="base64FoldedStatus">Base64图片已折叠</span>
           </div>
           <button class="collapse-btn" id="editor-collapse-btn" onclick="togglePane('editor')" title="收起编辑区"><svg class="icon icon-sm"><use href="#icon-chevron-left"></use></svg></button>
         </div>
@@ -1252,6 +1268,7 @@
         </div>
         <div class="outline-list" id="outline-list"></div>
       </div>
+      <svg id="image-link-overlay" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"></svg>
     </div>
 
     <div class="statusbar">
@@ -1688,16 +1705,11 @@
       return /data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+/i.test(getMarkdown());
     }
 
-    function updateBase64Button() {
-      const button = document.getElementById('base64-toggle');
-      if (!button) return;
-      const available = hasEmbeddedBase64Image();
-      button.hidden = !available;
-      button.disabled = !available;
-      const key = imageDataCollapsed ? 'showBase64' : 'hideBase64';
-      button.textContent = t(key);
-      button.title = t(key);
-      button.setAttribute('aria-pressed', String(!imageDataCollapsed));
+    function updateBase64Status() {
+      const status = document.getElementById('base64-status');
+      if (!status) return;
+      status.hidden = !hasEmbeddedBase64Image();
+      status.textContent = t('base64FoldedStatus');
     }
 
     function toggleBase64() {
@@ -1713,7 +1725,7 @@
       const startPos = opening ? expandedPosition(previous, start) : folded.position(start);
       const endPos = opening ? expandedPosition(previous, end) : folded.position(end);
       active.setSelectionRange(startPos, endPos);
-      updateBase64Button();
+      updateBase64Status();
     }
 
     function protectBase64Marker(e) {
@@ -1797,7 +1809,7 @@
       updateCollapseBtnLabels();
       updateStatusBar();
       updateCount();
-      updateBase64Button();
+      updateBase64Status();
       applyOutlineState();
       if (outlineVisible) renderOutline();
       syncDocumentTitle();
@@ -2468,7 +2480,7 @@
     // 渲染预览
     function updatePreview() {
       let text = getMarkdown();
-      updateBase64Button();
+      updateBase64Status();
       let placeholders = [];
 
       if (typeof renderMathInElement !== 'undefined') {
