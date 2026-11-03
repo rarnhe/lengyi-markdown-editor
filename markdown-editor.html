@@ -1193,6 +1193,7 @@
           <div class="dropdown-menu" id="export-menu">
             <div class="dropdown-item" onclick="exportFile(); closeExportMenu();" data-i18n="exportMd">导出 Markdown (.md)</div>
             <div class="dropdown-item" onclick="exportWord(); closeExportMenu();" data-i18n="exportWord">导出 Word (.doc)</div>
+            <div class="dropdown-item" id="export-docx-item" style="display:none" onclick="exportDocx(); closeExportMenu();" data-i18n="exportDocx">导出 Word (.docx · Pandoc)</div>
             <div class="dropdown-item" onclick="exportPDF(); closeExportMenu();" data-i18n="exportPdf">导出 PDF (.pdf)</div>
             <div class="dropdown-item" onclick="exportHTML(); closeExportMenu();" data-i18n="exportHtml">导出 HTML (.html)</div>
             <div class="dropdown-item" onclick="openExportImageModal(); closeExportMenu();" data-i18n="exportImage">导出图片 (.png)</div>
@@ -2616,8 +2617,130 @@
       showToast(t('toastExported'));
     }
 
+    // DOC image fit: Word's legacy HTML importer may ignore max-width and
+    // height:auto. Export explicit dimensions in both HTML attributes and
+    // inline CSS, constrained to A4 page content (17cm wide, 22cm tall).
+    function wordImageDimensions(originalWidth, originalHeight) {
+      if (!(originalWidth > 0 && originalHeight > 0)) return null;
+      const pageWidthPx = Math.round(17 / 2.54 * 96);
+      const pageHeightPx = Math.round(22 / 2.54 * 96);
+      const scale = Math.min(pageWidthPx / originalWidth, pageHeightPx / originalHeight);
+      return { width: Math.max(1, Math.round(originalWidth * scale)),
+               height: Math.max(1, Math.round(originalHeight * scale)) };
+    }
+
+    async function fitWordImages(htmlText) {
+      const doc = new DOMParser().parseFromString('<!doctype html><body>' + htmlText, 'text/html');
+      const images = Array.from(doc.body.querySelectorAll('img'));
+      await Promise.all(images.map(async img => {
+        const src = img.getAttribute('src') || '';
+        if (!/^(data:image\/|https?:\/\/)/i.test(src)) return;
+        const intrinsic = await new Promise(resolve => {
+          const probe = new Image();
+          let completed = false;
+          const finish = result => {
+            if (completed) return;
+            completed = true;
+            clearTimeout(timer);
+            probe.onload = probe.onerror = null;
+            resolve(result);
+          };
+          const timer = setTimeout(() => finish(null), 3000);
+          probe.onload = () => finish({width: probe.naturalWidth, height: probe.naturalHeight});
+          probe.onerror = () => finish(null);
+          probe.src = src;
+        });
+        const originalWidth = intrinsic?.width || Number(img.getAttribute('width')) || 0;
+        const originalHeight = intrinsic?.height || Number(img.getAttribute('height')) || 0;
+        const size = wordImageDimensions(originalWidth, originalHeight);
+        if (!size) {
+          // Fallback for unreachable remote images: never force a fixed height.
+          img.style.maxWidth = '17cm';
+          img.style.width = '100%';
+          img.style.height = 'auto';
+          return;
+        }
+        img.setAttribute('width', String(size.width));
+        img.setAttribute('height', String(size.height));
+        img.style.setProperty('width', size.width + 'px', 'important');
+        img.style.setProperty('height', size.height + 'px', 'important');
+        img.style.setProperty('max-width', '17cm');
+        img.style.setProperty('max-height', '22cm');
+      }));
+      return doc.body.innerHTML;
+    }
+
+    // Optional Pandoc converter served by the EXISTING local Python proxy.
+    // Never show DOCX unless both the local server and pandoc are available.
+    const PANDOC_STATUS_URL = 'http://127.0.0.1:8765/pandoc/status';
+    const PANDOC_EXPORT_URL = 'http://127.0.0.1:8765/pandoc/export';
+    let pandocExportToken = '';
+
+    async function refreshPandocAvailability() {
+      const item = document.getElementById('export-docx-item');
+      if (!item) return false;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 1800);
+      try {
+        const response = await fetch(PANDOC_STATUS_URL, {
+          mode: 'cors', cache: 'no-store', signal: controller.signal
+        });
+        if (!response.ok) throw new Error('Local Pandoc proxy not available');
+        const status = await response.json();
+        const ready = status.available === true && typeof status.token === 'string' &&
+          status.token.length > 20;
+        pandocExportToken = ready ? status.token : '';
+        item.style.display = ready ? '' : 'none';
+        return ready;
+      } catch {
+        pandocExportToken = '';
+        item.style.display = 'none';
+        return false;
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    async function exportDocx() {
+      if (!(await refreshPandocAvailability())) {
+        showToast(t('toastDocxUnavailable'));
+        return;
+      }
+      const name = (filenameInput.value.trim() || '未命名文档.md')
+        .replace(/\.(md|markdown|docx)$/i, '') + '.docx';
+      try {
+        showToast(t('toastDocxExporting'));
+        const response = await fetch(PANDOC_EXPORT_URL, {
+          method: 'POST', mode: 'cors',
+          headers: { 'Content-Type': 'application/json',
+                     'X-Lengyi-Token': pandocExportToken },
+          body: JSON.stringify({ markdown: getMarkdown() })
+        });
+        if (!response.ok) {
+          let errorMessage = 'HTTP ' + response.status;
+          try {
+            const data = await response.json();
+            if (data.error) errorMessage = data.error;
+          } catch {}
+          throw new Error(errorMessage);
+        }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = name;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showToast(t('toastDocxExported'));
+      } catch (error) {
+        showToast(t('toastDocxFailed', error.message || String(error)));
+      }
+    }
+
     // 导出 Word：将 Markdown 渲染为 HTML 并伪装成 .doc 下载
-    function exportWord() {
+    async function exportWord() {
       let name = filenameInput.value.trim();
       if (!name) name = '未命名文档.md';
       name = name.replace(/\.md$/i, '').replace(/\.markdown$/i, '') + '.doc';
@@ -2629,6 +2752,8 @@
       } else {
         bodyHtml = '<pre style="white-space:pre-wrap">' + escapeHtml(md) + '</pre>';
       }
+
+      bodyHtml = await fitWordImages(bodyHtml);
 
       const fullHtml = `<!DOCTYPE html>
 <html>
@@ -2651,7 +2776,8 @@
     th { background: #f5f5f5; font-weight: bold; }
     ul, ol { margin: 6pt 0; padding-left: 24pt; }
     li { margin: 3pt 0; }
-    img { max-width: 100%; height: auto; }
+    @page { size: A4; margin: 2cm; }
+    img { max-width: 17cm; height: auto; page-break-inside: avoid; }
     hr { border: none; border-top: 1px solid #ccc; margin: 12pt 0; }
     a { color: #0563c1; text-decoration: underline; }
   </style>
@@ -2758,7 +2884,9 @@ ${'</scr' + 'ipt>'}
     }
 
     function toggleExportMenu() {
-      document.getElementById('export-menu').classList.toggle('show');
+      const menu = document.getElementById('export-menu');
+      menu.classList.toggle('show');
+      if (menu.classList.contains('show')) void refreshPandocAvailability();
     }
 
     function closeExportMenu() {
