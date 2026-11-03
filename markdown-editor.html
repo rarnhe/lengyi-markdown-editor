@@ -299,21 +299,37 @@
     /* Match the outline's collapsed list: hide the editor's scrollable body. */
     .editor-pane.collapsed #editor { display: none; }
     .editor-pane .pane-header > .collapse-btn { position: absolute; right: 12px; }
-    #base64-toggle {
+    #base64-status {
       padding: 3px 8px;
-      border: 1px solid var(--border);
+      border: 1px solid rgba(45, 150, 94, .26);
       border-radius: var(--radius-sm);
-      background: var(--surface);
-      color: var(--text-secondary);
+      background: rgba(74, 183, 114, .10);
+      color: #24824d;
       font-size: 12px;
+      font-weight: 500;
       text-transform: none;
       letter-spacing: normal;
-      cursor: pointer;
+      white-space: nowrap;
+      cursor: default;
+      user-select: none;
     }
-    #base64-toggle:hover { background: var(--accent-soft); color: var(--accent); }
+    [data-theme="dark"] #base64-status { color: #8adfa8; background: rgba(74, 183, 114, .14); }
+    /* Passive comparison-style links between a Markdown image line and its
+       rendered image. SVG never captures typing, selection or splitter drags. */
+    #image-link-overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 4;
+      overflow: hidden;
+      pointer-events: none;
+    }
+    .app.reading-mode #image-link-overlay { display: none; }
+    @media (max-width: 768px) { #image-link-overlay { display: none; } }
     .editor-pane.collapsed .pane-header > .collapse-btn { position: static; }
     .editor-pane.collapsed .editor-heading { flex-direction: column; }
-    .editor-pane.collapsed #base64-toggle { display: none; }
+    .editor-pane.collapsed #base64-status { display: none; }
     .collapse-btn {
       display: inline-flex;
       align-items: center;
@@ -1222,7 +1238,7 @@
         <div class="pane-header">
           <div class="editor-heading">
             <span class="pane-title" data-i18n="editorPaneTitle">编辑</span>
-            <button type="button" id="base64-toggle" onclick="toggleBase64()" aria-pressed="false" hidden disabled data-i18n-title="showBase64" title="显示 Base64">显示 Base64</button>
+            <span id="base64-status" role="status" aria-live="polite" hidden data-i18n="base64FoldedStatus">Base64图片已折叠</span>
           </div>
           <button class="collapse-btn" id="editor-collapse-btn" onclick="togglePane('editor')" title="收起编辑区"><svg class="icon icon-sm"><use href="#icon-chevron-left"></use></svg></button>
         </div>
@@ -1252,6 +1268,7 @@
         </div>
         <div class="outline-list" id="outline-list"></div>
       </div>
+      <svg id="image-link-overlay" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"></svg>
     </div>
 
     <div class="statusbar">
@@ -1688,16 +1705,11 @@
       return /data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+/i.test(getMarkdown());
     }
 
-    function updateBase64Button() {
-      const button = document.getElementById('base64-toggle');
-      if (!button) return;
-      const available = hasEmbeddedBase64Image();
-      button.hidden = !available;
-      button.disabled = !available;
-      const key = imageDataCollapsed ? 'showBase64' : 'hideBase64';
-      button.textContent = t(key);
-      button.title = t(key);
-      button.setAttribute('aria-pressed', String(!imageDataCollapsed));
+    function updateBase64Status() {
+      const status = document.getElementById('base64-status');
+      if (!status) return;
+      status.hidden = !hasEmbeddedBase64Image();
+      status.textContent = t('base64FoldedStatus');
     }
 
     function toggleBase64() {
@@ -1713,7 +1725,7 @@
       const startPos = opening ? expandedPosition(previous, start) : folded.position(start);
       const endPos = opening ? expandedPosition(previous, end) : folded.position(end);
       active.setSelectionRange(startPos, endPos);
-      updateBase64Button();
+      updateBase64Status();
     }
 
     function protectBase64Marker(e) {
@@ -1729,7 +1741,7 @@
             || (start === end && e.inputType === 'deleteContentForward' && start === index);
           if (touches && !(start <= index && end >= finish)) {
             e.preventDefault();
-            showToast(t('showBase64'));
+            showToast(t('base64MarkerProtected'));
             return;
           }
           index = el.value.indexOf(marker, finish);
@@ -1797,7 +1809,7 @@
       updateCollapseBtnLabels();
       updateStatusBar();
       updateCount();
-      updateBase64Button();
+      updateBase64Status();
       applyOutlineState();
       if (outlineVisible) renderOutline();
       syncDocumentTitle();
@@ -1949,6 +1961,7 @@
         previewPane.style.flex = `${1 - editorRatio} ${1 - editorRatio} 0`;
       }
       updateFilenameLimit();
+      scheduleImageConnections();
     }
 
     function startResize(e) {
@@ -2353,6 +2366,7 @@
       localStorage.setItem(READING_MODE_KEY, String(enabled));
       applyReadingMode();
       if (readingMode) renderOutline();
+      scheduleImageConnections();
     }
 
     function beginReadingOutlineDrag(event) {
@@ -2465,10 +2479,229 @@
       applyToolbarOverflow();
     }
 
+    // Image compare links BEGIN
+    // Passive visual layer: no modifications to Markdown or preview content.
+    const imageLinkOverlay = document.getElementById('image-link-overlay');
+    let imageLinkFrame = 0;
+    let imageLinkLayout = { value: null, width: -1, rows: [] };
+    let imageLinkPairs = { body: null, rows: null, pairs: [] };
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+
+    function findImageSourceRows(text) {
+      const rows = [];
+      const lines = text.split('\n');
+      let offset = 0, fence = '';
+      for (const line of lines) {
+        const boundary = line.trimStart().match(/^(\x60{3,}|~{3,})/);
+        if (boundary) {
+          if (!fence) fence = boundary[1];
+          else if (boundary[1][0] === fence[0] &&
+                   boundary[1].length >= fence.length) fence = '';
+        } else if (!fence) {
+          const re = /!\[[^\]\n]*\]\(([^)\n]+)\)/g;
+          let found;
+          while ((found = re.exec(line))) {
+            const source = found[1].trim().match(/^(?:<([^>]+)>|([^\s]+))/);
+            if (!source) continue;
+            rows.push({ start:offset, end:offset+line.length,
+              source:source[1] || source[2] });
+          }
+        }
+        offset += line.length+1;
+      }
+      return rows;
+    }
+
+    function measureImageSourceRows() {
+      if (imageLinkLayout.value === editor.value &&
+          imageLinkLayout.width === editor.clientWidth) {
+        return imageLinkLayout.rows;
+      }
+      const rawRows = findImageSourceRows(editor.value);
+      if (!rawRows.length || !editor.clientWidth) {
+        imageLinkLayout = {value:editor.value, width:editor.clientWidth, rows:[]};
+        return [];
+      }
+      const css = getComputedStyle(editor);
+      const mirror = document.createElement('div');
+      ['fontFamily','fontSize','fontWeight','fontStyle','lineHeight',
+       'letterSpacing','wordSpacing','tabSize','padding','textAlign',
+       'textIndent','direction','whiteSpace','wordBreak','overflowWrap']
+        .forEach(p => { mirror.style[p] = css[p]; });
+      mirror.style.boxSizing = 'border-box';
+      mirror.style.width = editor.clientWidth + 'px';
+      mirror.style.border = '0';
+      mirror.style.position = 'absolute';
+      mirror.style.left = '-99999px';
+      mirror.style.top = '0';
+      mirror.style.visibility = 'hidden';
+      mirror.style.pointerEvents = 'none';
+      mirror.style.height = 'auto';
+      const spans = [];
+      let cursor = 0;
+      for (const row of rawRows) {
+        if (row.start < cursor) {
+          const previous = spans[spans.length - 1];
+          spans.push({ ...row, first:previous.first, last:previous.last });
+          continue;
+        }
+        mirror.appendChild(document.createTextNode(editor.value.slice(cursor,row.start)));
+        const first = document.createElement('span');
+        first.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:top;';
+        mirror.appendChild(first);
+        mirror.appendChild(document.createTextNode(editor.value.slice(row.start,row.end)));
+        const last = document.createElement('span');
+        last.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:top;';
+        mirror.appendChild(last);
+        spans.push({ ...row, first, last });
+        cursor = row.end;
+      }
+      mirror.appendChild(document.createTextNode(editor.value.slice(cursor)));
+      editor.parentElement.appendChild(mirror);
+      const baseTop = mirror.getBoundingClientRect().top;
+      const lineHeight = parseFloat(css.lineHeight) || 28;
+      const rows = spans.map(item => {
+        const startY = item.first.getBoundingClientRect().top - baseTop;
+        const endY = item.last.getBoundingClientRect().top - baseTop + lineHeight;
+        return { start:item.start, end:item.end, source:item.source,
+          startY, endY:Math.max(startY+lineHeight,endY) };
+      });
+      mirror.remove();
+      imageLinkLayout = {value:editor.value,width:editor.clientWidth,rows};
+      return rows;
+    }
+
+    function imageSourcesMatch(source, rendered) {
+      if (source === rendered) return true;
+      if (source.startsWith('data:') || rendered.startsWith('data:')) return false;
+      try {
+        return new URL(source, document.baseURI).href ===
+          new URL(rendered, document.baseURI).href;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function pairedImageLinks() {
+      const rows = measureImageSourceRows();
+      const body = preview.querySelector('.markdown-body');
+      if (!body || !rows.length) return [];
+      // Base64 data URLs can be megabytes. Match them once per content render
+      // or textarea reflow, not repeatedly for every scroll animation frame.
+      if (imageLinkPairs.body === body && imageLinkPairs.rows === rows)
+        return imageLinkPairs.pairs;
+      const images = Array.from(body.querySelectorAll('img'));
+      const pairs = [];
+      let searchFrom = 0;
+      for (const item of rows) {
+        const expected = expandImageData(item.source);
+        for (let index = searchFrom; index < images.length; index++) {
+          if (imageSourcesMatch(expected, images[index].getAttribute('src') || '')) {
+            pairs.push({ item, image: images[index] });
+            searchFrom = index + 1;
+            break;
+          }
+        }
+      }
+      imageLinkPairs = { body, rows, pairs };
+      return pairs;
+    }
+
+    function imageLinkSvgElement(name, attributes) {
+      const shape = document.createElementNS(SVG_NS,name);
+      for (const [key,value] of Object.entries(attributes)) {
+        shape.setAttribute(key,String(value));
+      }
+      return shape;
+    }
+
+    function drawImageConnections() {
+      if (!imageLinkOverlay) return;
+      imageLinkOverlay.replaceChildren();
+      if (readingMode || editorCollapsed || !imageDataCollapsed ||
+          (window.matchMedia && window.matchMedia('(max-width: 768px)').matches)) return;
+      const pairs = pairedImageLinks();
+      if (!pairs.length) return;
+      const main = document.querySelector('.main').getBoundingClientRect();
+      const edit = editor.getBoundingClientRect();
+      const rendered = preview.getBoundingClientRect();
+      if (edit.width < 100 || rendered.width < 100 ||
+          rendered.left <= edit.right) return;
+      imageLinkOverlay.setAttribute('viewBox','0 0 '+main.width+' '+main.height);
+      const css = getComputedStyle(editor);
+      const leftPadding = parseFloat(css.paddingLeft) || 0;
+      const rightPadding = parseFloat(css.paddingRight) || 0;
+      const editTop = edit.top-main.top, editBottom = edit.bottom-main.top;
+      const previewTop = rendered.top-main.top;
+      const previewBottom = rendered.bottom-main.top;
+      for (const {item,image} of pairs) {
+        const imageBounds = image.getBoundingClientRect();
+        const sy1 = Math.max(editTop, editTop+item.startY-editor.scrollTop);
+        const sy2 = Math.min(editBottom, editTop+item.endY-editor.scrollTop);
+        const iy1 = Math.max(previewTop,imageBounds.top-main.top);
+        const iy2 = Math.min(previewBottom,imageBounds.bottom-main.top);
+        if (sy2 <= sy1 || iy2 <= iy1) continue;
+        const x1 = edit.right-main.left-3;
+        const x2 = imageBounds.left-main.left-3;
+        if (x2 <= x1+6) continue;
+        const mid = (x1+x2)/2;
+        const sourceX = edit.left-main.left+leftPadding;
+        const sourceWidth = Math.max(0,edit.width-leftPadding-rightPadding);
+        imageLinkOverlay.appendChild(imageLinkSvgElement('rect',{
+          x:sourceX,y:sy1,width:sourceWidth,height:sy2-sy1,
+          rx:4,fill:'rgba(54, 175, 102, 0.13)'
+        }));
+        const d = 'M '+x1+' '+sy1+
+          ' C '+mid+' '+sy1+' '+mid+' '+iy1+' '+x2+' '+iy1+
+          ' L '+x2+' '+iy2+
+          ' C '+mid+' '+iy2+' '+mid+' '+sy2+' '+x1+' '+sy2+' Z';
+        imageLinkOverlay.appendChild(imageLinkSvgElement('path',{
+          d,fill:'rgba(57, 169, 97, 0.15)',
+          stroke:'rgba(52, 164, 91, 0.45)','stroke-width':'1'
+        }));
+        const imageX = imageBounds.left-main.left;
+        const imageRight = Math.min(rendered.right-main.left,imageBounds.right-main.left);
+        imageLinkOverlay.appendChild(imageLinkSvgElement('rect',{
+          x:imageX,y:iy1,width:Math.max(0,imageRight-imageX),
+          height:iy2-iy1,rx:3,fill:'none',
+          stroke:'rgba(47, 156, 86, 0.67)','stroke-width':'2'
+        }));
+      }
+    }
+
+    function scheduleImageConnections() {
+      if (imageLinkFrame) return;
+      imageLinkFrame = requestAnimationFrame(() => {
+        imageLinkFrame = 0;
+        drawImageConnections();
+      });
+    }
+
+    const imageLinkResizeObserver = typeof ResizeObserver === 'undefined'
+      ? null : new ResizeObserver(scheduleImageConnections);
+    if (imageLinkResizeObserver) {
+      imageLinkResizeObserver.observe(editor);
+      imageLinkResizeObserver.observe(preview);
+    }
+    let observedImageBody = null;
+    function observeImageBody() {
+      if (!imageLinkResizeObserver) return;
+      if (observedImageBody) imageLinkResizeObserver.unobserve(observedImageBody);
+      observedImageBody = preview.querySelector('.markdown-body');
+      if (observedImageBody) imageLinkResizeObserver.observe(observedImageBody);
+    }
+    editor.addEventListener('scroll',scheduleImageConnections,{passive:true});
+    preview.addEventListener('scroll',scheduleImageConnections,{passive:true});
+    preview.addEventListener('load',event => {
+      if (event.target && event.target.tagName === 'IMG') scheduleImageConnections();
+    },true);
+    window.addEventListener('resize',scheduleImageConnections);
+    // Image compare links END
+
     // 渲染预览
     function updatePreview() {
       let text = getMarkdown();
-      updateBase64Button();
+      updateBase64Status();
       let placeholders = [];
 
       if (typeof renderMathInElement !== 'undefined') {
@@ -2518,6 +2751,8 @@
       renderMermaidBlocks();
       renderOutline();
       updatePreviewProgress();
+      observeImageBody();
+      scheduleImageConnections();
     }
 
     function protectMath(text) {
