@@ -3376,6 +3376,104 @@ ${'</scr' + 'ipt>'}
       closeImageModal();
     }
 
+    // Clipboard image paste BEGIN
+    // PowerPoint, screenshots and other applications may expose a raster
+    // image alongside text/html. Prefer an actual clipboard image File over
+    // HTML/text so Ctrl+V creates a self-contained Markdown image.
+    function getClipboardRasterImage(clipboard) {
+      if (!clipboard) return null;
+      const supported = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/bmp'];
+      const candidates = [];
+      if (clipboard.items) {
+        for (const item of Array.from(clipboard.items)) {
+          if (item.kind !== 'file' || typeof item.getAsFile !== 'function') continue;
+          const file = item.getAsFile();
+          if (!file) continue;
+          const mime = [item.type, file.type].map(type => (type || '').toLowerCase())
+            .find(type => supported.includes(type));
+          if (mime) candidates.push({ file, mime });
+        }
+      }
+      if (!candidates.length && clipboard.files) {
+        for (const file of Array.from(clipboard.files)) {
+          const mime = (file.type || '').toLowerCase();
+          if (supported.includes(mime)) candidates.push({ file, mime });
+        }
+      }
+      for (const mime of supported) {
+        const match = candidates.find(candidate => candidate.mime === mime);
+        if (match) return match;
+      }
+      return null;
+    }
+
+    function handleEditorImagePaste(event) {
+      const clipboard = event.clipboardData;
+      const image = getClipboardRasterImage(clipboard);
+      if (!image) {
+        // Avoid swallowing normal text/HTML paste. Some PowerPoint clipboard
+        // variants expose only EMF/WMF/TIFF, which browsers cannot turn into
+        // a PNG Blob using a standard paste event.
+        const imageOnly = clipboard &&
+          (Array.from(clipboard.items || []).some(item =>
+            item.kind === 'file' && /^image\//i.test(item.type || '')) ||
+           Array.from(clipboard.files || []).some(file =>
+            /^image\//i.test(file.type || ''))) &&
+          !Array.from(clipboard.types || []).includes('text/plain');
+        if (imageOnly) {
+          event.preventDefault();
+          showToast(t('toastPasteImageUnsupported'));
+        }
+        return;
+      }
+
+      event.preventDefault();
+      const file = image.file;
+      if (file.size > 5 * 1024 * 1024) {
+        showToast(t('toastImageTooLarge'));
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024 &&
+          !confirm(t('imageLargeWarning', (file.size / 1024 / 1024).toFixed(1)))) {
+        return;
+      }
+
+      // FileReader is asynchronous. Preserve the original selection if the
+      // textarea is unchanged, but do not overwrite new typing if it changed.
+      const previousText = editor.value;
+      const start = editor.selectionStart, end = editor.selectionEnd;
+      const reader = new FileReader();
+      reader.onload = () => {
+        let dataUrl = reader.result;
+        if (typeof dataUrl !== 'string' || !/^data:[^,]*;base64,/i.test(dataUrl)) {
+          showToast(t('toastImageReadFailed'));
+          return;
+        }
+        // A clipboard DataTransferItem can know its MIME type even when the
+        // File it provides has an empty type. Preserve that validated format.
+        dataUrl = dataUrl.replace(/^data:[^,]*;base64,/i, 'data:' + image.mime + ';base64,');
+        const unchanged = editor.value === previousText;
+        const insertionStart = unchanged ? start : editor.selectionStart;
+        const insertionEnd = unchanged ? end : editor.selectionStart;
+        pushHistory();
+        const folded = collapseImageData(dataUrl).text;
+        editor.setRangeText('![' + t('image') + '](' + folded + ')',
+          insertionStart, insertionEnd, 'end');
+        updatePreview();
+        updateCount();
+        autoSave();
+        recordHistory();
+        showToast(t('toastImageInserted'));
+      };
+      reader.onerror = () => showToast(t('toastImageReadFailed'));
+      try {
+        reader.readAsDataURL(file);
+      } catch (error) {
+        showToast(t('toastImageReadFailed'));
+      }
+    }
+    // Clipboard image paste END
+
     // Mermaid 图表
     const MERMAID_TEMPLATES = {
       mindmap: `mindmap\n  root((主题))\n    子主题 A\n      子节点 A1\n      子节点 A2\n    子主题 B\n      子节点 B1`,
@@ -3856,6 +3954,7 @@ ${'</scr' + 'ipt>'}
     });
     editor.addEventListener('beforeinput', protectBase64Marker);
     editor.addEventListener('copy', copyExpandedBase64);
+    editor.addEventListener('paste', handleEditorImagePaste);
 
     // 拖放文件打开
     const dropOverlay = document.getElementById('drop-overlay');
