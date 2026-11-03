@@ -26,6 +26,7 @@ try {
     });
   }
   check('Regression tests', ['--test', 'tests/test_editor.mjs']);
+  check('PowerPoint image clipboard paste tests', ['--test', 'tests/test_clipboard_image.mjs']);
 } finally {
   rmSync(tmp, { recursive: true, force: true });
 }
