@@ -2146,20 +2146,19 @@
       finishOutlineJump(token);
     }
 
-    // 与 textarea 的真实内容视口同宽，消除滚动条占宽带来的长文档换行累积误差。
-    // With expanded Base64, measuring only the prefix accumulates wrapping
-    // differences from every preceding image. Measure the shorter side of the
-    // heading using the same native textarea layout as the live editor.
+    // Expanded Base64: calculate the heading's offset from the actual text
+    // BEFORE it. Subtracting the height of the suffix from the full textarea
+    // scrollHeight is inaccurate when another large Base64 image follows the
+    // heading (different wrapping and integer-rounded scrollHeight values).
+    // A prefix-only native textarea clone preserves the real text layout and
+    // makes the result independent of everything after the selected heading.
     function measureExpandedTextareaHeadingTop(ta) {
       const style = getComputedStyle(ta);
-      const fromEnd = ta.selectionStart > ta.value.length / 2;
       const mirror = ta.cloneNode(false);
       mirror.removeAttribute('id');
       mirror.setAttribute('aria-hidden', 'true');
       mirror.tabIndex = -1;
-      mirror.value = fromEnd
-        ? ta.value.slice(ta.selectionStart)
-        : ta.value.slice(0, ta.selectionStart) + 'X';
+      mirror.value = ta.value.slice(0, ta.selectionStart) + 'X';
       ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'lineHeight',
        'letterSpacing', 'wordSpacing', 'tabSize', 'padding',
        'textAlign', 'textIndent', 'direction', 'whiteSpace', 'wordBreak',
@@ -2169,26 +2168,25 @@
       mirror.style.left = '-99999px';
       mirror.style.visibility = 'hidden';
       mirror.style.boxSizing = 'border-box';
+      // Match the live textarea's content viewport, including the scrollbar
+      // deduction. Using offsetWidth would introduce an extra wrap difference.
       mirror.style.width = ta.clientWidth + 'px';
       mirror.style.height = '0';
       mirror.style.minHeight = '0';
       mirror.style.border = 'none';
       mirror.style.overflow = 'hidden';
       mirror.style.resize = 'none';
-      // Keep it inside .editor-pane to retain the original textarea CSS.
       ta.parentElement.appendChild(mirror);
-      const top = fromEnd
-        ? ta.scrollHeight - mirror.scrollHeight
-        : mirror.scrollHeight -
-          (parseFloat(style.paddingTop) || 0) -
-          (parseFloat(style.paddingBottom) || 0) -
-          (parseFloat(style.lineHeight) || 0);
+      // The last "X" occupies the heading's first visual row. Remove that
+      // row and the cloned textarea padding; only preceding rows remain.
+      const top = mirror.scrollHeight -
+        (parseFloat(style.paddingTop) || 0) -
+        (parseFloat(style.paddingBottom) || 0) -
+        (parseFloat(style.lineHeight) || 0);
       mirror.remove();
-      // scrollHeight is integer-rounded even when the actual line-height is
-      // fractional (16px * 1.8 = 28.8px). Outline headings start on a new
-      // Markdown line, so their offsets are exact multiples of line-height.
-      // Snap only at a hard line boundary to remove the rounding discrepancy,
-      // without loading megabytes of preceding Base64 into another mirror.
+
+      // scrollHeight is integer-rounded even for a 28.8px CSS line-height.
+      // Snap real Markdown line starts to the fractional line-height grid.
       const lineHeight = parseFloat(style.lineHeight);
       const atLineStart = ta.selectionStart === 0 ||
         ta.value.charAt(ta.selectionStart - 1) === '\n';
