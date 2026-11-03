@@ -14,6 +14,16 @@ A Markdown writing tool that works right out of the box in your browser.
 </div>
 
 
+## Word image sizing and optional Pandoc DOCX
+
+- **Export Word (.doc)** remains HTML packaged with a `.doc` extension (not a binary Microsoft Word file). Each image with available intrinsic dimensions is scaled proportionally to the **17cm usable A4 text width**, with explicit width and height attributes and inline styles for Word compatibility. Very tall images are additionally fitted within a 22cm page-height budget.
+- **Export Word (.docx · Pandoc)** generates a real DOCX using your locally installed Pandoc. The menu item is **hidden** unless the existing Python `web-to-md-proxy.py` service is running on `127.0.0.1:8765` *and* its `pandoc --version` detection succeeds.
+
+To enable DOCX: install Pandoc from <https://pandoc.org/installing.html>, verify `pandoc --version` in a **new terminal**, then run `python web-to-md-proxy.py`. Open the editor's **Export** dropdown to refresh availability; installing Pandoc alone does not enable browser execution. The same Python process handles the existing `/fetch` endpoint, plus `/pandoc/status` and `/pandoc/export`. No npm, framework, new Python library or separate server is needed.
+
+The local DOCX conversion requires a trusted local editor page: the server checks Host/Origin, uses an unpredictable per-process token and fixed Pandoc arguments, enforces a 48 MiB request limit and 90-second timeout, and deletes temporary conversion files. A locally opened `file://` editor normally sends `Origin: null`. Browser local-network access policies may require additional permission.
+
+
 ---
 
 ## 🌟 Why This Tool?
