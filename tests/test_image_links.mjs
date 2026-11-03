@@ -63,12 +63,16 @@ function fixture(opts={}){
     appendChild(el){shapes.push(el);}};
   const editor={scrollTop:opts.offEditor?700:0,getBoundingClientRect(){
     return {left:0,right:480,top:42,bottom:542,width:480};}};
-  const image={getAttribute(){return opts.wrongSrc?'different':data;},
+  let sourceReads=0;
+  const image={getAttribute(){sourceReads++;return opts.wrongSrc?'different':data;},
     getBoundingClientRect(){return {left:540,right:820,top:opts.offImage?600:150,
       bottom:opts.offImage?800:300};}};
-  const preview={querySelectorAll(){return [image];},
+  const body={querySelectorAll(){return [image];}};
+  const preview={querySelector(){return body;},
     getBoundingClientRect(){return {left:488,right:960,top:42,bottom:542,width:472};}};
+  const rows=[{start:0,end:30,source:token,startY:140,endY:170}];
   const ctx={imageLinkOverlay:overlay,SVG_NS:'http://www.w3.org/2000/svg',
+    imageLinkPairs:{body:null,rows:null,pairs:[]},
     readingMode:!!opts.readingMode,editorCollapsed:!!opts.collapsed,
     imageDataCollapsed:true,editor,preview,window:{matchMedia:()=>({matches:!!opts.mobile})},
     document:{
@@ -78,14 +82,15 @@ function fixture(opts={}){
       createElementNS(ns,tag){return {tag,attrs:{},
         setAttribute(key,value){this.attrs[key]=String(value);}};}
     },
-    measureImageSourceRows(){return [{start:0,end:30,source:token,startY:140,endY:170}];},
+    measureImageSourceRows(){return rows;},
     expandImageData:s=>s===token?data:s,
     getComputedStyle:()=>({paddingLeft:'32px',paddingRight:'32px'}),
     URL
   };
-  const funcs=['imageSourcesMatch','imageLinkSvgElement','drawImageConnections']
+  const funcs=['imageSourcesMatch','pairedImageLinks','imageLinkSvgElement','drawImageConnections']
     .map(extract).join('\n');
-  return {draw:run(funcs,'drawImageConnections',ctx),shapes};
+  return {draw:run(funcs,'drawImageConnections',ctx),shapes,
+    get sourceReads(){return sourceReads;}};
 }
 
 test('matching images draw two green highlights and one tapered VS Code-style connector',()=>{
@@ -96,6 +101,16 @@ test('matching images draw two green highlights and one tapered VS Code-style co
   assert.match(f.shapes[1].attrs.d,/^M /);
   assert.match(f.shapes[1].attrs.fill,/57, 169, 97/);
   assert.equal(f.shapes[0].attrs.x,'32');
+});
+
+test('matched megabyte-size image sources are not repeatedly compared on scroll',()=>{
+  const f=fixture();
+  f.draw();
+  const first=f.sourceReads;
+  assert.equal(first,1);
+  f.draw();
+  f.draw();
+  assert.equal(f.sourceReads,first,'subsequent frames reuse source-to-preview match cache');
 });
 
 test('unmatched/offscreen images, reading, collapsed and mobile views omit links',()=>{
