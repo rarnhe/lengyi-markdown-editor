@@ -765,6 +765,83 @@ test('deep and last editor headings can always be brought to top with verified s
   assert.equal(ta.style.paddingBottom,'');
 });
 
+test('short document and last outline heading gain enough trailing scroll room to reach top', () => {
+  const fn=html.match(/function scrollTextareaToCaret\(ta\) \{[\s\S]*?\n    \}/);
+  const max=html.match(/function maxPaneScroll\(pane\) \{[\s\S]*?\n    \}/);
+  assert.ok(fn && max);
+  const ta={value:'## Heading\nshort',selectionStart:0,clientHeight:300,clientWidth:440,
+    style:{paddingBottom:''},scrollTop:0,
+    get scrollHeight() {
+      // Short content stays at viewport height until sufficiently large bottom
+      // padding makes it overflow. This is native textarea behavior.
+      return Math.max(this.clientHeight,80+(parseFloat(this.style.paddingBottom)||28));
+    },
+    scrollTo(options){this.last=options;this.scrollTop=Math.min(options.top,
+      Math.max(0,this.scrollHeight-this.clientHeight));}
+  };
+  const ctx={measureTextareaHeadingTop(){return 56.8;},
+    getComputedStyle(){return {paddingBottom:ta.style.paddingBottom||'28px'};}};
+  vm.runInNewContext(max[0]+'\n'+fn[0]+'\nthis.align=scrollTextareaToCaret;',ctx);
+  ctx.align(ta);
+  assert.ok(parseFloat(ta.style.paddingBottom)>ta.clientHeight);
+  assert.ok(ta.scrollHeight-ta.clientHeight>=56.8);
+  assert.equal(ta.scrollTop,56.8);
+  assert.equal(ta.last.behavior,'instant');
+});
+
+test('outline scroll corrects deferred native caret movement but never replays a stale jump', () => {
+  const fn=html.match(/function scrollTextareaToCaret\(ta\) \{[\s\S]*?\n    \}/);
+  const max=html.match(/function maxPaneScroll\(pane\) \{[\s\S]*?\n    \}/);
+  const frames=[],calls=[],tracked=[];
+  let measureCount=0;
+  const ta={value:'A'.repeat(10000)+'\n## Target',selectionStart:10001,
+    style:{paddingBottom:''},clientWidth:420,clientHeight:300,scrollHeight:20000,
+    scrollTop:0,scrollTo(opts){this.scrollTop=opts.top;calls.push(opts);}};
+  const ctx={
+    outlineJumpToken:10,
+    requestAnimationFrame:cb=>frames.push(cb),
+    observedScrollTop:{set(_,offset){tracked.push(offset);}},
+    measureTextareaHeadingTop(){measureCount++;return 9000;},
+    getComputedStyle(){return {paddingBottom:'28px'};}
+  };
+  vm.runInNewContext(max[0]+'\n'+fn[0]+'\nthis.align=scrollTextareaToCaret;',ctx);
+  ctx.align(ta);
+  assert.equal(measureCount,1);
+  ta.scrollTop=8971; // simulate native caret scroll after the first scrollTo
+  frames.shift()();
+  assert.equal(ta.scrollTop,9000);
+  assert.equal(measureCount,1,'no repeated layout if width stays unchanged');
+  assert.equal(calls.length,2);
+  assert.equal(tracked.at(-1),9000);
+
+  ctx.outlineJumpToken=11;
+  ctx.align(ta);
+  ctx.outlineJumpToken=12; // a newer outline jump supersedes this callback
+  ta.scrollTop=8800;
+  frames.shift()();
+  assert.equal(ta.scrollTop,8800,'stale callback must not pull user back');
+});
+
+test('outline scroll remeasures when pane width changes after initial layout', () => {
+  const fn=html.match(/function scrollTextareaToCaret\(ta\) \{[\s\S]*?\n    \}/);
+  const max=html.match(/function maxPaneScroll\(pane\) \{[\s\S]*?\n    \}/);
+  const frames=[];
+  let measurements=0;
+  const ta={value:'## Heading\n'+'A'.repeat(5000),selectionStart:0,
+    style:{paddingBottom:''},clientWidth:430,clientHeight:300,scrollHeight:8000,
+    scrollTop:0,scrollTo(options){this.scrollTop=options.top;}};
+  const ctx={outlineJumpToken:1,requestAnimationFrame:cb=>frames.push(cb),
+    observedScrollTop:{set(){}},
+    measureTextareaHeadingTop(){measurements++;return measurements===1?280:320;},
+    getComputedStyle(){return {paddingBottom:'28px'};}};
+  vm.runInNewContext(max[0]+'\n'+fn[0]+'\nthis.align=scrollTextareaToCaret;',ctx);
+  ctx.align(ta);
+  ta.clientWidth=390; // resizing changed the actual text wrapping viewport
+  frames.shift()();
+  assert.equal(measurements,2);
+  assert.equal(ta.scrollTop,320);
+});
+
 test('dead proportional sync and orphan Standard/fullscreen handlers have been removed', () => {
   for(const obsolete of ['function syncScroll(', 'function suppressScrollSync(',
     'function waitForOutlineNavigation(', 'outlineNavigationActive',
