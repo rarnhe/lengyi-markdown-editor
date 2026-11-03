@@ -27,6 +27,25 @@ try {
   }
   check('Regression tests', ['--test', 'tests/test_editor.mjs']);
   check('PowerPoint image clipboard paste tests', ['--test', 'tests/test_clipboard_image.mjs']);
+  check('Word image sizing and conditional Pandoc DOCX tests', ['--test', 'tests/test_word_export.mjs']);
+  // Python is optional for the pure-HTML editor. Run the proxy tests when it
+  // is present (GitHub Actions Ubuntu includes python3), without pip installs.
+  const python = process.platform === 'win32' ? 'python' : 'python3';
+  const pythonCheck = spawnSync(python, ['--version'], { encoding: 'utf8' });
+  if (pythonCheck.status === 0) {
+    const result = spawnSync(python, ['-m', 'unittest', 'discover', '-s', 'tests',
+      '-p', 'test_pandoc_proxy.py', '-v'], { encoding: 'utf8' });
+    checks.push({ name: 'Python Pandoc proxy tests',
+      command: python + ' -m unittest discover -s tests -p test_pandoc_proxy.py -v',
+      ok: result.status === 0,
+      output: ((result.stdout || '') + (result.stderr || '')).trim().slice(-12000) });
+    process.stdout.write('\n=== Python Pandoc proxy tests ===\n' +
+      (result.stdout || '') + (result.stderr || ''));
+  } else {
+    checks.push({ name: 'Python Pandoc proxy tests (optional)',
+      command: python + ' --version',
+      ok: true, output: 'Skipped: Python is not installed. The HTML editor needs no Python.' });
+  }
 } finally {
   rmSync(tmp, { recursive: true, force: true });
 }
