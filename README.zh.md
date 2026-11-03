@@ -14,6 +14,22 @@
 </div>
 
 
+## Word 导出：图片完整比例与可选 Pandoc DOCX
+
+- **导出 Word (.doc)** 仍是浏览器生成的 HTML 兼容格式。现在对每张可读取原始尺寸的图片按 A4 页面的 **17cm 正文宽度**等比例缩放，并显式写入图片的宽、高与内联样式，不再只依赖 Word 对 `max-width` 和 `height:auto` 的支持。对于特别高的竖图，进一步约束最大高度为 22cm 并同步缩小宽度，避免竖向裁切。
+- **导出 Word (.docx · Pandoc)** 是真正的 DOCX 文件，使用本机已安装的 Pandoc 转换 Markdown（包括 Data URI Base64 图片）。没有 Pandoc、没有运行 Python 代理时，这个菜单项**自动隐藏**。
+
+Windows 使用步骤：
+
+1. 从 <https://pandoc.org/installing.html> 安装 Pandoc，确保新开的 PowerShell 执行 `pandoc --version` 正常。
+2. 在仓库目录启动现有代理：`python web-to-md-proxy.py`（无需安装任何新 Python 包，已有的 `requests` 依然只是原网页抓取的可选依赖）。
+3. 打开/刷新 `markdown-editor.html`，点开 **导出** 菜单：只有 `127.0.0.1:8765/pandoc/status` 返回 Pandoc 可用时，才显示 DOCX 选项。启动或关闭代理后再次打开菜单即可刷新状态。
+4. 点击 DOCX 选项，编辑器把当前 Markdown 发送给 **本机** `/pandoc/export`，下载 `.docx`。不会调用浏览器扩展或启动第二个服务；停止代理后选项自动隐藏（下次打开菜单时检测）。
+5. 如果安装 Pandoc 后菜单仍未显示，关闭并重新打开代理终端，使新的 PATH 生效；确认 8765 端口没有被其他程序占用。
+
+**安全与限制**：DOCX 请求绑定到 `127.0.0.1`，增加本机 Host / 网页 Origin 校验、进程级令牌和 48 MiB 输入上限，Pandoc 使用固定参数运行（90 秒超时），临时文件转换后即删除。只运行你信任的本地编辑器页面。图片通过 Data URI 嵌入，无需安装 npm、前端框架或新增第三方 Python 库。直接双击 HTML 时浏览器会发送 `Origin: null`；这是浏览器本地文件的正常行为。受浏览器本地网络/CORS 策略影响，部分环境可能需要允许本地网络访问。
+
+
 ---
 
 ## 🌟 为什么做这个工具？
