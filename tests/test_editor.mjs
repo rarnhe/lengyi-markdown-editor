@@ -1321,7 +1321,7 @@ test('expanded Base64 uses shorter textarea segment; folded mode stays unchanged
   };
   vm.runInNewContext(expanded[0]+'\n'+dispatch[0]+'\nthis.measure=measureTextareaHeadingTop;',ctx);
   // Many expanded Base64 images precede the heading: measure the short suffix.
-  assert.equal(ctx.measure(ta),399886);
+  assert.equal(ctx.measure(ta),Math.round(399886/28.8)*28.8);
   assert.equal(attached,0);
   assert.equal(mirrors[0].value,source.slice(ta.selectionStart));
   assert.equal(mirrors[0].style.width,'441px');
@@ -1334,7 +1334,7 @@ test('expanded Base64 uses shorter textarea segment; folded mode stays unchanged
     value:'',style:{},removeAttribute(){},setAttribute(){},tabIndex:0,
     scrollHeight:3000,remove(){attached--;}
   });
-  assert.equal(ctx.measure(ta),2915.2);
+  assert.equal(ctx.measure(ta),Math.round(2915.2/28.8)*28.8);
   assert.equal(mirrors[1].value,source.slice(0,ta.selectionStart)+'X');
   assert.equal(attached,0);
 
@@ -1345,6 +1345,91 @@ test('expanded Base64 uses shorter textarea segment; folded mode stays unchanged
   ctx.document.createElement=type=>type==='span'?marker:div;
   ctx.document.body={appendChild(){},removeChild(){}};
   assert.equal(ctx.measure(ta),144);
+});
+
+test('expanded Base64 outline measurement snaps integer scrollHeight rounding to fractional line grid', () => {
+  const fn=html.match(/function measureExpandedTextareaHeadingTop\(ta\) \{[\s\S]*?\n    \}/);
+  assert.ok(fn);
+  const style={paddingTop:'28px',paddingBottom:'28px',lineHeight:'28.8px'};
+  const ctx={getComputedStyle(){return style;}};
+  vm.runInNewContext(fn[0]+'\nthis.measure=measureExpandedTextareaHeadingTop;',ctx);
+  const longPrefix='![ppt](data:image/png;base64,'+'Q'.repeat(40000)+')\n';
+  const source=longPrefix+'## Heading\ntext';
+  const ta={
+    value:source,clientWidth:431,selectionStart:longPrefix.length,
+    parentElement:{appendChild(){}},scrollHeight:28870,
+    cloneNode(){return {style:{},scrollHeight:98,
+      removeAttribute(){},setAttribute(){},remove(){}};}
+  };
+  // Scroll heights are rounded to integer pixels, but line starts must fall
+  // on a whole number of 28.8px lines (not on arbitrary fractional positions).
+  const raw=28870-98;
+  assert.equal(ctx.measure(ta),Math.round(raw/28.8)*28.8);
+  // A caret inside a long wrapped line must not be snapped to the line start.
+  ta.selectionStart=longPrefix.length-4;
+  const innerRaw=28870-98;
+  assert.equal(ctx.measure(ta),innerRaw);
+});
+
+test('expanded Base64 outline reapplies exact scroll after next layout frame', () => {
+  const fn=html.match(/function scrollTextareaToCaret\(ta\) \{[\s\S]*?\n    \}/);
+  const max=html.match(/function maxPaneScroll\(pane\) \{[\s\S]*?\n    \}/);
+  assert.ok(fn && max);
+  const frames=[],observed=[],scrollCalls=[];
+  const ta={
+    style:{paddingBottom:''},clientHeight:280,scrollHeight:5000,
+    scrollTop:0,selectionStart:193,
+    scrollTo(options){scrollCalls.push(options);this.scrollTop=options.top;}
+  };
+  const ctx={
+    imageDataCollapsed:false,outlineJumpToken:7,
+    requestAnimationFrame:cb=>frames.push(cb),
+    measureTextareaHeadingTop(){return 3000.2;},
+    measureExpandedTextareaHeadingTop(){return 3000.4;},
+    observedScrollTop:{set(el,pos){observed.push([el,pos]);}},
+    getComputedStyle(){return {paddingBottom:ta.style.paddingBottom||'28px'};}
+  };
+  vm.runInNewContext(max[0]+'\n'+fn[0]+'\nthis.align=scrollTextareaToCaret;',ctx);
+  ctx.align(ta);
+  assert.equal(scrollCalls.length,1);
+  assert.equal(scrollCalls[0].top,3000.2);
+  assert.equal(frames.length,1);
+  // Browser caret auto-scrolling or a scrollbar reflow shifts the editor.
+  ta.scrollTop-=3;
+  frames.shift()();
+  assert.equal(scrollCalls.length,2);
+  assert.equal(ta.scrollTop,3000.4);
+  assert.equal(observed.length,1);
+  assert.equal(observed[0][1],3000.4);
+  assert.ok(scrollCalls.every(call=>call.behavior==='instant'));
+});
+
+test('expanded Base64 deferred outline correction ignores stale jumps and moved carets', () => {
+  const fn=html.match(/function scrollTextareaToCaret\(ta\) \{[\s\S]*?\n    \}/);
+  const max=html.match(/function maxPaneScroll\(pane\) \{[\s\S]*?\n    \}/);
+  const frames=[],calls=[];
+  const ta={
+    style:{paddingBottom:''},clientHeight:200,scrollHeight:6000,
+    selectionStart:10,scrollTop:0,
+    scrollTo(o){this.scrollTop=o.top;calls.push(o);}
+  };
+  const ctx={
+    imageDataCollapsed:false,outlineJumpToken:1,
+    requestAnimationFrame:cb=>frames.push(cb),
+    measureTextareaHeadingTop(){return 300;},
+    measureExpandedTextareaHeadingTop(){throw Error('stale jump must not be remeasured');},
+    observedScrollTop:{set(){throw Error('stale jump must not change scroll position');}},
+    getComputedStyle(){return {paddingBottom:'28px'};}
+  };
+  vm.runInNewContext(max[0]+'\n'+fn[0]+'\nthis.align=scrollTextareaToCaret;',ctx);
+  ctx.align(ta);
+  ctx.outlineJumpToken=2;
+  frames.shift()();
+  assert.equal(calls.length,1);
+  ctx.align(ta);
+  ta.selectionStart=11;
+  frames.shift()();
+  assert.equal(calls.length,2);
 });
 
 test('expanded-mode measurement ignores the quantity of Base64 data before a late heading', () => {
@@ -1368,7 +1453,7 @@ test('expanded-mode measurement ignores the quantity of Base64 data before a lat
       }
     };
     const top=ctx.measure(ta);
-    assert.equal(top,ta.scrollHeight-115);
+    assert.equal(top,Math.round((ta.scrollHeight-115)/28.8)*28.8);
     assert.equal(cloneWidths.length,1);
     assert.equal(cloneWidths[0].value,tail);
   }
