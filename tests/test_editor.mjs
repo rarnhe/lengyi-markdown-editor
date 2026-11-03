@@ -1282,13 +1282,14 @@ test('Enter or blur exports a new filename once; Escape and unchanged name do no
 });
 
 
-test('expanded Base64 uses shorter textarea segment; folded mode stays unchanged', () => {
+test('expanded Base64 measures ONLY text before a heading sandwiched between images; folded mode unchanged', () => {
   const expanded=html.match(/function measureExpandedTextareaHeadingTop\(ta\) \{[\s\S]*?\n    \}/);
   const dispatch=html.match(/function measureTextareaHeadingTop\(ta\) \{[\s\S]*?\n    \}/);
   assert.ok(expanded && dispatch);
   assert.match(expanded[0],/ta\.cloneNode\(false\)/);
   assert.match(expanded[0],/ta\.clientWidth \+ 'px'/);
-  assert.match(expanded[0],/ta\.scrollHeight - mirror\.scrollHeight/);
+  assert.doesNotMatch(expanded[0],/ta\.scrollHeight|ta\.value\.slice\(ta\.selectionStart\)/);
+  assert.match(expanded[0],/ta\.value\.slice\(0, ta\.selectionStart\) \+ 'X'/);
   assert.match(expanded[0],/ta\.parentElement\.appendChild\(mirror\)/);
   assert.match(dispatch[0],/if \(!imageDataCollapsed\) return measureExpandedTextareaHeadingTop\(ta\)/);
 
@@ -1297,48 +1298,44 @@ test('expanded Base64 uses shorter textarea segment; folded mode stays unchanged
     paddingTop:'28px',paddingBottom:'28px',padding:'28px 32px',
     whiteSpace:'pre-wrap',wordBreak:'break-all'
   };
-  const source='intro\n'+Array.from({length:14},(_,i)=>
-    '![img'+i+'](data:image/png;base64,'+'Q'.repeat(10000)+')\n').join('')+
-    '## Heading After 14 Images\nfooter';
+  const before='intro\n![before](data:image/png;base64,'+'A'.repeat(35000)+')\n';
+  const after='## Target Heading\n![after](data:image/png;base64,'+'Z'.repeat(90000)+')\n';
   const mirrors=[];
   let attached=0;
-  const parent={appendChild(m){attached++;mirrors.push(m);}};
   const ta={
-    value:source,clientWidth:441,scrollHeight:400000,
-    selectionStart:source.indexOf('## Heading'),
-    parentElement:parent,
+    value:before+after,clientWidth:441,selectionStart:before.length,
+    // This height depends on the giant image AFTER the heading and MUST NOT
+    // participate in the heading's physical position.
+    get scrollHeight(){throw Error('must not depend on following Base64 height');},
+    parentElement:{appendChild(m){attached++;mirrors.push(m);}},
     cloneNode(){
-      return {
-        value:'',style:{},removeAttribute(){},setAttribute(){},tabIndex:0,
-        scrollHeight:114,
-        remove(){attached--;}
-      };
+      return {value:'',style:{},removeAttribute(){},setAttribute(){},tabIndex:0,
+        scrollHeight:11400,remove(){attached--;}};
     }
   };
-  const ctx={
-    imageDataCollapsed:false,document:{body:{appendChild(){},removeChild(){}}},
-    getComputedStyle(){return style;}
-  };
+  const ctx={imageDataCollapsed:false,document:{body:{appendChild(){},removeChild(){}}},
+    getComputedStyle(){return style;}};
   vm.runInNewContext(expanded[0]+'\n'+dispatch[0]+'\nthis.measure=measureTextareaHeadingTop;',ctx);
-  // Many expanded Base64 images precede the heading: measure the short suffix.
-  assert.equal(ctx.measure(ta),Math.round(399886/28.8)*28.8);
-  assert.equal(attached,0);
-  assert.equal(mirrors[0].value,source.slice(ta.selectionStart));
+  assert.equal(ctx.measure(ta),Math.round((11400-28-28-28.8)/28.8)*28.8);
+  assert.equal(mirrors[0].value,before+'X');
   assert.equal(mirrors[0].style.width,'441px');
   assert.equal(mirrors[0].style.overflow,'hidden');
   assert.equal(mirrors[0].style.height,'0');
-
-  // A heading before the images keeps the short prefix calculation.
-  ta.selectionStart=source.indexOf('![img0]');
-  ta.cloneNode=()=>({
-    value:'',style:{},removeAttribute(){},setAttribute(){},tabIndex:0,
-    scrollHeight:3000,remove(){attached--;}
-  });
-  assert.equal(ctx.measure(ta),Math.round(2915.2/28.8)*28.8);
-  assert.equal(mirrors[1].value,source.slice(0,ta.selectionStart)+'X');
   assert.equal(attached,0);
 
-  // Folded mode still follows the original div-mirror path.
+  // Change the Base64 AFTER the heading by hundreds of thousands of bytes.
+  // The mirror must stay identical and the heading location must not change.
+  ta.value=before+'## Target Heading\n![after](data:image/png;base64,'+'N'.repeat(400000)+')\n';
+  assert.equal(ctx.measure(ta),Math.round((11400-28-28-28.8)/28.8)*28.8);
+  assert.equal(mirrors[1].value,before+'X');
+  assert.equal(attached,0);
+
+  // A heading near the beginning still uses the same prefix-only calculation.
+  ta.selectionStart=before.indexOf('![before]');
+  assert.equal(ctx.measure(ta),Math.round((11400-28-28-28.8)/28.8)*28.8);
+  assert.equal(mirrors[2].value,before.slice(0,ta.selectionStart)+'X');
+
+  // Folded Base64 still uses the existing div-mirror path, unchanged.
   ctx.imageDataCollapsed=true;
   const marker={offsetTop:172};
   const div={style:{},appendChild(){},textContent:''};
@@ -1347,28 +1344,26 @@ test('expanded Base64 uses shorter textarea segment; folded mode stays unchanged
   assert.equal(ctx.measure(ta),144);
 });
 
-test('expanded Base64 outline measurement snaps integer scrollHeight rounding to fractional line grid', () => {
+test('expanded Base64 prefix measurement snaps integer scrollHeight to fractional line grid', () => {
   const fn=html.match(/function measureExpandedTextareaHeadingTop\(ta\) \{[\s\S]*?\n    \}/);
   assert.ok(fn);
   const style={paddingTop:'28px',paddingBottom:'28px',lineHeight:'28.8px'};
   const ctx={getComputedStyle(){return style;}};
   vm.runInNewContext(fn[0]+'\nthis.measure=measureExpandedTextareaHeadingTop;',ctx);
   const longPrefix='![ppt](data:image/png;base64,'+'Q'.repeat(40000)+')\n';
-  const source=longPrefix+'## Heading\ntext';
+  const source=longPrefix+'## Heading\n![next](data:image/jpeg;base64,'+'W'.repeat(60000)+')';
   const ta={
     value:source,clientWidth:431,selectionStart:longPrefix.length,
-    parentElement:{appendChild(){}},scrollHeight:28870,
-    cloneNode(){return {style:{},scrollHeight:98,
+    parentElement:{appendChild(){}},
+    get scrollHeight(){throw Error('full height must not be used');},
+    cloneNode(){return {style:{},scrollHeight:28870,
       removeAttribute(){},setAttribute(){},remove(){}};}
   };
-  // Scroll heights are rounded to integer pixels, but line starts must fall
-  // on a whole number of 28.8px lines (not on arbitrary fractional positions).
-  const raw=28870-98;
+  const raw=28870-28-28-28.8;
   assert.equal(ctx.measure(ta),Math.round(raw/28.8)*28.8);
-  // A caret inside a long wrapped line must not be snapped to the line start.
+  // A caret inside a wrapped line must not be snapped to the line start.
   ta.selectionStart=longPrefix.length-4;
-  const innerRaw=28870-98;
-  assert.equal(ctx.measure(ta),innerRaw);
+  assert.equal(ctx.measure(ta),raw);
 });
 
 test('expanded Base64 outline reapplies exact scroll after next layout frame', () => {
@@ -1432,30 +1427,36 @@ test('expanded Base64 deferred outline correction ignores stale jumps and moved 
   assert.equal(calls.length,2);
 });
 
-test('expanded-mode measurement ignores the quantity of Base64 data before a late heading', () => {
+test('expanded-mode heading between TWO long Base64 images is insensitive to following image size', () => {
   const fn=html.match(/function measureExpandedTextareaHeadingTop\(ta\) \{[\s\S]*?\n    \}/);
   assert.ok(fn);
   const ctx={getComputedStyle(){return {paddingTop:'28px',paddingBottom:'28px',lineHeight:'28.8px'};}};
   vm.runInNewContext(fn[0]+'\nthis.measure=measureExpandedTextareaHeadingTop;',ctx);
   for(const n of [1,5,10,20]){
-    const prefix=Array.from({length:n},(_,i)=>
+    const prefix='## Start\n'+Array.from({length:n},(_,i)=>
       '![img'+i+'](data:image/png;base64,'+'Q'.repeat(12000)+')\n').join('');
-    const tail='## Final\na short paragraph';
-    const source=prefix+tail;
-    const cloneWidths=[];
+    const heading='## Heading Between Expanded Images\n';
+    let lastValue='';
     const ta={
-      value:source,selectionStart:prefix.length,clientWidth:398,
-      scrollHeight:777000+n*28000,
-      parentElement:{appendChild(x){cloneWidths.push(x);}},
+      value:prefix+heading+'![after](data:image/png;base64,'+'R'.repeat(10000)+')',
+      selectionStart:prefix.length,clientWidth:398,
+      parentElement:{appendChild(){}},
+      get scrollHeight(){throw Error('no suffix measurement allowed');},
       cloneNode(){
-        return {value:'',style:{},scrollHeight:115,
+        return {style:{},scrollHeight:115+n*28000,
+          set value(v){lastValue=v;},get value(){return lastValue;},
           removeAttribute(){},setAttribute(){},remove(){}};
       }
     };
-    const top=ctx.measure(ta);
-    assert.equal(top,Math.round((ta.scrollHeight-115)/28.8)*28.8);
-    assert.equal(cloneWidths.length,1);
-    assert.equal(cloneWidths[0].value,tail);
+    const expected=Math.round(((115+n*28000)-28-28-28.8)/28.8)*28.8;
+    const first=ctx.measure(ta);
+    assert.equal(first,expected);
+    assert.equal(lastValue,prefix+'X');
+    // Huge changes *after* the same heading do not affect its scroll offset.
+    ta.value=prefix+heading+'![after](data:image/png;base64,'+'R'.repeat(250000)+')';
+    const second=ctx.measure(ta);
+    assert.equal(second,expected);
+    assert.equal(lastValue,prefix+'X');
   }
 });
 
