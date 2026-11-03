@@ -1371,16 +1371,17 @@ test('expanded Base64 outline reapplies exact scroll after next layout frame', (
   const max=html.match(/function maxPaneScroll\(pane\) \{[\s\S]*?\n    \}/);
   assert.ok(fn && max);
   const frames=[],observed=[],scrollCalls=[];
+  let extraMeasurements=0;
   const ta={
     style:{paddingBottom:''},clientHeight:280,scrollHeight:5000,
-    scrollTop:0,selectionStart:193,
+    clientWidth:440,scrollTop:0,selectionStart:193,
     scrollTo(options){scrollCalls.push(options);this.scrollTop=options.top;}
   };
   const ctx={
     imageDataCollapsed:false,outlineJumpToken:7,
     requestAnimationFrame:cb=>frames.push(cb),
     measureTextareaHeadingTop(){return 3000.2;},
-    measureExpandedTextareaHeadingTop(){return 3000.4;},
+    measureExpandedTextareaHeadingTop(){extraMeasurements++;return 3000.4;},
     observedScrollTop:{set(el,pos){observed.push([el,pos]);}},
     getComputedStyle(){return {paddingBottom:ta.style.paddingBottom||'28px'};}
   };
@@ -1393,10 +1394,21 @@ test('expanded Base64 outline reapplies exact scroll after next layout frame', (
   ta.scrollTop-=3;
   frames.shift()();
   assert.equal(scrollCalls.length,2);
-  assert.equal(ta.scrollTop,3000.4);
+  assert.equal(ta.scrollTop,3000.2);
+  assert.equal(extraMeasurements,0,'same textarea width must not re-layout large Base64');
   assert.equal(observed.length,1);
-  assert.equal(observed[0][1],3000.4);
+  assert.equal(observed[0][1],3000.2);
   assert.ok(scrollCalls.every(call=>call.behavior==='instant'));
+
+  // If a panel resize changes actual text width before the deferred frame,
+  // re-measure using the new wrapping width instead of reusing stale offsets.
+  ta.clientWidth=440;
+  ctx.align(ta);
+  ta.clientWidth=400;
+  ta.scrollTop-=3;
+  frames.shift()();
+  assert.equal(extraMeasurements,1);
+  assert.equal(ta.scrollTop,3000.4);
 });
 
 test('expanded Base64 deferred outline correction ignores stale jumps and moved carets', () => {
