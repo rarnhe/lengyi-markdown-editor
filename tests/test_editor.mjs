@@ -375,7 +375,7 @@ test('Reading mode toggle preserves the previous standard editor and outline sta
     document:{querySelector(){return app;},getElementById(){return pane;}},
     localStorage:{setItem(k,v){saved[k]=v;}},
     applyOutlineState(){},positionReadingOutline(){pane.style.left='15px';},
-    renderOutline(){},endReadingOutlineDrag(){}
+    renderOutline(){},endReadingOutlineDrag(){},scheduleImageConnections(){}
   };
   vm.runInNewContext(apply[0]+'\n'+setter[0]+'\nthis.setRead=setReadingMode;',ctx);
   ctx.setRead(true);
