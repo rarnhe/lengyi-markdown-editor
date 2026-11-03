@@ -27,6 +27,7 @@ try {
   }
   check('Regression tests', ['--test', 'tests/test_editor.mjs']);
   check('PowerPoint image clipboard paste tests', ['--test', 'tests/test_clipboard_image.mjs']);
+  check('Word text-width and Base64 undo tests', ['--test', 'tests/test_word_base64_undo.mjs']);
 } finally {
   rmSync(tmp, { recursive: true, force: true });
 }
