@@ -734,6 +734,7 @@ test('deep and last editor headings can always be brought to top with verified s
     }
   };
   const ctx={
+    imageDataCollapsed:true,
     measureTextareaHeadingTop(){return currentTarget;},
     getComputedStyle(){return {paddingBottom:ta.style.paddingBottom||'28px'};}
   };
@@ -751,6 +752,139 @@ test('deep and last editor headings can always be brought to top with verified s
   ctx.align(ta);
   assert.equal(ta.scrollTop,47);
   assert.equal(ta.style.paddingBottom,'');
+});
+
+
+test('expanded Base64 uses main native textarea clone plus top padding (both prefix and suffix paths)', () => {
+  const measure=html.match(/function measureExpandedTextareaHeadingTop\(ta\) \{[\s\S]*?\n    \}/);
+  const dispatch=html.match(/function measureTextareaHeadingTop\(ta\) \{[\s\S]*?\n    \}/);
+  const align=html.match(/function scrollTextareaToCaret\(ta\) \{[\s\S]*?\n    \}/);
+  const max=html.match(/function maxPaneScroll\(pane\) \{[\s\S]*?\n    \}/);
+  assert.ok(measure && dispatch && align && max);
+  // Preserve MAIN's native mirror. PR31 line-grid snapping and PR32 DOM
+  // mirror caused accumulated positioning drift, especially near the end.
+  assert.match(measure[0],/const fromEnd = ta\.selectionStart > ta\.value\.length \/ 2/);
+  assert.match(measure[0],/ta\.cloneNode\(false\)/);
+  assert.match(measure[0],/ta\.scrollHeight - mirror\.scrollHeight/);
+  assert.doesNotMatch(measure[0],/Math\.round\(top \/ lineHeight\)|getBoundingClientRect/);
+
+  const css={paddingTop:'28px',paddingBottom:'28px',lineHeight:'28.8px'};
+  for(const variant of [
+    {imageBefore:1,imageAfter:3,fullHeight:20000,mirrorHeight:3200,fromEnd:false},
+    {imageBefore:4,imageAfter:1,fullHeight:30000,mirrorHeight:2300,fromEnd:true},
+    {imageBefore:18,imageAfter:1,fullHeight:350000,mirrorHeight:12000,fromEnd:true}
+  ]){
+    const prefix=Array.from({length:variant.imageBefore},()=>
+      '![img](data:image/png;base64,'+'Q'.repeat(18000)+')\n').join('');
+    const suffix=Array.from({length:variant.imageAfter},()=>
+      '![img](data:image/png;base64,'+'Z'.repeat(18000)+')\n').join('');
+    const src=prefix+'## TITLE BETWEEN IMAGES\n'+suffix;
+    let mirror;
+    const ta={
+      value:src,selectionStart:prefix.length,clientWidth:420,clientHeight:420,
+      scrollHeight:variant.fullHeight,scrollTop:0,style:{paddingBottom:''},
+      parentElement:{appendChild(el){mirror=el;}},
+      cloneNode(){return {style:{},value:'',scrollHeight:variant.mirrorHeight,
+        setAttribute(){},removeAttribute(){},remove(){}};},
+      scrollTo(opts){this.last=opts;this.scrollTop=opts.top;}
+    };
+    const expected=variant.fromEnd
+      ? variant.fullHeight-variant.mirrorHeight
+      : variant.mirrorHeight-28-28-28.8;
+    const ctx={imageDataCollapsed:false,outlineJumpToken:9,
+      requestAnimationFrame:()=>{},
+      observedScrollTop:{set(){}},
+      getComputedStyle(){return css;}};
+    vm.runInNewContext(
+      max[0]+'\n'+measure[0]+'\n'+dispatch[0]+'\n'+align[0]+
+      '\nthis.align=scrollTextareaToCaret;',ctx);
+    assert.equal(prefix.length>src.length/2,variant.fromEnd);
+    ctx.align(ta);
+    assert.equal(ta.last.top,Math.max(0,expected)+28,
+      'scrolling must include the visible top padding absent from native mirror offset');
+    assert.equal(ta.last.behavior,'instant');
+    assert.equal(mirror.style.width,'420px');
+  }
+});
+
+test('expanded outline scroll restores true top after native caret movement without remeasuring text', () => {
+  const fn=html.match(/function scrollTextareaToCaret\(ta\) \{[\s\S]*?\n    \}/);
+  const max=html.match(/function maxPaneScroll\(pane\) \{[\s\S]*?\n    \}/);
+  const frames=[],calls=[],tracked=[];
+  let measures=0;
+  const ta={
+    value:'Q'.repeat(20000)+'\n## Heading',selectionStart:20001,
+    clientWidth:405,clientHeight:350,scrollHeight:30000,
+    style:{paddingBottom:''},scrollTop:0,
+    scrollTo(opts){this.scrollTop=opts.top;calls.push(opts);}
+  };
+  const ctx={
+    imageDataCollapsed:false,outlineJumpToken:5,
+    observedScrollTop:{set(_,y){tracked.push(y);}},
+    requestAnimationFrame:cb=>frames.push(cb),
+    measureTextareaHeadingTop(){measures++;return measures===1?8800:8900;},
+    getComputedStyle(){return {paddingTop:'28px',paddingBottom:'28px'};}
+  };
+  vm.runInNewContext(max[0]+'\n'+fn[0]+'\nthis.align=scrollTextareaToCaret;',ctx);
+  ctx.align(ta);
+  assert.equal(ta.scrollTop,8828);
+  assert.equal(measures,1);
+  ta.scrollTop=8803; // browser moves caret after first scroll
+  frames.shift()();
+  assert.equal(ta.scrollTop,8828);
+  assert.equal(measures,1,'unchanged width must not recreate enormous Base64 mirror');
+  assert.equal(tracked.at(-1),8828);
+  ctx.align(ta);
+  ta.clientWidth=399;
+  ta.scrollTop=8800;
+  frames.shift()();
+  assert.equal(measures,3,'when width changes, old wrapping must not be reused');
+  assert.equal(ta.scrollTop,8928);
+});
+
+test('expanded outline ignores deferred correction from older click or changed Markdown', () => {
+  const fn=html.match(/function scrollTextareaToCaret\(ta\) \{[\s\S]*?\n    \}/);
+  const max=html.match(/function maxPaneScroll\(pane\) \{[\s\S]*?\n    \}/);
+  const frames=[];
+  const ta={value:'## Header\ntext',selectionStart:0,
+    clientWidth:420,clientHeight:330,scrollHeight:3000,
+    style:{paddingBottom:''},scrollTop:0,
+    scrollTo(o){this.scrollTop=o.top;}};
+  const ctx={imageDataCollapsed:false,outlineJumpToken:2,
+    requestAnimationFrame:fn=>frames.push(fn),
+    observedScrollTop:{set(){throw Error('obsolete correction must not run');}},
+    measureTextareaHeadingTop:()=>500,
+    getComputedStyle:()=>({paddingTop:'28px',paddingBottom:'28px'})};
+  vm.runInNewContext(max[0]+'\n'+fn[0]+'\nthis.align=scrollTextareaToCaret;',ctx);
+  ctx.align(ta);
+  ctx.outlineJumpToken++;
+  frames.shift()();
+  assert.equal(ta.scrollTop,528);
+  ctx.align(ta);
+  ta.value+='typed';
+  frames.shift()();
+  assert.equal(ta.scrollTop,528);
+});
+
+test('expanded short documents gain enough scroll area for first heading to reach visible top', () => {
+  const fn=html.match(/function scrollTextareaToCaret\(ta\) \{[\s\S]*?\n    \}/);
+  const max=html.match(/function maxPaneScroll\(pane\) \{[\s\S]*?\n    \}/);
+  const ta={value:'## First Heading\nbody',selectionStart:0,
+    clientWidth:450,clientHeight:360,style:{paddingBottom:''},scrollTop:0,
+    get scrollHeight(){return Math.max(360,90+(parseFloat(this.style.paddingBottom)||28));},
+    scrollTo(options){this.last=options;this.scrollTop=Math.min(options.top,this.scrollHeight-this.clientHeight);}
+  };
+  const ctx={imageDataCollapsed:false,outlineJumpToken:1,
+    measureTextareaHeadingTop:()=>0,
+    getComputedStyle:()=>({paddingTop:'28px',paddingBottom:ta.style.paddingBottom||'28px'}),
+    requestAnimationFrame:()=>{},
+    observedScrollTop:{set(){}}};
+  vm.runInNewContext(max[0]+'\n'+fn[0]+'\nthis.align=scrollTextareaToCaret;',ctx);
+  ctx.align(ta);
+  assert.equal(ta.last.top,28);
+  assert.equal(ta.scrollTop,28);
+  assert.ok(parseFloat(ta.style.paddingBottom)>ta.clientHeight);
+  assert.ok(ta.scrollHeight-ta.clientHeight>=28);
 });
 
 test('dead proportional sync and orphan Standard/fullscreen handlers have been removed', () => {
