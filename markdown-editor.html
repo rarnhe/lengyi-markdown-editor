@@ -2226,6 +2226,7 @@
       // Remove any leftover spacer from an earlier heading before measuring.
       ta.style.paddingBottom = '';
       const top = measureTextareaHeadingTop(ta);
+      const measuredWidth = ta.clientWidth;
       // For a heading near the end, allocate enough trailing room for exact alignment.
       // Recheck against the real scrollHeight after layout, not an estimate.
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -2248,7 +2249,11 @@
         requestAnimationFrame(() => {
           if (imageDataCollapsed || ta.selectionStart !== caret ||
               token !== outlineJumpToken) return;
-          const correctedTop = measureExpandedTextareaHeadingTop(ta);
+          // The prefix-only measurement is stable if the text width stayed
+          // the same; the next-frame check must correct native caret scroll,
+          // not render megabytes of the same Base64 a second time.
+          const correctedTop = ta.clientWidth === measuredWidth
+            ? top : measureExpandedTextareaHeadingTop(ta);
           for (let attempt = 0; attempt < 3; attempt++) {
             const deficit = correctedTop - maxPaneScroll(ta);
             if (deficit <= 1) break;
