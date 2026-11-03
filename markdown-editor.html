@@ -3389,8 +3389,9 @@ ${'</scr' + 'ipt>'}
           if (item.kind !== 'file' || typeof item.getAsFile !== 'function') continue;
           const file = item.getAsFile();
           if (!file) continue;
-          const mime = (file.type || item.type || '').toLowerCase();
-          if (supported.includes(mime)) candidates.push({ file, mime });
+          const mime = [item.type, file.type].map(type => (type || '').toLowerCase())
+            .find(type => supported.includes(type));
+          if (mime) candidates.push({ file, mime });
         }
       }
       if (!candidates.length && clipboard.files) {
@@ -3414,8 +3415,10 @@ ${'</scr' + 'ipt>'}
         // variants expose only EMF/WMF/TIFF, which browsers cannot turn into
         // a PNG Blob using a standard paste event.
         const imageOnly = clipboard &&
-          Array.from(clipboard.items || []).some(item =>
-            item.kind === 'file' && /^image\//i.test(item.type || '')) &&
+          (Array.from(clipboard.items || []).some(item =>
+            item.kind === 'file' && /^image\//i.test(item.type || '')) ||
+           Array.from(clipboard.files || []).some(file =>
+            /^image\//i.test(file.type || ''))) &&
           !Array.from(clipboard.types || []).includes('text/plain');
         if (imageOnly) {
           event.preventDefault();
@@ -3463,7 +3466,11 @@ ${'</scr' + 'ipt>'}
         showToast(t('toastImageInserted'));
       };
       reader.onerror = () => showToast(t('toastImageReadFailed'));
-      reader.readAsDataURL(file);
+      try {
+        reader.readAsDataURL(file);
+      } catch (error) {
+        showToast(t('toastImageReadFailed'));
+      }
     }
     // Clipboard image paste END
 
