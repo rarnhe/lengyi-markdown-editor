@@ -83,7 +83,7 @@ Language preference is persisted to `localStorage`.
 |--------|-------------|
 | `.md` | Raw Markdown file |
 | `.html` | Standalone HTML file |
-| `.doc` | Word document (opens directly in Office) |
+| `.doc` | Word-compatible HTML saved as `.doc`: images are set to the full A4 text-area width (15.92cm with 2.54cm side margins), and height follows the original aspect ratio without a fixed height cap. Exceptionally tall images may exceed one page. |
 | `.pdf` | Browser print-to-PDF |
 | `.png` | Long-image export with 9:16, 4:5, 3:4, 1:1, 16:9 ratios for social sharing |
 
