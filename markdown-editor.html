@@ -1741,7 +1741,7 @@
             || (start === end && e.inputType === 'deleteContentForward' && start === index);
           if (touches && !(start <= index && end >= finish)) {
             e.preventDefault();
-            showToast(t('showBase64'));
+            showToast(t('base64MarkerProtected'));
             return;
           }
           index = el.value.indexOf(marker, finish);
