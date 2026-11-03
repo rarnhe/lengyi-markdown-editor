@@ -1961,6 +1961,7 @@
         previewPane.style.flex = `${1 - editorRatio} ${1 - editorRatio} 0`;
       }
       updateFilenameLimit();
+      scheduleImageConnections();
     }
 
     function startResize(e) {
@@ -2365,6 +2366,7 @@
       localStorage.setItem(READING_MODE_KEY, String(enabled));
       applyReadingMode();
       if (readingMode) renderOutline();
+      scheduleImageConnections();
     }
 
     function beginReadingOutlineDrag(event) {
@@ -2477,6 +2479,212 @@
       applyToolbarOverflow();
     }
 
+    // Image compare links BEGIN
+    // Passive visual layer: no modifications to Markdown or preview content.
+    const imageLinkOverlay = document.getElementById('image-link-overlay');
+    let imageLinkFrame = 0;
+    let imageLinkLayout = { value: null, width: -1, rows: [] };
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+
+    function findImageSourceRows(text) {
+      const rows = [];
+      const lines = text.split('\n');
+      let offset = 0, fence = '';
+      for (const line of lines) {
+        const boundary = line.trimStart().match(/^(\x60{3,}|~{3,})/);
+        if (boundary) {
+          if (!fence) fence = boundary[1];
+          else if (boundary[1][0] === fence[0] &&
+                   boundary[1].length >= fence.length) fence = '';
+        } else if (!fence) {
+          const re = /!\[[^\]\n]*\]\(([^)\n]+)\)/g;
+          let found;
+          while ((found = re.exec(line))) {
+            const source = found[1].trim().match(/^(?:<([^>]+)>|([^\s]+))/);
+            if (!source) continue;
+            rows.push({ start:offset, end:offset+line.length,
+              source:source[1] || source[2] });
+          }
+        }
+        offset += line.length+1;
+      }
+      return rows;
+    }
+
+    function measureImageSourceRows() {
+      if (imageLinkLayout.value === editor.value &&
+          imageLinkLayout.width === editor.clientWidth) {
+        return imageLinkLayout.rows;
+      }
+      const rawRows = findImageSourceRows(editor.value);
+      if (!rawRows.length || !editor.clientWidth) {
+        imageLinkLayout = {value:editor.value, width:editor.clientWidth, rows:[]};
+        return [];
+      }
+      const css = getComputedStyle(editor);
+      const mirror = document.createElement('div');
+      ['fontFamily','fontSize','fontWeight','fontStyle','lineHeight',
+       'letterSpacing','wordSpacing','tabSize','padding','textAlign',
+       'textIndent','direction','whiteSpace','wordBreak','overflowWrap']
+        .forEach(p => { mirror.style[p] = css[p]; });
+      mirror.style.boxSizing = 'border-box';
+      mirror.style.width = editor.clientWidth + 'px';
+      mirror.style.border = '0';
+      mirror.style.position = 'absolute';
+      mirror.style.left = '-99999px';
+      mirror.style.top = '0';
+      mirror.style.visibility = 'hidden';
+      mirror.style.pointerEvents = 'none';
+      mirror.style.height = 'auto';
+      const spans = [];
+      let cursor = 0;
+      for (const row of rawRows) {
+        if (row.start < cursor) {
+          const previous = spans[spans.length - 1];
+          spans.push({ ...row, first:previous.first, last:previous.last });
+          continue;
+        }
+        mirror.appendChild(document.createTextNode(editor.value.slice(cursor,row.start)));
+        const first = document.createElement('span');
+        first.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:top;';
+        mirror.appendChild(first);
+        mirror.appendChild(document.createTextNode(editor.value.slice(row.start,row.end)));
+        const last = document.createElement('span');
+        last.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:top;';
+        mirror.appendChild(last);
+        spans.push({ ...row, first, last });
+        cursor = row.end;
+      }
+      mirror.appendChild(document.createTextNode(editor.value.slice(cursor)));
+      editor.parentElement.appendChild(mirror);
+      const baseTop = mirror.getBoundingClientRect().top;
+      const lineHeight = parseFloat(css.lineHeight) || 28;
+      const rows = spans.map(item => {
+        const startY = item.first.getBoundingClientRect().top - baseTop;
+        const endY = item.last.getBoundingClientRect().top - baseTop + lineHeight;
+        return { start:item.start, end:item.end, source:item.source,
+          startY, endY:Math.max(startY+lineHeight,endY) };
+      });
+      mirror.remove();
+      imageLinkLayout = {value:editor.value,width:editor.clientWidth,rows};
+      return rows;
+    }
+
+    function imageSourcesMatch(source, rendered) {
+      if (source === rendered) return true;
+      if (source.startsWith('data:') || rendered.startsWith('data:')) return false;
+      try {
+        return new URL(source, document.baseURI).href ===
+          new URL(rendered, document.baseURI).href;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    function imageLinkSvgElement(name, attributes) {
+      const shape = document.createElementNS(SVG_NS,name);
+      for (const [key,value] of Object.entries(attributes)) {
+        shape.setAttribute(key,String(value));
+      }
+      return shape;
+    }
+
+    function drawImageConnections() {
+      if (!imageLinkOverlay) return;
+      imageLinkOverlay.replaceChildren();
+      if (readingMode || editorCollapsed || !imageDataCollapsed ||
+          (window.matchMedia && window.matchMedia('(max-width: 768px)').matches)) return;
+      const sources = measureImageSourceRows();
+      if (!sources.length) return;
+      const images = Array.from(preview.querySelectorAll('.markdown-body img'));
+      if (!images.length) return;
+      const main = document.querySelector('.main').getBoundingClientRect();
+      const edit = editor.getBoundingClientRect();
+      const rendered = preview.getBoundingClientRect();
+      if (edit.width < 100 || rendered.width < 100 ||
+          rendered.left <= edit.right) return;
+      imageLinkOverlay.setAttribute('viewBox','0 0 '+main.width+' '+main.height);
+      const css = getComputedStyle(editor);
+      const leftPadding = parseFloat(css.paddingLeft) || 0;
+      const rightPadding = parseFloat(css.paddingRight) || 0;
+      const editTop = edit.top-main.top, editBottom = edit.bottom-main.top;
+      const previewTop = rendered.top-main.top;
+      const previewBottom = rendered.bottom-main.top;
+      let searchFrom = 0;
+      for (const item of sources) {
+        const expected = expandImageData(item.source);
+        let image = null;
+        for (let index = searchFrom; index < images.length; index++) {
+          if (imageSourcesMatch(expected, images[index].getAttribute('src') || '')) {
+            image = images[index];
+            searchFrom = index+1;
+            break;
+          }
+        }
+        if (!image) continue;
+        const imageBounds = image.getBoundingClientRect();
+        const sy1 = Math.max(editTop, editTop+item.startY-editor.scrollTop);
+        const sy2 = Math.min(editBottom, editTop+item.endY-editor.scrollTop);
+        const iy1 = Math.max(previewTop,imageBounds.top-main.top);
+        const iy2 = Math.min(previewBottom,imageBounds.bottom-main.top);
+        if (sy2 <= sy1 || iy2 <= iy1) continue;
+        const x1 = edit.right-main.left-3;
+        const x2 = imageBounds.left-main.left-3;
+        if (x2 <= x1+6) continue;
+        const mid = (x1+x2)/2;
+        const sourceX = edit.left-main.left+leftPadding;
+        const sourceWidth = Math.max(0,edit.width-leftPadding-rightPadding);
+        imageLinkOverlay.appendChild(imageLinkSvgElement('rect',{
+          x:sourceX,y:sy1,width:sourceWidth,height:sy2-sy1,
+          rx:4,fill:'rgba(54, 175, 102, 0.13)'
+        }));
+        const d = 'M '+x1+' '+sy1+
+          ' C '+mid+' '+sy1+' '+mid+' '+iy1+' '+x2+' '+iy1+
+          ' L '+x2+' '+iy2+
+          ' C '+mid+' '+iy2+' '+mid+' '+sy2+' '+x1+' '+sy2+' Z';
+        imageLinkOverlay.appendChild(imageLinkSvgElement('path',{
+          d,fill:'rgba(57, 169, 97, 0.15)',
+          stroke:'rgba(52, 164, 91, 0.45)','stroke-width':'1'
+        }));
+        const imageX = imageBounds.left-main.left;
+        const imageRight = Math.min(rendered.right-main.left,imageBounds.right-main.left);
+        imageLinkOverlay.appendChild(imageLinkSvgElement('rect',{
+          x:imageX,y:iy1,width:Math.max(0,imageRight-imageX),
+          height:iy2-iy1,rx:3,fill:'none',
+          stroke:'rgba(47, 156, 86, 0.67)','stroke-width':'2'
+        }));
+      }
+    }
+
+    function scheduleImageConnections() {
+      if (imageLinkFrame) return;
+      imageLinkFrame = requestAnimationFrame(() => {
+        imageLinkFrame = 0;
+        drawImageConnections();
+      });
+    }
+
+    const imageLinkResizeObserver = typeof ResizeObserver === 'undefined'
+      ? null : new ResizeObserver(scheduleImageConnections);
+    if (imageLinkResizeObserver) {
+      imageLinkResizeObserver.observe(editor);
+      imageLinkResizeObserver.observe(preview);
+    }
+    let observedImageBody = null;
+    function observeImageBody() {
+      if (!imageLinkResizeObserver) return;
+      if (observedImageBody) imageLinkResizeObserver.unobserve(observedImageBody);
+      observedImageBody = preview.querySelector('.markdown-body');
+      if (observedImageBody) imageLinkResizeObserver.observe(observedImageBody);
+    }
+    editor.addEventListener('scroll',scheduleImageConnections,{passive:true});
+    preview.addEventListener('scroll',scheduleImageConnections,{passive:true});
+    preview.addEventListener('load',event => {
+      if (event.target && event.target.tagName === 'IMG') scheduleImageConnections();
+    },true);
+    window.addEventListener('resize',scheduleImageConnections);
+    // Image compare links END
+
     // 渲染预览
     function updatePreview() {
       let text = getMarkdown();
@@ -2530,6 +2738,8 @@
       renderMermaidBlocks();
       renderOutline();
       updatePreviewProgress();
+      observeImageBody();
+      scheduleImageConnections();
     }
 
     function protectMath(text) {
