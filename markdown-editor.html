@@ -1611,6 +1611,10 @@
     const IMAGE_DATA_RE = /data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+/gi;
     const IMAGE_MARKER_RE = /⟦Base64图片#\d+已折叠⟧/g;
     const imageDataMap = new Map();
+    // Remember the marker allocated to each image payload for this editing
+    // session. Undo/redo restores full Markdown; re-folding must NOT allocate
+    // a new #N for an unchanged image. Identical data URLs share an identity.
+    const imageMarkerByData = new Map();
     let imageDataCollapsed = true;
     let imageMarkerNumber = 0;
 
@@ -1635,7 +1639,11 @@
       const changes = [];
       const folded = text.replace(IMAGE_DATA_RE, (value, offset) => {
         if (value.length < 128) return value;
-        const marker = '⟦Base64图片#' + (++imageMarkerNumber) + '已折叠⟧';
+        let marker = imageMarkerByData.get(value);
+        if (!marker) {
+          marker = '⟦Base64图片#' + (++imageMarkerNumber) + '已折叠⟧';
+          imageMarkerByData.set(value, marker);
+        }
         imageDataMap.set(marker, value);
         changes.push({ start: offset, end: offset + value.length, size: marker.length });
         return marker;
@@ -1659,6 +1667,8 @@
     }
 
     function setMarkdown(markdown) {
+      // Only clear the live marker-to-payload view. Retain imageMarkerByData,
+      // so history restore reuses its previous visible #N identifier.
       imageDataMap.clear();
       const displayed = collapseImageData(markdown).text;
       editor.value = displayed;
@@ -2616,8 +2626,73 @@
       showToast(t('toastExported'));
     }
 
+    // Word .doc is HTML-in-DOC. Word often ignores max-width:100% and
+    // height:auto, so the *printable page text width* must be explicit.
+    // A4 width 21cm, with 2.54cm left and right margins -> 15.92cm.
+    // Do NOT impose a fixed max-height: preserve the original aspect ratio.
+    function wordPageImageSize(originalWidth, originalHeight) {
+      if (!Number.isFinite(originalWidth) || !Number.isFinite(originalHeight) ||
+          originalWidth <= 0 || originalHeight <= 0) return null;
+      const pageWidthCm = 21;
+      const marginCm = 2.54;
+      const contentWidthCm = pageWidthCm - 2 * marginCm;
+      const contentHeightCm = contentWidthCm * originalHeight / originalWidth;
+      return {
+        widthCm: contentWidthCm.toFixed(2),
+        heightCm: contentHeightCm.toFixed(4),
+        widthPx: Math.round(contentWidthCm / 2.54 * 96),
+        heightPx: Math.max(1, Math.round(contentHeightCm / 2.54 * 96))
+      };
+    }
+
+    async function fitDocImagesToTextWidth(bodyHtml) {
+      const doc = new DOMParser().parseFromString(bodyHtml, 'text/html');
+      const images = Array.from(doc.body.querySelectorAll('img'));
+      await Promise.all(images.map(async img => {
+        const src = img.getAttribute('src') || '';
+        const original = await new Promise(resolve => {
+          const probe = new Image();
+          let finished = false;
+          const complete = value => {
+            if (finished) return;
+            finished = true;
+            clearTimeout(timeout);
+            probe.onload = probe.onerror = null;
+            resolve(value);
+          };
+          const timeout = setTimeout(() => complete(null), 3000);
+          probe.onload = () => complete({
+            width: probe.naturalWidth, height: probe.naturalHeight
+          });
+          probe.onerror = () => complete(null);
+          probe.src = src;
+        });
+        // For an unavailable remote image, try explicit HTML attributes.
+        const width = original?.width || Number(img.getAttribute('width')) || 0;
+        const height = original?.height || Number(img.getAttribute('height')) || 0;
+        const size = wordPageImageSize(width, height);
+        // Force an actual physical width (not a CSS percentage), aligned with
+        // Word's page text edges. No portrait-height cap or width cropping.
+        img.style.setProperty('width', (size?.widthCm || '15.92') + 'cm', 'important');
+        img.style.setProperty('max-width', 'none', 'important');
+        img.style.setProperty('max-height', 'none', 'important');
+        img.style.setProperty('display', 'block');
+        img.style.setProperty('margin-left', '0');
+        img.style.setProperty('margin-right', '0');
+        img.setAttribute('width', String(size?.widthPx || Math.round(15.92 / 2.54 * 96)));
+        if (size) {
+          img.style.setProperty('height', size.heightCm + 'cm', 'important');
+          img.setAttribute('height', String(size.heightPx));
+        } else {
+          img.style.setProperty('height', 'auto', 'important');
+          img.removeAttribute('height');
+        }
+      }));
+      return doc.body.innerHTML;
+    }
+
     // 导出 Word：将 Markdown 渲染为 HTML 并伪装成 .doc 下载
-    function exportWord() {
+    async function exportWord() {
       let name = filenameInput.value.trim();
       if (!name) name = '未命名文档.md';
       name = name.replace(/\.md$/i, '').replace(/\.markdown$/i, '') + '.doc';
@@ -2630,13 +2705,17 @@
         bodyHtml = '<pre style="white-space:pre-wrap">' + escapeHtml(md) + '</pre>';
       }
 
+      bodyHtml = await fitDocImagesToTextWidth(bodyHtml);
+
       const fullHtml = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <title>${escapeHtml(name.replace(/\.doc$/i, ''))}</title>
   <style>
-    body { font-family: "Microsoft YaHei", "SimSun", "PingFang SC", sans-serif; font-size: 12pt; line-height: 1.6; color: #000; }
+    @page WordSection1 { size: 21cm 29.7cm; margin: 2.54cm 2.54cm 2.54cm 2.54cm; }
+    div.WordSection1 { page: WordSection1; }
+    body { margin: 0; font-family: "Microsoft YaHei", "SimSun", "PingFang SC", sans-serif; font-size: 12pt; line-height: 1.6; color: #000; }
     h1 { font-size: 20pt; font-weight: bold; margin: 18pt 0 10pt; }
     h2 { font-size: 16pt; font-weight: bold; margin: 14pt 0 8pt; }
     h3 { font-size: 14pt; font-weight: bold; margin: 12pt 0 6pt; }
@@ -2651,13 +2730,15 @@
     th { background: #f5f5f5; font-weight: bold; }
     ul, ol { margin: 6pt 0; padding-left: 24pt; }
     li { margin: 3pt 0; }
-    img { max-width: 100%; height: auto; }
+    img { display: block; width: 15.92cm; max-width: none; max-height: none; margin-left: 0; margin-right: 0; }
     hr { border: none; border-top: 1px solid #ccc; margin: 12pt 0; }
     a { color: #0563c1; text-decoration: underline; }
   </style>
 </head>
 <body>
+<div class="WordSection1">
 ${bodyHtml}
+</div>
 </body>
 </html>`;
 
