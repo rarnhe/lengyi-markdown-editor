@@ -100,6 +100,27 @@ test('Among multiple clipboard variants prefer PNG over GIF or JPEG',()=>{
   assert.equal(selected.file,png);
 });
 
+test('PPT clipboard MIME can be on DataTransferItem when File.type is blank',()=>{
+  const {api,track}=harness();
+  const file=makeImage('', 'H'.repeat(300));
+  file.type='';
+  file.dataUrl='data:application/octet-stream;base64,'+'H'.repeat(300);
+  const p=pasteEvent([{kind:'file',type:'image/png',getAsFile:()=>file}]);
+  api.handleEditorImagePaste(p.event);
+  assert.equal(p.prevented(),1);
+  assert.equal(track.read,1);
+  assert.match(api.getMarkdown(),/data:image\/png;base64,H{300}/);
+});
+
+test('Unsupported image in clipboard.files without items shows a helpful warning',()=>{
+  const {api,track}=harness();
+  const p=pasteEvent([],[]);
+  p.event.clipboardData.files=[makeImage('image/tiff')];
+  api.handleEditorImagePaste(p.event);
+  assert.equal(p.prevented(),1);
+  assert.deepEqual(track.toasts,['toastPasteImageUnsupported']);
+});
+
 test('ClipboardData.files fallback handles image without items',()=>{
   const {api,track}=harness();
   const file=makeImage('image/jpeg','E'.repeat(300));
