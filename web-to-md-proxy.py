@@ -17,6 +17,11 @@ import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import urlparse, parse_qs, unquote
 import urllib.request
+import os
+import secrets
+import shutil
+import subprocess
+import tempfile
 
 try:
     import requests
@@ -25,6 +30,54 @@ except ImportError:
     HAS_REQUESTS = False
 
 PORT = 8765
+PANDOC_TOKEN = secrets.token_urlsafe(32)
+MAX_DOCX_REQUEST = 48 * 1024 * 1024
+
+
+def pandoc_binary():
+    exe = shutil.which('pandoc')
+    if not exe:
+        return None
+    try:
+        check = subprocess.run([exe, '--version'], stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE, timeout=5, check=False)
+        if check.returncode == 0 and check.stdout.startswith(b'pandoc '):
+            return exe
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    return None
+
+
+def trusted_export_origin(origin):
+    # file:// sends Origin: null. Never allow arbitrary hosted websites.
+    if origin in (None, 'null', 'https://rarnhe.github.io'):
+        return True
+    return re.fullmatch(r'https?://(?:localhost|127\.0\.0\.1)(?::\d{1,5})?', origin) is not None
+
+
+def pandoc_to_docx(markdown, exe):
+    with tempfile.TemporaryDirectory(prefix='lengyi-docx-') as workdir:
+        source = os.path.join(workdir, 'source.md')
+        output = os.path.join(workdir, 'result.docx')
+        with open(source, 'w', encoding='utf-8') as f:
+            f.write(markdown)
+        # -raw_html also prevents raw iframe includes. Args are fixed and
+        # subprocess never invokes a shell.
+        result = subprocess.run(
+            [exe, '--from=markdown-raw_html', '--to=docx',
+             '--resource-path=' + workdir, source, '-o', output],
+            cwd=workdir, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            timeout=90, check=False
+        )
+        if result.returncode:
+            raise RuntimeError(result.stderr.decode('utf-8', 'replace')[:500]
+                               or 'Pandoc conversion failed')
+        with open(output, 'rb') as f:
+            data = f.read()
+        if not data.startswith(b'PK\x03\x04'):
+            raise RuntimeError('Pandoc did not produce a DOCX file')
+        return data
+
 
 USER_AGENTS = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
@@ -98,15 +151,106 @@ def fetch_url(url):
 
 
 class Handler(BaseHTTPRequestHandler):
+    def _export_allowed(self):
+        host = self.headers.get('Host', '')
+        return (host in ('127.0.0.1:' + str(PORT), 'localhost:' + str(PORT)) and
+                trusted_export_origin(self.headers.get('Origin')))
+
+    def _export_cors(self):
+        origin = self.headers.get('Origin')
+        if origin is not None and trusted_export_origin(origin):
+            self.send_header('Access-Control-Allow-Origin', origin)
+            self.send_header('Vary', 'Origin')
+        self.send_header('Cache-Control', 'no-store')
+
+    def _export_json(self, code, value):
+        raw = json.dumps(value, ensure_ascii=False).encode('utf-8')
+        self.send_response(code)
+        self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self._export_cors()
+        self.send_header('Content-Length', str(len(raw)))
+        self.end_headers()
+        self.wfile.write(raw)
+
     def do_OPTIONS(self):
+        if urlparse(self.path).path.startswith('/pandoc/'):
+            if not self._export_allowed():
+                self._export_json(403, {'error': 'Untrusted origin or host'})
+                return
+            self.send_response(204)
+            self._export_cors()
+            self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+            self.send_header('Access-Control-Allow-Headers',
+                             'Content-Type, X-Lengyi-Token')
+            if self.headers.get('Access-Control-Request-Private-Network') == 'true':
+                self.send_header('Access-Control-Allow-Private-Network', 'true')
+            self.end_headers()
+            return
         self.send_response(200)
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
 
+    def do_POST(self):
+        if urlparse(self.path).path != '/pandoc/export':
+            self._export_json(404, {'error': 'Unknown endpoint'})
+            return
+        if not self._export_allowed():
+            self._export_json(403, {'error': 'Untrusted origin or host'})
+            return
+        if self.headers.get('X-Lengyi-Token') != PANDOC_TOKEN:
+            self._export_json(403, {'error': 'Missing or invalid export token'})
+            return
+        if self.headers.get('Content-Type', '').split(';')[0].strip().lower() != 'application/json':
+            self._export_json(415, {'error': 'Expected application/json'})
+            return
+        try:
+            size = int(self.headers.get('Content-Length', '0'))
+        except ValueError:
+            size = 0
+        if not 0 < size <= MAX_DOCX_REQUEST:
+            self._export_json(413, {'error': 'Markdown is empty or exceeds 48 MiB'})
+            return
+        exe = pandoc_binary()
+        if not exe:
+            self._export_json(503, {'error': 'Pandoc not available'})
+            return
+        try:
+            message = json.loads(self.rfile.read(size).decode('utf-8'))
+            markdown = message.get('markdown') if isinstance(message, dict) else None
+            if not isinstance(markdown, str):
+                self._export_json(400, {'error': 'Missing Markdown text'})
+                return
+            docx = pandoc_to_docx(markdown, exe)
+        except (ValueError, UnicodeError):
+            self._export_json(400, {'error': 'Invalid UTF-8 or JSON'})
+            return
+        except subprocess.TimeoutExpired:
+            self._export_json(504, {'error': 'Pandoc timed out'})
+            return
+        except (OSError, RuntimeError) as error:
+            self._export_json(500, {'error': str(error)[:500]})
+            return
+        self.send_response(200)
+        self.send_header('Content-Type',
+                         'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        self.send_header('Content-Disposition', 'attachment; filename="export.docx"')
+        self._export_cors()
+        self.send_header('Content-Length', str(len(docx)))
+        self.end_headers()
+        self.wfile.write(docx)
+
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == '/pandoc/status':
+            if not self._export_allowed():
+                self._export_json(403, {'error': 'Untrusted origin or host'})
+                return
+            exe = pandoc_binary()
+            self._export_json(200, {'available': bool(exe),
+                                    'token': PANDOC_TOKEN if exe else None})
+            return
         params = parse_qs(parsed.query)
 
         self.send_response(200)
@@ -210,6 +354,7 @@ def main():
     server = HTTPServer(('127.0.0.1', PORT), Handler)
     print(f"本地代理已启动: http://127.0.0.1:{PORT}")
     print("在 Markdown 编辑器中勾选「使用本地代理」即可使用")
+    print("Pandoc DOCX 导出：" + ("已就绪" if pandoc_binary() else "未检测到 pandoc"))
     print("如需生成浏览器书签小工具，请运行：python web-to-md-proxy.py --bookmark")
     print("按 Ctrl+C 停止")
     try:
