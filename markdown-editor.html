@@ -2218,18 +2218,47 @@
     function scrollTextareaToCaret(ta) {
       // Remove any leftover spacer from an earlier heading before measuring.
       ta.style.paddingBottom = '';
-      const top = measureTextareaHeadingTop(ta);
-      // For a heading near the end, allocate enough trailing room for exact alignment.
-      // Recheck against the real scrollHeight after layout, not an estimate.
+      const expanded = !imageDataCollapsed;
+      // Keep main's original native textarea-clone algorithm. Its returned
+      // expanded offset is relative to the text content, not the scrollport:
+      // both its prefix and suffix branches omit paddingTop (28px by default).
+      // Without it, one Base64 row remains visible ABOVE the heading.
+      const targetTop = () => measureTextareaHeadingTop(ta) +
+        (expanded ? (parseFloat(getComputedStyle(ta).paddingTop) || 0) : 0);
+      let top = targetTop();
+      let measuredWidth = ta.clientWidth;
+      // Verify actual scroll room. A short textarea's scrollHeight stays equal
+      // to clientHeight until enough padding is added to cause overflow.
       for (let attempt = 0; attempt < 3; attempt++) {
         const deficit = top - maxPaneScroll(ta);
         if (deficit <= 1) break;
         const padding = parseFloat(getComputedStyle(ta).paddingBottom) || 0;
-        ta.style.paddingBottom = Math.ceil(padding + deficit + 4) + 'px';
+        const shortfall = expanded && ta.scrollHeight <= ta.clientHeight
+          ? ta.clientHeight : 0;
+        ta.style.paddingBottom = Math.ceil(padding + deficit + shortfall + 4) + 'px';
+        if (expanded && ta.clientWidth !== measuredWidth) {
+          measuredWidth = ta.clientWidth;
+          top = targetTop();
+        }
       }
       // Instant scrolling avoids browser caret and smooth-scroll animations
       // independently displacing the editor's precisely chosen heading.
       ta.scrollTo({ top, behavior: 'instant' });
+      // Reapply the SAME target if native caret scrolling moves it on the next
+      // frame; only remeasure when a scrollbar/resizer changes wrapping width.
+      if (expanded && typeof requestAnimationFrame === 'function') {
+        const token = outlineJumpToken, caret = ta.selectionStart;
+        const source = ta.value;
+        requestAnimationFrame(() => {
+          if (imageDataCollapsed || token !== outlineJumpToken ||
+              ta.selectionStart !== caret || ta.value !== source) return;
+          const corrected = ta.clientWidth === measuredWidth ? top : targetTop();
+          if (Math.abs(ta.scrollTop - corrected) > 0.5) {
+            ta.scrollTo({ top: corrected, behavior: 'instant' });
+          }
+          observedScrollTop.set(ta, ta.scrollTop);
+        });
+      }
     }
 
     function toggleOutline() {
