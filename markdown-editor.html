@@ -2184,7 +2184,16 @@
           (parseFloat(style.paddingBottom) || 0) -
           (parseFloat(style.lineHeight) || 0);
       mirror.remove();
-      return Math.max(0, top);
+      // scrollHeight is integer-rounded even when the actual line-height is
+      // fractional (16px * 1.8 = 28.8px). Outline headings start on a new
+      // Markdown line, so their offsets are exact multiples of line-height.
+      // Snap only at a hard line boundary to remove the rounding discrepancy,
+      // without loading megabytes of preceding Base64 into another mirror.
+      const lineHeight = parseFloat(style.lineHeight);
+      const atLineStart = ta.selectionStart === 0 ||
+        ta.value.charAt(ta.selectionStart - 1) === '\n';
+      return Math.max(0, atLineStart && Number.isFinite(lineHeight) && lineHeight > 0
+        ? Math.round(top / lineHeight) * lineHeight : top);
     }
 
     function measureTextareaHeadingTop(ta) {
@@ -2230,6 +2239,31 @@
       // Instant scrolling avoids browser caret and smooth-scroll animations
       // independently displacing the editor's precisely chosen heading.
       ta.scrollTo({ top, behavior: 'instant' });
+
+      // With expanded Base64, the added bottom spacer and native caret
+      // scrolling can finish after this handler. Re-measure once on the next
+      // paint, while the outline jump is still active, so the heading remains
+      // exactly at the intended top rather than drifting by a few pixels.
+      if (typeof requestAnimationFrame === 'function' && !imageDataCollapsed) {
+        const caret = ta.selectionStart;
+        const token = outlineJumpToken;
+        requestAnimationFrame(() => {
+          if (imageDataCollapsed || ta.selectionStart !== caret ||
+              token !== outlineJumpToken) return;
+          const correctedTop = measureExpandedTextareaHeadingTop(ta);
+          for (let attempt = 0; attempt < 3; attempt++) {
+            const deficit = correctedTop - maxPaneScroll(ta);
+            if (deficit <= 1) break;
+            const padding = parseFloat(getComputedStyle(ta).paddingBottom) || 0;
+            ta.style.paddingBottom = Math.ceil(padding + deficit + 4) + 'px';
+          }
+          if (Math.abs(ta.scrollTop - correctedTop) > 0.25) {
+            ta.scrollTo({ top: correctedTop, behavior: 'instant' });
+          }
+          // This is an outline jump correction, not a user scroll action.
+          observedScrollTop.set(ta, ta.scrollTop);
+        });
+      }
     }
 
     function toggleOutline() {
