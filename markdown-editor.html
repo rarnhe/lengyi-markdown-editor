@@ -2194,7 +2194,9 @@
         const deficit = top - maxPaneScroll(ta);
         if (deficit <= 1) break;
         const padding = parseFloat(getComputedStyle(ta).paddingBottom) || 0;
-        ta.style.paddingBottom = Math.ceil(padding + deficit + 4) + 'px';
+        // For short documents, padding must also exceed the viewport height
+        // before scrollHeight can grow at all.
+        ta.style.paddingBottom = Math.ceil(padding + deficit + ta.clientHeight + 4) + 'px';
         if (ta.clientWidth !== measuredWidth) top = measureTextareaHeadingTop(ta);
       }
       ta.scrollTo({ top, behavior: 'instant' });
