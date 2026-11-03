@@ -2484,6 +2484,7 @@
     const imageLinkOverlay = document.getElementById('image-link-overlay');
     let imageLinkFrame = 0;
     let imageLinkLayout = { value: null, width: -1, rows: [] };
+    let imageLinkPairs = { body: null, rows: null, pairs: [] };
     const SVG_NS = 'http://www.w3.org/2000/svg';
 
     function findImageSourceRows(text) {
@@ -2581,6 +2582,31 @@
       }
     }
 
+    function pairedImageLinks() {
+      const rows = measureImageSourceRows();
+      const body = preview.querySelector('.markdown-body');
+      if (!body || !rows.length) return [];
+      // Base64 data URLs can be megabytes. Match them once per content render
+      // or textarea reflow, not repeatedly for every scroll animation frame.
+      if (imageLinkPairs.body === body && imageLinkPairs.rows === rows)
+        return imageLinkPairs.pairs;
+      const images = Array.from(body.querySelectorAll('img'));
+      const pairs = [];
+      let searchFrom = 0;
+      for (const item of rows) {
+        const expected = expandImageData(item.source);
+        for (let index = searchFrom; index < images.length; index++) {
+          if (imageSourcesMatch(expected, images[index].getAttribute('src') || '')) {
+            pairs.push({ item, image: images[index] });
+            searchFrom = index + 1;
+            break;
+          }
+        }
+      }
+      imageLinkPairs = { body, rows, pairs };
+      return pairs;
+    }
+
     function imageLinkSvgElement(name, attributes) {
       const shape = document.createElementNS(SVG_NS,name);
       for (const [key,value] of Object.entries(attributes)) {
@@ -2594,10 +2620,8 @@
       imageLinkOverlay.replaceChildren();
       if (readingMode || editorCollapsed || !imageDataCollapsed ||
           (window.matchMedia && window.matchMedia('(max-width: 768px)').matches)) return;
-      const sources = measureImageSourceRows();
-      if (!sources.length) return;
-      const images = Array.from(preview.querySelectorAll('.markdown-body img'));
-      if (!images.length) return;
+      const pairs = pairedImageLinks();
+      if (!pairs.length) return;
       const main = document.querySelector('.main').getBoundingClientRect();
       const edit = editor.getBoundingClientRect();
       const rendered = preview.getBoundingClientRect();
@@ -2610,18 +2634,7 @@
       const editTop = edit.top-main.top, editBottom = edit.bottom-main.top;
       const previewTop = rendered.top-main.top;
       const previewBottom = rendered.bottom-main.top;
-      let searchFrom = 0;
-      for (const item of sources) {
-        const expected = expandImageData(item.source);
-        let image = null;
-        for (let index = searchFrom; index < images.length; index++) {
-          if (imageSourcesMatch(expected, images[index].getAttribute('src') || '')) {
-            image = images[index];
-            searchFrom = index+1;
-            break;
-          }
-        }
-        if (!image) continue;
+      for (const {item,image} of pairs) {
         const imageBounds = image.getBoundingClientRect();
         const sy1 = Math.max(editTop, editTop+item.startY-editor.scrollTop);
         const sy2 = Math.min(editBottom, editTop+item.endY-editor.scrollTop);
