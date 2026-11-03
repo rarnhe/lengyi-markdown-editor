@@ -177,25 +177,18 @@ test('editable filename preserves imported name, browser title and export behavi
   assert.match(html,/function applyLanguage\(\) \{[\s\S]*?syncDocumentTitle\(\)/);
 });
 
-test('left-only Base64 control is beside Edit and leaves full Markdown for preview', () => {
+test('Base64 status is read-only, appears after Edit, and preview uses complete Markdown', () => {
   const left = html.match(/<div class="pane editor-pane">([\s\S]*?)<div class="resizer"/);
   const right = html.match(/<div class="pane preview-pane">([\s\S]*?)<div class="statusbar"/);
   assert.ok(left && right);
-  assert.match(left[1], /data-i18n="editorPaneTitle"[\s\S]*?id="base64-toggle"/);
-  assert.doesNotMatch(right[1], /base64-toggle|<textarea/);
+  assert.match(left[1], /data-i18n="editorPaneTitle"[\s\S]*?<span id="base64-status"[^>]*role="status"[^>]*hidden[^>]*>/);
+  assert.doesNotMatch(left[1], /id="base64-toggle"|onclick="toggleBase64\(\)"/);
+  assert.doesNotMatch(right[1], /base64-status|<textarea/);
   assert.match(html, /function updatePreview\(\) \{\s*let text = getMarkdown\(\);/);
-  const toggle = html.match(/function toggleBase64\(\) \{([\s\S]*?)\n    \}/);
-  assert.ok(toggle);
-  assert.doesNotMatch(toggle[1], /updatePreview\(|updateCount\(|preview\./);
   const {api,editor} = foldingHarness();
   const raw = '![photo](data:image/png;base64,' + 'Q'.repeat(500) + ')';
   api.setMarkdown(raw);
-  const hidden = editor.value;
-  api.toggleBase64();
-  assert.equal(api.getMarkdown(), raw);
-  api.toggleBase64();
   assert.match(editor.value, /⟦Base64图片#\d+已折叠⟧/);
-  assert.equal(editor.value.length, hidden.length);
   assert.equal(api.getMarkdown(), raw);
 });
 
@@ -1045,34 +1038,29 @@ test('editable filename and count are centered, with flexible filename width', (
   assert.match(html,/filenameInput\.value = name;\s*committedFilename = name;\s*syncDocumentTitle\(\);\s*updateFilenameWidth\(\)/);
 });
 
-test('Base64 toggle is hidden and disabled except for Markdown with embedded image data', () => {
-  assert.match(html,/id="base64-toggle"[^>]*hidden disabled/);
+test('read-only folded status appears only for embedded Base64 images', () => {
+  assert.match(html,/id="base64-status"[^>]*hidden data-i18n="base64FoldedStatus"/);
+  assert.doesNotMatch(html,/<button[^>]*id="base64-toggle"/);
   const detector=html.match(/function hasEmbeddedBase64Image\(\) \{[\s\S]*?\n    \}/);
-  const updater=html.match(/function updateBase64Button\(\) \{[\s\S]*?\n    \}/);
+  const updater=html.match(/function updateBase64Status\(\) \{[\s\S]*?\n    \}/);
   assert.ok(detector&&updater);
-  const button={hidden:false,disabled:false,textContent:'',title:'',attributes:{},
-    setAttribute(k,v){this.attributes[k]=v;}};
+  const status={hidden:false,textContent:''};
   const ctx={
     content:'',
     getMarkdown(){return ctx.content;},
-    imageDataCollapsed:true,
-    document:{getElementById(){return button;}},
+    document:{getElementById(){return status;}},
     t(x){return x;}
   };
-  vm.runInNewContext(detector[0]+'\n'+updater[0]+'\nthis.update=updateBase64Button;',ctx);
-  ctx.update();assert.equal(button.hidden,true);assert.equal(button.disabled,true);
+  vm.runInNewContext(detector[0]+'\n'+updater[0]+'\nthis.update=updateBase64Status;',ctx);
+  ctx.update();assert.equal(status.hidden,true);
   ctx.content='![ordinary](https://example.com/photo.jpg)';
-  ctx.update();assert.equal(button.hidden,true);
+  ctx.update();assert.equal(status.hidden,true);
   ctx.content='![embedded](data:image/png;base64,'+'Q'.repeat(220)+')';
-  ctx.update();assert.equal(button.hidden,false);assert.equal(button.disabled,false);
-  assert.equal(button.attributes['aria-pressed'],'false');
-  ctx.imageDataCollapsed=false;ctx.update();
-  assert.equal(button.textContent,'hideBase64');
+  ctx.update();assert.equal(status.hidden,false);
+  assert.equal(status.textContent,'base64FoldedStatus');
   ctx.content='plain Markdown again';ctx.update();
-  assert.equal(button.hidden,true);assert.equal(button.disabled,true);
-  const toggle=html.match(/function toggleBase64\(\) \{[\s\S]*?\n    \}/);
-  assert.match(toggle[0],/if \(!hasEmbeddedBase64Image\(\)\) return;/);
-  assert.match(html,/function updatePreview\(\) \{\s*let text = getMarkdown\(\);\s*updateBase64Button\(\);/);
+  assert.equal(status.hidden,true);
+  assert.match(html,/function updatePreview\(\) \{\s*let text = getMarkdown\(\);\s*updateBase64Status\(\);/);
 });
 
 test('View menu chevron points left in overflow while remaining down inline', () => {
