@@ -29,7 +29,8 @@ function createUndoHarness(){
   const prelude='let historyStack=[], historyIndex=-1, lastHistoryText=null, historyTimer=null; const MAX_HISTORY=100;\n';
   vm.runInContext(folding[1]+'\n'+prelude+h+'\n'+keydown[0]+
     '\nthis.api={setMarkdown,getMarkdown,collapseImageData,toggleBase64,recordHistory,undo,redo,handleEditorKeydown,'+
-    'getHistory:()=>historyStack,getImageDataMap:()=>imageDataMap};'+
+    'getHistory:()=>historyStack,getHistoryIndex:()=>historyIndex,getImageDataMap:()=>imageDataMap,'+
+    'setPendingHistoryTimer:value=>{historyTimer=value;}};'+
     '\nthis.initHistory=()=>{historyStack=[createHistorySnapshot()];historyIndex=0;lastHistoryText=editor.value;};',ctx);
   return {api:ctx.api,editor,initHistory:ctx.initHistory};
 }
@@ -284,4 +285,19 @@ test('history limit folds the oldest patch into its base snapshot without losing
   assert.equal(editor.value,expected.slice(0,5));
   for(let i=0;i<100;i++)shortcut(api,'y');
   assert.equal(editor.value,expected);
+});
+
+
+test('Ctrl+Z flushes pending input into a patch before undoing it',()=>{
+  const {api,editor,initHistory}=createUndoHarness();
+  api.setMarkdown('committed');
+  initHistory();
+  editor.value='committed + pending IME text';
+  api.setPendingHistoryTimer(123);
+  shortcut(api,'z');
+  assert.equal(api.getHistory().length,2);
+  assert.equal(api.getHistoryIndex(),0);
+  assert.equal(editor.value,'committed');
+  shortcut(api,'y');
+  assert.equal(editor.value,'committed + pending IME text');
 });

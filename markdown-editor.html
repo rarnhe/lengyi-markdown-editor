@@ -3763,6 +3763,7 @@ ${'</scr' + 'ipt>'}
     // 历史记录保存折叠文本的增量差异；图片 payload 只保留资源引用。
     function pushHistory() {
       clearTimeout(historyTimer);
+      historyTimer = null;
       recordHistory();
     }
 
@@ -3851,7 +3852,16 @@ ${'</scr' + 'ipt>'}
       lastHistoryText = text;
     }
 
+    function flushHistoryBeforeTraversal() {
+      if (historyTimer !== null) {
+        clearTimeout(historyTimer);
+        historyTimer = null;
+      }
+      recordHistory();
+    }
+
     function undo() {
+      flushHistoryBeforeTraversal();
       if (historyIndex <= 0) return;
       const patch = historyStack[historyIndex];
       if (!patch || patch.type !== 'patch') return;
@@ -3867,6 +3877,7 @@ ${'</scr' + 'ipt>'}
     }
 
     function redo() {
+      flushHistoryBeforeTraversal();
       if (historyIndex >= historyStack.length - 1) return;
       const patch = historyStack[historyIndex + 1];
       if (!patch || patch.type !== 'patch') return;
@@ -4819,7 +4830,10 @@ ${'</scr' + 'ipt>'}
         collapseTextareaData(editor);
       }
       clearTimeout(historyTimer);
-      historyTimer = setTimeout(recordHistory, 400);
+      historyTimer = setTimeout(() => {
+        historyTimer = null;
+        recordHistory();
+      }, 400);
       scheduleEditorPreview();
       autoSave();
     }
