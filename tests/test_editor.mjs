@@ -241,7 +241,7 @@ test('outline extracts headings from Markdown without preview-source mode', () =
   const fence = String.fromCharCode(96).repeat(3);
   const result = ctx.extract('# First\n' + fence + '\n## Hidden\n' + fence + '\n## Second\n~~~\n# Hidden2\n~~~');
   assert.deepEqual(Array.from(result, h => [h.level, h.text, h.line]), [[1,'First',0],[2,'Second',4]]);
-  assert.match(html, /extractHeadings\(getMarkdown\(\)\)/);
+  assert.match(html, /extractHeadings\(editor\.value\)/);
   assert.doesNotMatch(html, /previewSource|setPreviewMode|PREVIEW_MODE_KEY/);
 });
 test('outline panel persists visibility and width with ten-language labels', () => {
@@ -1054,21 +1054,20 @@ test('read-only folded status appears only for embedded Base64 images', () => {
   assert.ok(detector&&updater);
   const status={hidden:false,textContent:''};
   const ctx={
-    content:'',
-    getMarkdown(){return ctx.content;},
+    editor:{value:''},
     document:{getElementById(){return status;}},
     t(x){return x;}
   };
   vm.runInNewContext(detector[0]+'\n'+updater[0]+'\nthis.update=updateBase64Status;',ctx);
   ctx.update();assert.equal(status.hidden,true);
-  ctx.content='![ordinary](https://example.com/photo.jpg)';
+  ctx.editor.value='![ordinary](https://example.com/photo.jpg)';
   ctx.update();assert.equal(status.hidden,true);
-  ctx.content='![embedded](data:image/png;base64,'+'Q'.repeat(220)+')';
+  ctx.editor.value='![embedded](data:image/png;base64,'+'Q'.repeat(220)+')';
   ctx.update();assert.equal(status.hidden,false);
   assert.equal(status.textContent,'base64FoldedStatus');
-  ctx.content='plain Markdown again';ctx.update();
+  ctx.editor.value='plain Markdown again';ctx.update();
   assert.equal(status.hidden,true);
-  assert.match(html,/function updatePreview\(\) \{\s*let text = getMarkdown\(\);\s*updateBase64Status\(\);/);
+  assert.match(html,/function updatePreview\(\) \{\s*let text = getPreviewMarkdown\(\);\s*updateBase64Status\(\);/);
 });
 
 test('View menu chevron points left in overflow while remaining down inline', () => {
