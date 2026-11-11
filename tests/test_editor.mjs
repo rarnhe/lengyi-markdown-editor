@@ -191,7 +191,8 @@ test('Base64 status is read-only, appears after Edit, and preview uses complete 
   assert.match(left[1], /data-i18n="editorPaneTitle"[\s\S]*?<span id="base64-status"[^>]*role="status"[^>]*hidden[^>]*>/);
   assert.doesNotMatch(left[1], /id="base64-toggle"|onclick="toggleBase64\(\)"/);
   assert.doesNotMatch(right[1], /base64-status|<textarea/);
-  assert.match(html, /function updatePreview\(\) \{\s*let text = getMarkdown\(\);/);
+  assert.match(html, /function updatePreview\(\) \{\s*let text = getPreviewMarkdown\(\);/);
+  assert.match(html, /function renderOutline\(\) \{[^]*?extractHeadings\(editor\.value\)/);
   const {api,editor} = foldingHarness();
   const raw = '![photo](data:image/png;base64,' + 'Q'.repeat(500) + ')';
   api.setMarkdown(raw);

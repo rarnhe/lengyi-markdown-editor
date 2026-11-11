@@ -1654,6 +1654,9 @@
     const IMAGE_DATA_RE = /data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+/gi;
     const IMAGE_MARKER_RE = /⟦Base64图片#\d+已折叠⟧/g;
     const imageDataMap = new Map();
+    // Keep image bytes out of preview Markdown. One Blob URL is shared by all
+    // occurrences of the same data URL and released when the document drops it.
+    const imageBlobUrlByData = new Map();
     // Remember the marker allocated to each image payload for this editing
     // session. Undo/redo restores full Markdown; re-folding must NOT allocate
     // a new #N for an unchanged image. Identical data URLs share an identity.
@@ -1709,6 +1712,54 @@
       return expandImageData(editor.value);
     }
 
+    // Decode each embedded image only once. Preview Markdown references a
+    // short-lived Blob URL; disk export and backup continue using getMarkdown().
+    function createImageBlobUrl(dataUrl) {
+      if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function' ||
+          typeof Blob === 'undefined' || typeof atob !== 'function') return dataUrl;
+      const comma = dataUrl.indexOf(',');
+      if (comma < 0) return dataUrl;
+      const metadata = dataUrl.slice(5, comma);
+      const mime = metadata.split(';')[0] || 'application/octet-stream';
+      const binary = atob(dataUrl.slice(comma + 1));
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return URL.createObjectURL(new Blob([bytes], { type: mime }));
+    }
+
+    function getImageBlobUrl(dataUrl) {
+      let url = imageBlobUrlByData.get(dataUrl);
+      if (!url) {
+        url = createImageBlobUrl(dataUrl);
+        if (url !== dataUrl) imageBlobUrlByData.set(dataUrl, url);
+      }
+      return url;
+    }
+
+    function getPreviewMarkdown() {
+      const activeDataUrls = new Set();
+      let text = editor.value;
+      text = text.replace(IMAGE_DATA_RE, dataUrl => {
+        activeDataUrls.add(dataUrl);
+        return getImageBlobUrl(dataUrl);
+      });
+      text = text.replace(IMAGE_MARKER_RE, marker => {
+        const dataUrl = imageDataMap.get(marker);
+        if (!dataUrl) return marker;
+        activeDataUrls.add(dataUrl);
+        return getImageBlobUrl(dataUrl);
+      });
+
+      for (const [dataUrl, url] of imageBlobUrlByData) {
+        if (activeDataUrls.has(dataUrl)) continue;
+        if (typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+          URL.revokeObjectURL(url);
+        }
+        imageBlobUrlByData.delete(dataUrl);
+      }
+      return text;
+    }
+
     function setMarkdown(markdown) {
       // Only clear the live marker-to-payload view. Retain imageMarkerByData,
       // so history restore reuses its previous visible #N identifier.
@@ -1727,8 +1778,11 @@
 
     // Detect a real embedded image data URI in the full Markdown, even when
     // its source text is currently represented by a folded Base64 marker.
+    // Check the lightweight editor representation; never expand every
+    // Base64 payload merely to update the status indicator.
     function hasEmbeddedBase64Image() {
-      return /data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+/i.test(getMarkdown());
+      return editor.value.includes('⟦Base64图片#') ||
+        /data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+/i.test(editor.value);
     }
 
     function updateBase64Status() {
@@ -2130,7 +2184,8 @@
     function renderOutline() {
       if (!outlineVisible && !readingMode) return;
       const list = document.getElementById('outline-list');
-      outlineHeadings = extractHeadings(getMarkdown());
+      // Headings never need expanded image payloads.
+      outlineHeadings = extractHeadings(editor.value);
       if (!outlineHeadings.length) {
         list.innerHTML = '<div class="outline-empty">' + t('outlineEmpty') + '</div>';
         return;
@@ -2728,7 +2783,7 @@
 
     // 渲染预览
     function updatePreview() {
-      let text = getMarkdown();
+      let text = getPreviewMarkdown();
       updateBase64Status();
       let placeholders = [];
 
