@@ -1404,15 +1404,14 @@ test('outline targets map through actual folded placeholders, including IDs cros
 });
 
 
-test('editor Ctrl/Cmd+S calls direct overwrite; Shift+S uses Save As; unrelated shortcuts remain untouched', () => {
+test('editor Ctrl/Cmd+S saves directly; Shift+S and unrelated shortcuts remain untouched', () => {
   const reg=html.match(/\/\/ Listen at document level[^]*?document\.addEventListener\('keydown', e => \{[^]*?\n    \}\);/);
   assert.ok(reg);
   const editor={},outside={},handlers={};
   const doc={activeElement:editor,addEventListener(name,fn){handlers[name]=fn;}};
   const ctx={
-    editor,document:doc,saves:0,saveAs:0,
-    saveMarkdown(){ctx.saves++;},
-    saveMarkdownAs(){ctx.saveAs++;}
+    editor,document:doc,saves:0,
+    saveMarkdown(){ctx.saves++;}
   };
   vm.runInNewContext(reg[0],ctx);
   for(const keys of [
@@ -1429,8 +1428,7 @@ test('editor Ctrl/Cmd+S calls direct overwrite; Shift+S uses Save As; unrelated 
   let prevented=false;
   handlers.keydown({ctrlKey:true,metaKey:false,key:'s',shiftKey:true,target:editor,
     preventDefault(){prevented=true;}});
-  assert.equal(prevented,true);
-  assert.equal(ctx.saveAs,1);
+  assert.equal(prevented,false);
   doc.activeElement=outside;
   handlers.keydown({ctrlKey:true,metaKey:false,key:'s',target:outside,
     preventDefault(){throw Error('must not interfere with other controls');}});
