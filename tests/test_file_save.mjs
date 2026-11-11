@@ -72,6 +72,9 @@ test('last location handle survives a fresh editor context through IndexedDB',as
   const handle={kind:'file',name:'source.md'};
   const first={
     lastMarkdownLocationHandle:null,
+    LAST_LOCATION_KEY:'last-markdown-location',
+    LAST_LOCATION_META_KEY:'md_editor_last_markdown_location',
+    BACKUP_STORE:'documents',
     openMarkdownBackupDatabase:async()=>db,
     localStorage:{setItem:(key,value)=>metadata.push([key,JSON.parse(value)])}
   };
@@ -81,7 +84,8 @@ test('last location handle survives a fresh editor context through IndexedDB',as
   assert.equal(metadata[0][0],'md_editor_last_markdown_location');
   assert.equal(metadata[0][1].name,'source.md');
 
-  const second={lastMarkdownLocationHandle:null,openMarkdownBackupDatabase:async()=>db};
+  const second={lastMarkdownLocationHandle:null,LAST_LOCATION_KEY:'last-markdown-location',
+    BACKUP_STORE:'documents',openMarkdownBackupDatabase:async()=>db};
   vm.runInNewContext(locationFunctions+'\nthis.restore=restoreLastMarkdownLocation;this.start=getLastMarkdownLocationStartIn;',second);
   assert.equal(await second.restore(),handle);
   assert.equal(second.start(),handle);
