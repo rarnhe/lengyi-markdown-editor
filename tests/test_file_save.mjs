@@ -31,18 +31,18 @@ function writableHandle(name) {
   return state;
 }
 function harness({supported=true,handle=writableHandle('paper.md')}={}) {
-  const state={picks:0,downloads:0,localSaves:0,toasts:[],suggestions:[],
+  const state={picks:0,downloads:0,browserSaves:0,toasts:[],suggestions:[],startIns:[],
     titleUpdates:0,widthUpdates:0};
   const ctx={
     window:supported?{showSaveFilePicker:async options=>{
-      state.picks++;state.suggestions.push(options.suggestedName);return handle;
+      state.picks++;state.suggestions.push(options.suggestedName);state.startIns.push(options.startIn);return handle;
     }}:{},
-    currentMarkdownFileHandle:null,committedFilename:'paper.md',
+    currentMarkdownFileHandle:null,markdownSaveStartHandle:null,documentEditRevision:0,committedFilename:'paper.md',
     filenameInput:{value:'paper'},
     text:'# Original',getMarkdown(){return ctx.text;},
     updateFilenameWidth(){state.widthUpdates++;},
     syncDocumentTitle(){state.titleUpdates++;},
-    saveToLocal(){state.localSaves++;},
+    persistBrowserBackup(){state.browserSaves++;return Promise.resolve(true);},
     exportFile(){state.downloads++;},
     showToast:value=>state.toasts.push(value),
     t:(key,message)=>key+':'+message
@@ -67,8 +67,26 @@ test('Ctrl+S first chooses file then writes; second save overwrites SAME file',a
   assert.deepEqual(handle.writes,['# Original','# Edited after first save']);
   assert.equal(handle.closed,2);
   assert.equal(state.downloads,0,'no numbered browser downloads');
-  assert.equal(state.localSaves,2);
+  assert.equal(state.browserSaves,2);
   assert.deepEqual(state.toasts,['toastDiskSaved:undefined','toastDiskSaved:undefined']);
+});
+
+test('Save As starts in imported Markdown directory and survives a subsequent rename',async()=>{
+  const {ctx,state,api,handle}=harness();
+  ctx.markdownSaveStartHandle=handle;
+  // No current writable target after metadata rename, but folder hint remains.
+  ctx.currentMarkdownFileHandle=null;
+  ctx.committedFilename='renamed.md';
+  await api.saveMarkdown();
+  assert.equal(state.startIns[0],handle);
+  assert.equal(state.suggestions[0],'renamed.md');
+  assert.equal(state.browserSaves,1);
+});
+
+test('without an imported file handle, the save dialog defaults to Documents',async()=>{
+  const {state,api}=harness();
+  await api.saveMarkdown();
+  assert.equal(state.startIns[0],'documents');
 });
 
 test('Save As chooses a new file and later Ctrl+S overwrites that new file',async()=>{
@@ -76,13 +94,15 @@ test('Save As chooses a new file and later Ctrl+S overwrites that new file',asyn
   const {ctx,state,api}=harness({handle:first});
   await api.saveMarkdown();
   ctx.window.showSaveFilePicker=async options=>{
-    state.picks++;state.suggestions.push(options.suggestedName);return second;
+    state.picks++;state.suggestions.push(options.suggestedName);
+    state.startIns.push(options.startIn);return second;
   };
   ctx.text='After Save As';
   await api.saveMarkdownAs();
   assert.equal(ctx.committedFilename,'second.markdown');
   assert.equal(ctx.filenameInput.value,'second');
   assert.equal(ctx.currentMarkdownFileHandle,second);
+  assert.equal(state.startIns[1],first, 'Save As should start beside the previously saved file');
   assert.deepEqual(first.writes,['# Original']);
   assert.deepEqual(second.writes,['After Save As']);
   ctx.text='After Ctrl+S';
@@ -120,7 +140,8 @@ test('failed file write never claims success or commits newly selected handle',a
   const {ctx,api,state}=harness({handle});
   await api.saveMarkdown();
   assert.equal(ctx.currentMarkdownFileHandle,null);
-  assert.equal(state.localSaves,0);
+  assert.equal(ctx.markdownSaveStartHandle,null);
+  assert.equal(state.browserSaves,0);
   assert.equal(handle.closed,0);
   assert.equal(handle.aborted,1);
   assert.equal(state.toasts.length,1);
@@ -160,6 +181,7 @@ test('legacy file import or drag does not authorize writes to an unrelated file'
     setDocumentImportTime:()=>{},
     filenameInput:{value:''},committedFilename:'old.md',
     currentMarkdownFileHandle:{name:'old.md'},
+    markdownSaveStartHandle:null,
     displayMarkdownFilename:fname=>fname.replace(/\.(md|markdown)$/i,''),
     syncDocumentTitle:()=>{},updateFilenameWidth:()=>{},
     updatePreview:()=>{},updateCount:()=>{},saveToLocal:()=>{},
@@ -174,6 +196,7 @@ test('legacy file import or drag does not authorize writes to an unrelated file'
   const handle={name:'chosen.md'};
   ctx.load({name:'chosen.md',content:'# direct'},handle);
   assert.equal(ctx.currentMarkdownFileHandle,handle);
+  assert.equal(ctx.markdownSaveStartHandle,handle);
   ctx.load({name:'notes.txt',content:'plain'},handle);
   assert.equal(ctx.currentMarkdownFileHandle,null,'txt files must not be overwritten as md');
   assert.equal(ctx.committedFilename,'notes.txt.md');
