@@ -1546,6 +1546,9 @@
     // Only user-selected FileSystemFileHandle objects grant disk writes.
     // Do not persist file handles across editor sessions.
     let currentMarkdownFileHandle = null;
+    // Filename currently represented by the authorized handle on disk.
+    // The editable preview title may diverge; Ctrl+S then creates a new file.
+    let currentMarkdownHandleFilename = null;
     const htmlOpenedAt = new Date();
     let markdownImportedAt = null;
     function formatDocumentTime(date) {
@@ -1580,8 +1583,8 @@
       filenameInput.parentElement.parentElement.style.maxWidth = available + 'px';
     }
 
-    // Renaming the preview title changes metadata only. Keep the authorized
-    // file handle so Ctrl+S continues overwriting the same file.
+    // A title change is tracked separately from the file currently on disk.
+    // Ctrl+S uses this difference to create a new file beside the imported one.
     function commitFilenameChange() {
       const entered = filenameInput.value.trim();
       if (!entered) {
@@ -2990,26 +2993,52 @@
       }
     }
 
-    // Ctrl+S selects a destination only once. Imported Markdown already has
-    // an authorized handle, so it is overwritten immediately without a picker.
+    async function ensureMarkdownWritePermission(handle) {
+      const permission = { mode: 'readwrite' };
+      if (typeof handle.queryPermission === 'function' &&
+          await handle.queryPermission(permission) === 'granted') return true;
+      if (typeof handle.requestPermission === 'function') {
+        return await handle.requestPermission(permission) === 'granted';
+      }
+      // Older implementations may omit the permission helpers; createWritable()
+      // remains the final browser-enforced permission check.
+      return true;
+    }
+
+    // Ctrl+S overwrites the associated file while its name is unchanged.
+    // If the preview title changed, create a new file in the imported file's
+    // directory, using the original file handle as the picker's startIn hint.
     async function saveMarkdown() {
       if (!canSaveMarkdownToDisk()) {
         exportFile();
         return;
       }
       try {
+        const requestedFilename = normalizeMarkdownFilename(committedFilename);
+        const hasAssociatedFile = !!currentMarkdownFileHandle;
+        const filenameChanged = hasAssociatedFile &&
+          requestedFilename !== currentMarkdownHandleFilename;
         let handle = currentMarkdownFileHandle;
-        if (!handle) {
-          // Call the picker directly from the Ctrl+S gesture to retain user activation.
-          handle = await window.showSaveFilePicker({
-            suggestedName: committedFilename,
+
+        if (!handle || filenameChanged) {
+          const options = {
+            suggestedName: requestedFilename,
             types: [{ description: 'Markdown',
               accept: { 'text/markdown': ['.md', '.markdown'] } }]
-          });
+          };
+          // A FileSystemHandle is a supported startIn value. For an imported
+          // file this opens the new-file picker in that file's parent directory.
+          if (handle) options.startIn = handle;
+          handle = await window.showSaveFilePicker(options);
           if (!handle) return;
+        } else if (!await ensureMarkdownWritePermission(handle)) {
+          showToast(t('toastDiskPermissionDenied'));
+          return;
         }
+
         await writeMarkdownFile(handle);
         currentMarkdownFileHandle = handle;
+        currentMarkdownHandleFilename = handle.name || requestedFilename;
         ++documentEditRevision;
         void persistBrowserBackup();
         showToast(t('toastDiskSaved'));
@@ -3433,6 +3462,8 @@ ${'</scr' + 'ipt>'}
         committedFilename = name;
         filenameInput.value = displayMarkdownFilename(name);
         currentMarkdownFileHandle = /\.(md|markdown)$/i.test(file.name) ? handle : null;
+        currentMarkdownHandleFilename = currentMarkdownFileHandle
+          ? normalizeMarkdownFilename(file.name) : null;
         syncDocumentTitle();
         updateFilenameWidth();
         updatePreview();
@@ -3452,8 +3483,19 @@ ${'</scr' + 'ipt>'}
                       'text/plain': ['.txt'] } }]
         });
         if (!handles || !handles[0]) return;
-        const file = await handles[0].getFile();
-        loadFile(file, handles[0]);
+        const handle = handles[0];
+        // Ask for read/write access during the import gesture. Keep the
+        // original file handle so unchanged-title Ctrl+S can overwrite it.
+        if (/\.(md|markdown)$/i.test(handle.name) &&
+            typeof handle.requestPermission === 'function') {
+          try {
+            await handle.requestPermission({ mode: 'readwrite' });
+          } catch (_) {
+            // Import remains available; save will re-check permission later.
+          }
+        }
+        const file = await handle.getFile();
+        loadFile(file, handle);
       } catch (error) {
         if (error && error.name === 'AbortError') return;
         showToast(t('toastDiskOpenFailed', error.message || String(error)));
