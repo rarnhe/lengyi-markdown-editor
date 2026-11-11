@@ -480,7 +480,7 @@ test('browser tab keeps Markdown import time after autosave, manual save and exp
   });
   const opened=date(9,5,7),imported=date(10,6,8);
   const ctx={
-    document:{title:''},filenameInput:{value:'report.md'},
+    document:{title:''},filenameInput:{value:'report'},committedFilename:'report.md',
     htmlOpenedAt:opened,markdownImportedAt:null,
     t:(k,v)=>k+':'+v,Date:function(){return imported;}
   };
@@ -488,7 +488,7 @@ test('browser tab keeps Markdown import time after autosave, manual save and exp
     'this.title=syncDocumentTitle;this.open=setDocumentImportTime;'].join('\n'),ctx);
   ctx.title();assert.equal(ctx.document.title,'report.md-openTime:2026-10-31 09:05:07');
   ctx.open(true);assert.equal(ctx.document.title,'report.md-importTime:2026-10-31 10:06:08');
-  ctx.filenameInput.value='renamed.md';ctx.title();
+  ctx.filenameInput.value='renamed';ctx.committedFilename='renamed.md';ctx.title();
   assert.equal(ctx.document.title,'renamed.md-importTime:2026-10-31 10:06:08');
   ctx.open(false);assert.equal(ctx.document.title,'renamed.md-openTime:2026-10-31 09:05:07');
   assert.doesNotMatch(html,/markDocumentSaved|lastSavedAt/);
@@ -891,8 +891,8 @@ test('filename is editable before preview time and commits on Enter or blur', ()
   assert.doesNotMatch(heading[1],/readonly|aria-readonly/);
   assert.match(html,/filenameInput\.addEventListener\('keydown'/);
   assert.match(html,/filenameInput\.addEventListener\('blur', commitFilenameChange\)/);
-  assert.match(html,/filenameInput\.value = localStorage\.getItem\(FILENAME_KEY\)/);
-  assert.match(html,/function loadFile\(file\)[\s\S]*?filenameInput\.value = name;/);
+  assert.match(html,/committedFilename = normalizeMarkdownFilename\(localStorage\.getItem\(FILENAME_KEY\)/);
+  assert.match(html,/function loadFile\(file, handle = null\)[\s\S]*?filenameInput\.value = displayMarkdownFilename\(name\);/);
 });
 
 test('link editing uses a standard modal and captures the selected text before focusing URL', () => {
@@ -1042,7 +1042,7 @@ test('editable filename and count are centered, with flexible filename width', (
   ctx.measureFilename();assert.equal(slot.style.width,'31px');
   input.value='LongerName.md';ctx.measureFilename();assert.equal(slot.style.width,'99px');
   assert.match(html,/function applyLanguage\(\) \{[\s\S]*?updateFilenameWidth\(\)/);
-  assert.match(html,/filenameInput\.value = name;\s*committedFilename = name;\s*syncDocumentTitle\(\);\s*updateFilenameWidth\(\)/);
+  assert.match(html,/committedFilename = name;\s*filenameInput\.value = displayMarkdownFilename\(name\)/);
 });
 
 test('read-only folded status appears only for embedded Base64 images', () => {
@@ -1162,7 +1162,7 @@ test('preview header contains only the editable filename, with count in footer',
   assert.ok(editorHeader);assert.doesNotMatch(editorHeader[1],/id="filename"/);
   assert.equal((html.match(/id="filename"/g)||[]).length,1);
   assert.equal((html.match(/id="word-count"/g)||[]).length,1);
-  assert.match(html,/filenameInput\.value = name;\s*committedFilename = name;\s*syncDocumentTitle\(\);\s*updateFilenameWidth\(\);/);
+  assert.match(html,/committedFilename = name;\s*filenameInput\.value = displayMarkdownFilename\(name\)/);
 });
 
 test('preview bottom-edge progress reaches 100% at the document bottom', () => {
@@ -1404,32 +1404,42 @@ test('outline targets map through actual folded placeholders, including IDs cros
 });
 
 
-test('editor Ctrl/Cmd+S triggers download only with editor focus and does not affect other shortcuts', () => {
-  const reg=html.match(/\/\/ Listen at document level[\s\S]*?document\.addEventListener\('keydown', e => \{[\s\S]*?\n    \}\);/);
+test('editor Ctrl/Cmd+S calls direct overwrite; Shift+S uses Save As; unrelated shortcuts remain untouched', () => {
+  const reg=html.match(/\/\/ Listen at document level[^]*?document\.addEventListener\('keydown', e => \{[^]*?\n    \}\);/);
   assert.ok(reg);
-  const editor={},outside={},handlers={},doc={
-    activeElement:editor,addEventListener(name,fn){handlers[name]=fn;}
+  const editor={},outside={},handlers={};
+  const doc={activeElement:editor,addEventListener(name,fn){handlers[name]=fn;}};
+  const ctx={
+    editor,document:doc,saves:0,saveAs:0,
+    saveMarkdown(){ctx.saves++;},
+    saveMarkdownAs(){ctx.saveAs++;}
   };
-  const ctx={editor,document:doc,downloads:0,exportFile(){ctx.downloads++;}};
   vm.runInNewContext(reg[0],ctx);
-  for(const keys of [{ctrlKey:true,metaKey:false,key:'s'},{ctrlKey:false,metaKey:true,key:'s'},{ctrlKey:true,metaKey:false,key:'S'}]) {
+  for(const keys of [
+    {ctrlKey:true,metaKey:false,key:'s'},
+    {ctrlKey:false,metaKey:true,key:'s'},
+    {ctrlKey:true,metaKey:false,key:'S'}
+  ]){
     let prevented=false;
-    handlers.keydown({...keys,target:editor,preventDefault(){prevented=true;}});
+    handlers.keydown({...keys,shiftKey:false,target:editor,
+      preventDefault(){prevented=true;}});
     assert.equal(prevented,true);
   }
-  assert.equal(ctx.downloads,3);
-  doc.activeElement=outside;
+  assert.equal(ctx.saves,3);
   let prevented=false;
-  handlers.keydown({ctrlKey:true,metaKey:false,key:'s',target:outside,preventDefault(){prevented=true;}});
-  assert.equal(prevented,false);
-  assert.equal(ctx.downloads,3);
-  handlers.keydown({ctrlKey:true,metaKey:false,key:'s',target:editor,preventDefault(){}});
-  assert.equal(ctx.downloads,4);
-  const original=html.match(/function handleEditorKeydown\(e\) \{[\s\S]*?\n    \}/);
+  handlers.keydown({ctrlKey:true,metaKey:false,key:'s',shiftKey:true,target:editor,
+    preventDefault(){prevented=true;}});
+  assert.equal(prevented,true);
+  assert.equal(ctx.saveAs,1);
+  doc.activeElement=outside;
+  handlers.keydown({ctrlKey:true,metaKey:false,key:'s',target:outside,
+    preventDefault(){throw Error('must not interfere with other controls');}});
+  assert.equal(ctx.saves,3);
+  const original=html.match(/function handleEditorKeydown\(e\) \{[^]*?\n    \}/);
   assert.ok(original);
   assert.doesNotMatch(original[0],/e\.key === 's'|exportFile\(/);
   assert.match(html,/editor\.addEventListener\('keydown', handleEditorKeydown\)/);
   assert.match(html,/function exportFile\(\) \{\s*const blob = new Blob\(\[getMarkdown\(\)\]/);
-  assert.match(html,/function autoSave\(\) \{[\s\S]*?localStorage\.setItem\(STORAGE_KEY, getMarkdown\(\)\)/);
+  assert.match(html,/function autoSave\(\) \{[^]*?localStorage\.setItem\(STORAGE_KEY, getMarkdown\(\)\)/);
 });
 
