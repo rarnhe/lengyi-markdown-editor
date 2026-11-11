@@ -1603,7 +1603,7 @@
       committedFilename = name;
       currentMarkdownFileHandle = null;
       syncDocumentTitle();
-      localStorage.setItem(FILENAME_KEY, name);
+      try { localStorage.setItem(FILENAME_KEY, name); } catch (_) {}
       autoSave();
     }
 
@@ -1633,6 +1633,14 @@
 
     const STORAGE_KEY = 'md_editor_content';
     const FILENAME_KEY = 'md_editor_filename';
+    const BACKUP_DB_NAME = 'lengyi-markdown-backup';
+    const BACKUP_STORE = 'documents';
+    const BACKUP_KEY = 'current';
+    const MAX_LOCAL_BACKUP_CHARS = 1500000;
+    let browserBackupQueue = Promise.resolve();
+    let browserBackupRevision = 0;
+    let documentEditRevision = 0;
+    let browserBackupWarningShown = false;
     const THEME_KEY = 'md_editor_theme';
     const HELP_SHOWN_KEY = 'md_editor_help_shown';
     const RATIO_KEY = 'md_editor_ratio';
@@ -2443,7 +2451,8 @@
       const savedLang = localStorage.getItem(LANG_KEY);
       if (savedLang && i18n[savedLang]) currentLang = savedLang;
 
-      const saved = localStorage.getItem(STORAGE_KEY);
+      let saved = null;
+      try { saved = localStorage.getItem(STORAGE_KEY); } catch (_) {}
       if (saved !== null) {
         setMarkdown(saved);
       } else {
@@ -2495,6 +2504,7 @@
       }
       applyLanguage();
       applyToolbarOverflow();
+      if (saved === null) restoreLargeBrowserBackupIfNeeded();
     }
 
     // Image compare links BEGIN
@@ -2835,15 +2845,125 @@
       wordCount.textContent = t('wordCount', count);
     }
 
-    // 自动保存
+    // Built-in IndexedDB extends browser recovery to large Base64 Markdown.
+    // This cache is independent from the authorized file on disk.
+    function openMarkdownBackupDatabase() {
+      return new Promise((resolve, reject) => {
+        if (typeof indexedDB === 'undefined') {
+          reject(new Error('IndexedDB is unavailable')); return;
+        }
+        let req;
+        try { req = indexedDB.open(BACKUP_DB_NAME, 1); }
+        catch (error) { reject(error); return; }
+        req.onupgradeneeded = () => {
+          if (!req.result.objectStoreNames.contains(BACKUP_STORE))
+            req.result.createObjectStore(BACKUP_STORE);
+        };
+        req.onerror = () => reject(req.error || new Error('Cannot open IndexedDB'));
+        req.onsuccess = () => resolve(req.result);
+      });
+    }
+
+    async function writeMarkdownBackupToIndexedDB(snapshot) {
+      const db = await openMarkdownBackupDatabase();
+      return new Promise((resolve, reject) => {
+        let transaction;
+        try {
+          transaction = db.transaction(BACKUP_STORE, 'readwrite');
+          transaction.objectStore(BACKUP_STORE).put(snapshot, BACKUP_KEY);
+        } catch (error) { db.close(); reject(error); return; }
+        transaction.oncomplete = () => { db.close(); resolve(); };
+        transaction.onerror = () => {
+          db.close(); reject(transaction.error || new Error('IndexedDB write failed'));
+        };
+        transaction.onabort = () => {
+          db.close(); reject(transaction.error || new Error('IndexedDB transaction aborted'));
+        };
+      });
+    }
+
+    async function readMarkdownBackupFromIndexedDB() {
+      const db = await openMarkdownBackupDatabase();
+      return new Promise((resolve, reject) => {
+        let request;
+        try {
+          request = db.transaction(BACKUP_STORE, 'readonly')
+            .objectStore(BACKUP_STORE).get(BACKUP_KEY);
+        } catch (error) { db.close(); reject(error); return; }
+        request.onsuccess = () => { db.close(); resolve(request.result || null); };
+        request.onerror = () => {
+          db.close(); reject(request.error || new Error('Cannot read IndexedDB backup'));
+        };
+      });
+    }
+
+    function browserBackupFailed() {
+      if (browserBackupWarningShown) return;
+      browserBackupWarningShown = true;
+      showToast(t('toastBrowserBackupFailed'));
+    }
+
+    function persistBrowserBackup() {
+      const snapshot = { markdown:getMarkdown(), filename:committedFilename };
+      const revision = ++browserBackupRevision;
+      if (snapshot.markdown.length <= MAX_LOCAL_BACKUP_CHARS) {
+        try {
+          localStorage.setItem(FILENAME_KEY, snapshot.filename);
+          localStorage.setItem(STORAGE_KEY, snapshot.markdown);
+          browserBackupWarningShown = false;
+          showSaveHint();
+          return Promise.resolve(true);
+        } catch (_) {
+          // QuotaExceededError, blocked storage, or a small remaining quota.
+        }
+      }
+      // Queue large saves to preserve edit order and avoid stale async writes.
+      browserBackupQueue = browserBackupQueue.catch(() => {}).then(async () => {
+        await writeMarkdownBackupToIndexedDB(snapshot);
+        if (revision === browserBackupRevision) {
+          try {
+            // Only after the new IndexedDB record is committed can the old
+            // localStorage copy be cleared to avoid restoring stale content.
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.setItem(FILENAME_KEY, snapshot.filename);
+          } catch (_) {}
+          browserBackupWarningShown = false;
+          showSaveHint();
+        }
+        return true;
+      }).catch(() => {
+        if (revision === browserBackupRevision) browserBackupFailed();
+        return false;
+      });
+      return browserBackupQueue;
+    }
+
+    function restoreLargeBrowserBackupIfNeeded() {
+      const revision = documentEditRevision;
+      void readMarkdownBackupFromIndexedDB().then(saved => {
+        if (!saved || typeof saved.markdown !== 'string' ||
+            documentEditRevision !== revision || currentMarkdownFileHandle) return;
+        setMarkdown(saved.markdown);
+        committedFilename = normalizeMarkdownFilename(saved.filename || committedFilename);
+        filenameInput.value = displayMarkdownFilename(committedFilename);
+        updateFilenameWidth();
+        syncDocumentTitle();
+        updatePreview();
+        updateCount();
+        historyStack = [getMarkdown()];
+        historyIndex = 0;
+        lastHistoryText = getMarkdown();
+      }).catch(() => {
+        // Optional storage can be unavailable in file:// or private contexts.
+      });
+    }
+
+    // Autosave is a browser recovery cache, not an implicit disk write.
     let saveTimer;
     function autoSave() {
+      ++documentEditRevision;
       clearTimeout(saveTimer);
-      saveTimer = setTimeout(() => {
-        localStorage.setItem(STORAGE_KEY, getMarkdown());
-        localStorage.setItem(FILENAME_KEY, committedFilename);
-        showSaveHint();
-      }, 500);
+      saveTimer = setTimeout(() => { void persistBrowserBackup(); }, 500);
     }
 
     function showSaveHint() {
@@ -2852,12 +2972,11 @@
       setTimeout(() => saveHint.classList.remove('show'), 1500);
     }
 
-    // 手动保存
     function saveToLocal() {
-      localStorage.setItem(STORAGE_KEY, getMarkdown());
-      localStorage.setItem(FILENAME_KEY, committedFilename);
-      showSaveHint();
-      showToast(t('toastSaved'));
+      ++documentEditRevision;
+      void persistBrowserBackup().then(ok => {
+        if (ok) showToast(t('toastSaved'));
+      });
     }
 
     // File System Access is optional. Without it, save falls back to
@@ -2903,7 +3022,9 @@
         filenameInput.value = displayMarkdownFilename(committedFilename);
         updateFilenameWidth();
         syncDocumentTitle();
-        saveToLocal();
+        // Disk save succeeded regardless of browser cache availability.
+        ++documentEditRevision;
+        void persistBrowserBackup();
         showToast(t('toastDiskSaved'));
       } catch (error) {
         if (error && error.name === 'AbortError') return;
@@ -2921,7 +3042,9 @@
       if (!currentMarkdownFileHandle) return saveMarkdownAs();
       try {
         await writeMarkdownFile(currentMarkdownFileHandle);
-        saveToLocal();
+        // Disk save succeeded regardless of browser cache availability.
+        ++documentEditRevision;
+        void persistBrowserBackup();
         showToast(t('toastDiskSaved'));
       } catch (error) {
         showToast(t('toastDiskSaveFailed', error.message || String(error)));
