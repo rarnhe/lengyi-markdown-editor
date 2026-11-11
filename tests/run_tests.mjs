@@ -29,6 +29,8 @@ try {
   check('PowerPoint image clipboard paste tests', ['--test', 'tests/test_clipboard_image.mjs']);
   check('Word text-width and Base64 undo tests', ['--test', 'tests/test_word_base64_undo.mjs']);
   check('Image source-to-preview SVG connector tests', ['--test', 'tests/test_image_links.mjs']);
+  check('Native Markdown overwrite and filename display tests', ['--test', 'tests/test_file_save.mjs']);
+  check('Large Markdown browser backup and quota fallback tests', ['--test', 'tests/test_browser_backup.mjs']);
 } finally {
   rmSync(tmp, { recursive: true, force: true });
 }

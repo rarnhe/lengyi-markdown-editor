@@ -1202,12 +1202,11 @@
         <button onclick="openMermaidModal()" data-i18n-title="mermaid" title="插入 Mermaid 图表"><svg class="icon"><use href="#icon-mermaid"></use></svg> <span data-i18n="mermaid">Mermaid</span></button>
       </div>
       <div class="toolbar-utilities" id="toolbar-utilities">
-        <label id="import-action" for="importFile"><svg class="icon"><use href="#icon-upload"></use></svg> <span data-i18n="importBtn">导入</span></label>
+        <label id="import-action" for="importFile" onclick="handleImportClick(event)"><svg class="icon"><use href="#icon-upload"></use></svg> <span data-i18n="importBtn">导入</span></label>
         <input type="file" id="importFile" accept=".md,.markdown,.txt" onchange="importFile(this)">
         <div class="dropdown" id="export-dropdown">
           <button onclick="toggleExportMenu()" data-i18n-title="exportBtn"><svg class="icon"><use href="#icon-download"></use></svg> <span data-i18n="exportBtn">导出</span></button>
           <div class="dropdown-menu" id="export-menu">
-            <div class="dropdown-item" onclick="exportFile(); closeExportMenu();" data-i18n="exportMd">导出 Markdown (.md)</div>
             <div class="dropdown-item" onclick="exportWord(); closeExportMenu();" data-i18n="exportWord">导出 Word (.doc)</div>
             <div class="dropdown-item" onclick="exportPDF(); closeExportMenu();" data-i18n="exportPdf">导出 PDF (.pdf)</div>
             <div class="dropdown-item" onclick="exportHTML(); closeExportMenu();" data-i18n="exportHtml">导出 HTML (.html)</div>
@@ -1248,7 +1247,7 @@
       <div class="pane preview-pane">
         <div class="pane-header">
           <div class="preview-title-group">
-            <div class="filename-slot"><input type="text" id="filename" value="未命名文档.md" data-i18n-title="filenameTitle" title="文件名" aria-label="文件名"></div>
+            <div class="filename-slot"><input type="text" id="filename" value="未命名文档" data-i18n-title="filenameTitle" title="文件名" aria-label="文件名"></div>
           </div>
         </div>
         <div class="preview-content" id="preview"></div>
@@ -1328,9 +1327,10 @@
 
         <p><b>保存、导入与导出</b></p>
         <ul>
-          <li>在编辑栏按 <code>Ctrl+S</code> 下载 Markdown；编辑器每 500ms 自动保存到浏览器。按 <code>Ctrl+F</code> 可查找替换。</li>
-          <li>点「导入」导入本地 .md / .txt，或直接把文件拖进窗口。</li>
-          <li>点「导出」导出 Markdown、HTML、Word、PDF（打印另存为）或图片。</li>
+          <li>在编辑栏按 <code>Ctrl+S</code> 保存 Markdown：Chrome/Edge 首次选择保存位置，之后直接覆盖同一文件。导入的 Markdown 会直接覆盖原文件；修改预览标题后，Ctrl+S 会在原文件所在目录创建以新标题命名的新文件。未支持本地文件写入的浏览器会回退下载。编辑器仍每 500ms 自动备份到浏览器。按 <code>Ctrl+F</code> 可查找替换。</li>
+          <li>点「导入」使用浏览器文件选择器打开 .md：导入时申请读写权限；标题未修改时 Ctrl+S 直接覆盖原文件，修改标题后在原目录创建新文件。拖入文件或旧式文件输入没有写入授权，首次 Ctrl+S 需自行选择文件。大文件自动备份在 localStorage 超出配额时会转用 IndexedDB；即使浏览器备份空间不足，也不会将已完成的磁盘保存误报为失败。</li>
+          <li>导入 Markdown 与导出 Word、HTML、PNG 共用最近使用的文件夹；导入或完成文件导出后会更新目录记忆，下次打开 HTML 仍会优先从该目录开始。真实文件句柄保存在 IndexedDB，localStorage 只保存目录名称等元数据；权限仍由浏览器管理。PDF 使用系统打印对话框，其保存目录由浏览器/操作系统控制。</li>
+          <li>点「导出」可导出 HTML、Word、PDF（打印另存为）或图片。Markdown 的保存统一使用 Ctrl+S。预览栏文件标题只显示名称、不显示 .md 后缀。</li>
         </ul>
 
         <p><b>图片与公式</b></p>
@@ -1346,7 +1346,7 @@
           <li>需要登录的页面，可运行 <code>python web-to-md-proxy.py --bookmark</code> 生成书签小工具提取。</li>
         </ul>
 
-        <p><b>常用快捷键</b>：<code>Ctrl+S</code> 下载 Markdown，<code>Ctrl+Z</code> 撤销，<code>Ctrl+Y / Ctrl+Shift+Z</code> 重做，<code>Ctrl+B</code> 加粗，<code>Ctrl+I</code> 斜体，<code>Ctrl+U</code> 下划线，<code>Ctrl+K</code> 链接，<code>Ctrl+Shift+K</code> 图片，<code>Ctrl+F</code> 查找，<code>Ctrl+H</code> 替换，<code>Tab</code> 插入 4 空格缩进。</p>
+        <p><b>常用快捷键</b>：<code>Ctrl+S</code> 保存／覆盖，<code>Ctrl+Z</code> 撤销，<code>Ctrl+Y / Ctrl+Shift+Z</code> 重做，<code>Ctrl+B</code> 加粗，<code>Ctrl+I</code> 斜体，<code>Ctrl+U</code> 下划线，<code>Ctrl+K</code> 链接，<code>Ctrl+Shift+K</code> 图片，<code>Ctrl+F</code> 查找，<code>Ctrl+H</code> 替换，<code>Tab</code> 插入 4 空格缩进。</p>
 
         <p style="color:var(--text-muted);font-size:12px;">本编辑器由「沃垠AI」主理人冷逸开发，功能建议请联系微信：lengcp2013</p>
       </div>
@@ -1534,7 +1534,22 @@
     const editor = document.getElementById('editor');
     const preview = document.getElementById('preview');
     const filenameInput = document.getElementById('filename');
-    let committedFilename = filenameInput.value;
+    // Keep the real on-disk name including extension separate from the
+    // extension-free heading shown at the top of the rendered pane.
+    function normalizeMarkdownFilename(name) {
+      const text = String(name || '').trim() || '未命名文档';
+      return /\.(md|markdown)$/i.test(text) ? text : text + '.md';
+    }
+    function displayMarkdownFilename(name) {
+      return String(name || '').replace(/\.(md|markdown)$/i, '');
+    }
+    let committedFilename = normalizeMarkdownFilename(filenameInput.value);
+    // Only user-selected FileSystemFileHandle objects grant disk writes.
+    // Do not persist file handles across editor sessions.
+    let currentMarkdownFileHandle = null;
+    // Filename currently represented by the authorized handle on disk.
+    // The editable preview title may diverge; Ctrl+S then creates a new file.
+    let currentMarkdownHandleFilename = null;
     const htmlOpenedAt = new Date();
     let markdownImportedAt = null;
     function formatDocumentTime(date) {
@@ -1569,24 +1584,23 @@
       filenameInput.parentElement.parentElement.style.maxWidth = available + 'px';
     }
 
-    // Enter and blur commit only changed names; Escape cancels without a download.
+    // A title change is tracked separately from the file currently on disk.
+    // Ctrl+S uses this difference to create a new file beside the imported one.
     function commitFilenameChange() {
-      let name = filenameInput.value.trim();
-      if (!name) {
-        filenameInput.value = committedFilename;
+      const entered = filenameInput.value.trim();
+      if (!entered) {
+        filenameInput.value = displayMarkdownFilename(committedFilename);
         updateFilenameWidth();
         return;
       }
-      if (!/\.(md|markdown)$/i.test(name)) name += '.md';
-      filenameInput.value = name;
+      const name = normalizeMarkdownFilename(entered);
+      filenameInput.value = displayMarkdownFilename(name);
       updateFilenameWidth();
       if (name === committedFilename) return;
       committedFilename = name;
       syncDocumentTitle();
-      localStorage.setItem(FILENAME_KEY, name);
+      try { localStorage.setItem(FILENAME_KEY, name); } catch (_) {}
       autoSave();
-      // Downloads may open a Save As dialog, depending on browser settings.
-      exportFile();
     }
 
     filenameInput.addEventListener('input', updateFilenameWidth);
@@ -1597,7 +1611,7 @@
         filenameInput.blur();
       } else if (event.key === 'Escape') {
         event.preventDefault();
-        filenameInput.value = committedFilename;
+        filenameInput.value = displayMarkdownFilename(committedFilename);
         updateFilenameWidth();
         filenameInput.blur();
       }
@@ -1607,7 +1621,7 @@
     function syncDocumentTitle() {
       const time = markdownImportedAt || htmlOpenedAt;
       const label = t(markdownImportedAt ? 'importTime' : 'openTime', formatDocumentTime(time));
-      document.title = (filenameInput.value.trim() || t('filenameDefault')) + '-' + label;
+      document.title = (committedFilename || t('filenameDefault')) + '-' + label;
     }
     const wordCount = document.getElementById('word-count');
     const saveHint = document.getElementById('save-hint');
@@ -1615,6 +1629,18 @@
 
     const STORAGE_KEY = 'md_editor_content';
     const FILENAME_KEY = 'md_editor_filename';
+    const BACKUP_DB_NAME = 'lengyi-markdown-backup';
+    const BACKUP_STORE = 'documents';
+    const BACKUP_KEY = 'current';
+    const LAST_LOCATION_KEY = 'last-markdown-location';
+    const LAST_LOCATION_META_KEY = 'md_editor_last_markdown_location';
+    const MARKDOWN_PICKER_ID = 'lengyi-markdown-workspace';
+    let lastMarkdownLocationHandle = null;
+    const MAX_LOCAL_BACKUP_CHARS = 1500000;
+    let browserBackupQueue = Promise.resolve();
+    let browserBackupRevision = 0;
+    let documentEditRevision = 0;
+    let browserBackupWarningShown = false;
     const THEME_KEY = 'md_editor_theme';
     const HELP_SHOWN_KEY = 'md_editor_help_shown';
     const RATIO_KEY = 'md_editor_ratio';
@@ -2425,14 +2451,15 @@
       const savedLang = localStorage.getItem(LANG_KEY);
       if (savedLang && i18n[savedLang]) currentLang = savedLang;
 
-      const saved = localStorage.getItem(STORAGE_KEY);
+      let saved = null;
+      try { saved = localStorage.getItem(STORAGE_KEY); } catch (_) {}
       if (saved !== null) {
         setMarkdown(saved);
       } else {
         setMarkdown(i18n[currentLang].welcomeDoc);
       }
-      filenameInput.value = localStorage.getItem(FILENAME_KEY) || t('filenameDefault');
-      committedFilename = filenameInput.value;
+      committedFilename = normalizeMarkdownFilename(localStorage.getItem(FILENAME_KEY) || t('filenameDefault'));
+      filenameInput.value = displayMarkdownFilename(committedFilename);
       const theme = localStorage.getItem(THEME_KEY) || 'light';
       document.body.setAttribute('data-theme', theme);
 
@@ -2477,6 +2504,7 @@
       }
       applyLanguage();
       applyToolbarOverflow();
+      if (saved === null) restoreLargeBrowserBackupIfNeeded();
     }
 
     // Image compare links BEGIN
@@ -2817,15 +2845,228 @@
       wordCount.textContent = t('wordCount', count);
     }
 
-    // 自动保存
+    // Built-in IndexedDB extends browser recovery to large Base64 Markdown.
+    // This cache is independent from the authorized file on disk.
+    function openMarkdownBackupDatabase() {
+      return new Promise((resolve, reject) => {
+        if (typeof indexedDB === 'undefined') {
+          reject(new Error('IndexedDB is unavailable')); return;
+        }
+        let req;
+        try { req = indexedDB.open(BACKUP_DB_NAME, 1); }
+        catch (error) { reject(error); return; }
+        req.onupgradeneeded = () => {
+          if (!req.result.objectStoreNames.contains(BACKUP_STORE))
+            req.result.createObjectStore(BACKUP_STORE);
+        };
+        req.onerror = () => reject(req.error || new Error('Cannot open IndexedDB'));
+        req.onsuccess = () => resolve(req.result);
+      });
+    }
+
+    async function writeMarkdownBackupToIndexedDB(snapshot) {
+      const db = await openMarkdownBackupDatabase();
+      return new Promise((resolve, reject) => {
+        let transaction;
+        try {
+          transaction = db.transaction(BACKUP_STORE, 'readwrite');
+          transaction.objectStore(BACKUP_STORE).put(snapshot, BACKUP_KEY);
+        } catch (error) { db.close(); reject(error); return; }
+        transaction.oncomplete = () => { db.close(); resolve(); };
+        transaction.onerror = () => {
+          db.close(); reject(transaction.error || new Error('IndexedDB write failed'));
+        };
+        transaction.onabort = () => {
+          db.close(); reject(transaction.error || new Error('IndexedDB transaction aborted'));
+        };
+      });
+    }
+
+    async function readMarkdownBackupFromIndexedDB() {
+      const db = await openMarkdownBackupDatabase();
+      return new Promise((resolve, reject) => {
+        let request;
+        try {
+          request = db.transaction(BACKUP_STORE, 'readonly')
+            .objectStore(BACKUP_STORE).get(BACKUP_KEY);
+        } catch (error) { db.close(); reject(error); return; }
+        request.onsuccess = () => { db.close(); resolve(request.result || null); };
+        request.onerror = () => {
+          db.close(); reject(request.error || new Error('Cannot read IndexedDB backup'));
+        };
+      });
+    }
+
+    // FileSystemHandle objects are structured-cloneable in IndexedDB, not
+    // localStorage. localStorage stores display metadata only; IndexedDB
+    // retains the actual file handle as an anchor for its parent directory.
+    async function writeLastMarkdownLocationHandle(handle) {
+      const db = await openMarkdownBackupDatabase();
+      return new Promise((resolve, reject) => {
+        let transaction;
+        try {
+          transaction = db.transaction(BACKUP_STORE, 'readwrite');
+          transaction.objectStore(BACKUP_STORE).put(handle, LAST_LOCATION_KEY);
+        } catch (error) { db.close(); reject(error); return; }
+        transaction.oncomplete = () => { db.close(); resolve(); };
+        transaction.onerror = () => {
+          db.close(); reject(transaction.error || new Error('Cannot persist last folder'));
+        };
+        transaction.onabort = () => {
+          db.close(); reject(transaction.error || new Error('Folder persistence aborted'));
+        };
+      });
+    }
+
+    async function readLastMarkdownLocationHandle() {
+      const db = await openMarkdownBackupDatabase();
+      return new Promise((resolve, reject) => {
+        let request;
+        try {
+          request = db.transaction(BACKUP_STORE, 'readonly')
+            .objectStore(BACKUP_STORE).get(LAST_LOCATION_KEY);
+        } catch (error) { db.close(); reject(error); return; }
+        request.onsuccess = () => { db.close(); resolve(request.result || null); };
+        request.onerror = () => {
+          db.close(); reject(request.error || new Error('Cannot restore last folder'));
+        };
+      });
+    }
+
+    async function rememberLastMarkdownLocation(handle) {
+      if (!handle || (handle.kind !== 'file' && handle.kind !== 'directory')) return false;
+      lastMarkdownLocationHandle = handle;
+      try {
+        await writeLastMarkdownLocationHandle(handle);
+        try {
+          localStorage.setItem(LAST_LOCATION_META_KEY, JSON.stringify({
+            name: handle.name || '', kind: handle.kind, updatedAt: Date.now()
+          }));
+        } catch (_) {}
+        return true;
+      } catch (_) {
+        // Picker IDs still provide browser-managed folder memory if IDB fails.
+        return false;
+      }
+    }
+
+    async function restoreLastMarkdownLocation() {
+      try {
+        const handle = await readLastMarkdownLocationHandle();
+        if (handle && (handle.kind === 'file' || handle.kind === 'directory')) {
+          lastMarkdownLocationHandle = handle;
+          return handle;
+        }
+      } catch (_) {}
+      return null;
+    }
+
+    function getLastMarkdownLocationStartIn() {
+      return lastMarkdownLocationHandle || 'documents';
+    }
+
+    async function pickExportFileHandle(name, mimeType, extensions) {
+      if (typeof window.showSaveFilePicker !== 'function') return null;
+      return await window.showSaveFilePicker({
+        id: MARKDOWN_PICKER_ID,
+        startIn: getLastMarkdownLocationStartIn(),
+        suggestedName: name,
+        types: [{ description: 'Export file',
+          accept: { [mimeType]: extensions } }]
+      });
+    }
+
+    async function writeBlobToFileHandle(handle, blob) {
+      const writable = await handle.createWritable();
+      try {
+        await writable.write(blob);
+        await writable.close();
+      } catch (error) {
+        if (typeof writable.abort === 'function') {
+          try { await writable.abort(); } catch (_) {}
+        }
+        throw error;
+      }
+    }
+
+    function downloadBlob(blob, name) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function browserBackupFailed() {
+      if (browserBackupWarningShown) return;
+      browserBackupWarningShown = true;
+      showToast(t('toastBrowserBackupFailed'));
+    }
+
+    function persistBrowserBackup() {
+      const snapshot = { markdown:getMarkdown(), filename:committedFilename };
+      const revision = ++browserBackupRevision;
+      if (snapshot.markdown.length <= MAX_LOCAL_BACKUP_CHARS) {
+        try {
+          localStorage.setItem(FILENAME_KEY, snapshot.filename);
+          localStorage.setItem(STORAGE_KEY, snapshot.markdown);
+          browserBackupWarningShown = false;
+          showSaveHint();
+          return Promise.resolve(true);
+        } catch (_) {
+          // QuotaExceededError, blocked storage, or a small remaining quota.
+        }
+      }
+      // Queue large saves to preserve edit order and avoid stale async writes.
+      browserBackupQueue = browserBackupQueue.catch(() => {}).then(async () => {
+        await writeMarkdownBackupToIndexedDB(snapshot);
+        if (revision === browserBackupRevision) {
+          try {
+            // Only after the new IndexedDB record is committed can the old
+            // localStorage copy be cleared to avoid restoring stale content.
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.setItem(FILENAME_KEY, snapshot.filename);
+          } catch (_) {}
+          browserBackupWarningShown = false;
+          showSaveHint();
+        }
+        return true;
+      }).catch(() => {
+        if (revision === browserBackupRevision) browserBackupFailed();
+        return false;
+      });
+      return browserBackupQueue;
+    }
+
+    function restoreLargeBrowserBackupIfNeeded() {
+      const revision = documentEditRevision;
+      void readMarkdownBackupFromIndexedDB().then(saved => {
+        if (!saved || typeof saved.markdown !== 'string' ||
+            documentEditRevision !== revision || currentMarkdownFileHandle) return;
+        setMarkdown(saved.markdown);
+        committedFilename = normalizeMarkdownFilename(saved.filename || committedFilename);
+        filenameInput.value = displayMarkdownFilename(committedFilename);
+        updateFilenameWidth();
+        syncDocumentTitle();
+        updatePreview();
+        updateCount();
+        historyStack = [getMarkdown()];
+        historyIndex = 0;
+        lastHistoryText = getMarkdown();
+      }).catch(() => {
+        // Optional storage can be unavailable in file:// or private contexts.
+      });
+    }
+
+    // Autosave is a browser recovery cache, not an implicit disk write.
     let saveTimer;
     function autoSave() {
+      ++documentEditRevision;
       clearTimeout(saveTimer);
-      saveTimer = setTimeout(() => {
-        localStorage.setItem(STORAGE_KEY, getMarkdown());
-        localStorage.setItem(FILENAME_KEY, filenameInput.value);
-        showSaveHint();
-      }, 500);
+      saveTimer = setTimeout(() => { void persistBrowserBackup(); }, 500);
     }
 
     function showSaveHint() {
@@ -2834,24 +3075,96 @@
       setTimeout(() => saveHint.classList.remove('show'), 1500);
     }
 
-    // 手动保存
     function saveToLocal() {
-      localStorage.setItem(STORAGE_KEY, getMarkdown());
-      localStorage.setItem(FILENAME_KEY, filenameInput.value);
-      showSaveHint();
-      showToast(t('toastSaved'));
+      ++documentEditRevision;
+      void persistBrowserBackup().then(ok => {
+        if (ok) showToast(t('toastSaved'));
+      });
     }
 
-    // 导出文件
+    // File System Access is optional. Without it, save falls back to
+    // downloading a copy; it cannot impersonate permission to overwrite.
+    function canSaveMarkdownToDisk() {
+      return typeof window.showSaveFilePicker === 'function';
+    }
+
+    async function writeMarkdownFile(handle) {
+      const writable = await handle.createWritable();
+      try {
+        await writable.write(getMarkdown());
+        await writable.close();
+      } catch (error) {
+        if (typeof writable.abort === 'function') {
+          try { await writable.abort(); } catch (_) {}
+        }
+        throw error;
+      }
+    }
+
+    async function ensureMarkdownWritePermission(handle) {
+      const permission = { mode: 'readwrite' };
+      if (typeof handle.queryPermission === 'function' &&
+          await handle.queryPermission(permission) === 'granted') return true;
+      if (typeof handle.requestPermission === 'function') {
+        return await handle.requestPermission(permission) === 'granted';
+      }
+      // Older implementations may omit the permission helpers; createWritable()
+      // remains the final browser-enforced permission check.
+      return true;
+    }
+
+    // Ctrl+S overwrites the associated file while its name is unchanged.
+    // If the preview title changed, create a new file in the imported file's
+    // directory, using the original file handle as the picker's startIn hint.
+    async function saveMarkdown() {
+      if (!canSaveMarkdownToDisk()) {
+        exportFile();
+        return;
+      }
+      try {
+        const requestedFilename = normalizeMarkdownFilename(committedFilename);
+        const hasAssociatedFile = !!currentMarkdownFileHandle;
+        const filenameChanged = hasAssociatedFile &&
+          requestedFilename !== currentMarkdownHandleFilename;
+        let handle = currentMarkdownFileHandle;
+
+        if (!handle || filenameChanged) {
+          const options = {
+            id: MARKDOWN_PICKER_ID,
+            startIn: getLastMarkdownLocationStartIn(),
+            suggestedName: requestedFilename,
+            types: [{ description: 'Markdown',
+              accept: { 'text/markdown': ['.md', '.markdown'] } }]
+          };
+          // A FileSystemHandle is a supported startIn value. For an imported
+          // file this opens the new-file picker in that file's parent directory.
+          if (handle) options.startIn = handle;
+          handle = await window.showSaveFilePicker(options);
+          if (!handle) return;
+        } else if (!await ensureMarkdownWritePermission(handle)) {
+          showToast(t('toastDiskPermissionDenied'));
+          return;
+        }
+
+        await writeMarkdownFile(handle);
+        currentMarkdownFileHandle = handle;
+        currentMarkdownHandleFilename = handle.name || requestedFilename;
+        void rememberLastMarkdownLocation(handle);
+        ++documentEditRevision;
+        void persistBrowserBackup();
+        showToast(t('toastDiskSaved'));
+      } catch (error) {
+        if (error && error.name === 'AbortError') return;
+        showToast(t('toastDiskSaveFailed', error.message || String(error)));
+      }
+    }
+
+    // 显式导出副本仍使用下载，和默认覆盖保存分开。
     function exportFile() {
       const blob = new Blob([getMarkdown()], { type: 'text/markdown;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      let name = filenameInput.value.trim();
-      if (!name) name = '未命名文档.md';
-      if (!name.toLowerCase().endsWith('.md') && !name.toLowerCase().endsWith('.markdown')) {
-        name += '.md';
-      }
+      const name = committedFilename;
       a.href = url;
       a.download = name;
       document.body.appendChild(a);
@@ -2926,11 +3239,19 @@
       return doc.body.innerHTML;
     }
 
-    // 导出 Word：将 Markdown 渲染为 HTML 并伪装成 .doc 下载
+    // 导出 Word：优先使用最近目录中的原生保存选择器。
     async function exportWord() {
       let name = filenameInput.value.trim();
       if (!name) name = '未命名文档.md';
       name = name.replace(/\.md$/i, '').replace(/\.markdown$/i, '') + '.doc';
+      let outputHandle = null;
+      try {
+        outputHandle = await pickExportFileHandle(name, 'application/msword', ['.doc']);
+      } catch (error) {
+        if (error && error.name === 'AbortError') return;
+        showToast(t('toastDiskSaveFailed', error.message || String(error)));
+        return;
+      }
 
       const md = getMarkdown();
       let bodyHtml;
@@ -2978,22 +3299,33 @@ ${bodyHtml}
 </html>`;
 
       const blob = new Blob([fullHtml], { type: 'application/msword;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      if (outputHandle) {
+        try {
+          await writeBlobToFileHandle(outputHandle, blob);
+          void rememberLastMarkdownLocation(outputHandle);
+        } catch (error) {
+          showToast(t('toastDiskSaveFailed', error.message || String(error)));
+          return;
+        }
+      } else {
+        downloadBlob(blob, name);
+      }
       showToast(t('toastWordExported'));
     }
 
-    // 导出 HTML：将 Markdown 渲染为独立 HTML 页面并下载
-    function exportHTML() {
+    // 导出 HTML：优先保存到最近使用的目录。
+    async function exportHTML() {
       let name = filenameInput.value.trim();
       if (!name) name = '未命名文档.md';
       name = name.replace(/\.md$/i, '').replace(/\.markdown$/i, '') + '.html';
+      let outputHandle = null;
+      try {
+        outputHandle = await pickExportFileHandle(name, 'text/html', ['.html', '.htm']);
+      } catch (error) {
+        if (error && error.name === 'AbortError') return;
+        showToast(t('toastDiskSaveFailed', error.message || String(error)));
+        return;
+      }
 
       const md = getMarkdown();
       let bodyHtml;
@@ -3057,14 +3389,17 @@ ${'</scr' + 'ipt>'}
 </html>`;
 
       const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      if (outputHandle) {
+        try {
+          await writeBlobToFileHandle(outputHandle, blob);
+          void rememberLastMarkdownLocation(outputHandle);
+        } catch (error) {
+          showToast(t('toastDiskSaveFailed', error.message || String(error)));
+          return;
+        }
+      } else {
+        downloadBlob(blob, name);
+      }
       showToast(t('toastHtmlExported'));
     }
 
@@ -3228,7 +3563,7 @@ ${'</scr' + 'ipt>'}
       }
     }
 
-    function downloadExportImage() {
+    async function downloadExportImage() {
       if (!currentImageDataUrl) {
         showToast(t('toastGeneratePreviewFirst'));
         return;
@@ -3237,17 +3572,35 @@ ${'</scr' + 'ipt>'}
       if (!name) name = '未命名文档.md';
       name = name.replace(/\.(md|markdown|txt|html|doc)$/i, '') + '.png';
 
-      const a = document.createElement('a');
-      a.href = currentImageDataUrl;
-      a.download = name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      let outputHandle = null;
+      try {
+        outputHandle = await pickExportFileHandle(name, 'image/png', ['.png']);
+      } catch (error) {
+        if (error && error.name === 'AbortError') return;
+        showToast(t('toastDiskSaveFailed', error.message || String(error)));
+        return;
+      }
+      const parts = currentImageDataUrl.split(',');
+      const binary = atob(parts[1] || '');
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: 'image/png' });
+      if (outputHandle) {
+        try {
+          await writeBlobToFileHandle(outputHandle, blob);
+          void rememberLastMarkdownLocation(outputHandle);
+        } catch (error) {
+          showToast(t('toastDiskSaveFailed', error.message || String(error)));
+          return;
+        }
+      } else {
+        downloadBlob(blob, name);
+      }
       showToast(t('toastImageDownloaded'));
     }
 
     // 加载文件内容到编辑器（文件输入与拖放共用）
-    function loadFile(file) {
+    function loadFile(file, handle = null) {
       const reader = new FileReader();
       reader.onload = (e) => {
         setMarkdown(e.target.result);
@@ -3257,8 +3610,11 @@ ${'</scr' + 'ipt>'}
         }
         // Record the successful import time only for Markdown files.
         setDocumentImportTime(/\.(md|markdown)$/i.test(file.name));
-        filenameInput.value = name;
         committedFilename = name;
+        filenameInput.value = displayMarkdownFilename(name);
+        currentMarkdownFileHandle = /\.(md|markdown)$/i.test(file.name) ? handle : null;
+        currentMarkdownHandleFilename = currentMarkdownFileHandle
+          ? normalizeMarkdownFilename(file.name) : null;
         syncDocumentTitle();
         updateFilenameWidth();
         updatePreview();
@@ -3269,7 +3625,46 @@ ${'</scr' + 'ipt>'}
       reader.readAsText(file);
     }
 
-    // 导入文件
+    async function openMarkdownFile() {
+      try {
+        const handles = await window.showOpenFilePicker({
+          id: MARKDOWN_PICKER_ID,
+          startIn: getLastMarkdownLocationStartIn(),
+          multiple: false,
+          types: [{ description: 'Markdown / Text',
+            accept: { 'text/markdown': ['.md', '.markdown'],
+                      'text/plain': ['.txt'] } }]
+        });
+        if (!handles || !handles[0]) return;
+        const handle = handles[0];
+        // Ask for read/write access during the import gesture. Keep the
+        // original file handle so unchanged-title Ctrl+S can overwrite it.
+        if (/\.(md|markdown)$/i.test(handle.name) &&
+            typeof handle.requestPermission === 'function') {
+          try {
+            await handle.requestPermission({ mode: 'readwrite' });
+          } catch (_) {
+            // Import remains available; save will re-check permission later.
+          }
+        }
+        const file = await handle.getFile();
+        loadFile(file, handle);
+        await rememberLastMarkdownLocation(handle);
+      } catch (error) {
+        if (error && error.name === 'AbortError') return;
+        showToast(t('toastDiskOpenFailed', error.message || String(error)));
+      }
+    }
+
+    function handleImportClick(event) {
+      if (typeof window.showOpenFilePicker !== 'function') return;
+      event.preventDefault();
+      // Start the picker during the user click, not from a delayed callback.
+      void openMarkdownFile();
+    }
+
+    // Older browsers and drag-and-drop still import content without write
+    // permission; the first Ctrl+S will ask for a destination.
     function importFile(input) {
       const file = input.files[0];
       if (file) loadFile(file);
@@ -4367,10 +4762,10 @@ ${'</scr' + 'ipt>'}
     // Listen at document level so editor Ctrl/Cmd+S works reliably after mouse focus.
     // Do not intercept shortcuts used outside the editor.
     document.addEventListener('keydown', e => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' &&
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 's' &&
           (e.target === editor || document.activeElement === editor)) {
         e.preventDefault();
-        exportFile();
+        void saveMarkdown();
       }
     });
 
@@ -4420,6 +4815,11 @@ ${'</scr' + 'ipt>'}
     editor.addEventListener('keydown', handleEditorKeydown);
 
     window.addEventListener('resize', updateFilenameLimit);
+
+    // Restore the last file/directory anchor asynchronously. Picker actions
+    // still use the browser's remembered picker ID if this lookup has not
+    // completed before the user opens a picker.
+    void restoreLastMarkdownLocation();
 
     // 启动
     init();

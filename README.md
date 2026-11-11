@@ -44,7 +44,7 @@ It is **just one HTML file**. Double-click to write. Everything is stored locall
 - **Live preview**: write on the left, preview on the right in real time.
 - **Width-aware single-row toolbar**: formatting and Mermaid tools, then **Import → Export → Web to Markdown → View → Help → Night/Day**. It measures actual available width and moves actions into ⋮ only as needed; formatting controls and ⋮ remain on one row, including narrow screens. Ctrl+S and Ctrl+F are preserved.
 - **Standard and Reading modes**: Standard shows the editor, live preview, and outline. An accented, icon-only book button in the bottom-right enters Reading mode. Reading mode hides editing controls and floats a draggable outline over a full-width preview; next to Exit Reading Mode is an independent Night/Day toggle that updates the shared theme preference. Escape still returns to Standard.
-- **Preview filename and footer status**: the editable filename is centered in the preview header and displays in black in the light theme (contrasting text in dark mode). The footer shows the visible-bottom reading progress (100% at bottom), rendered word count, and full selected language name (e.g., 简体中文). The browser tab shows `filename-imported time` for imported Markdown, or `filename-opened time` otherwise; saving does not change it.
+- **Preview filename and footer status**: the editable filename is centered in the preview header **without its .md/.markdown suffix** and displays in black in the light theme (contrasting text in dark mode). The footer shows the visible-bottom reading progress (100% at bottom), rendered word count, and full selected language name (e.g., 简体中文). The browser tab shows `filename-imported time` for imported Markdown, or `filename-opened time` otherwise; saving does not change it.
 - **Read-only Base64 state**: When embedded Base64 images exist, a non-clickable “Base64 images folded” label appears after Edit. The expand/hide button is removed. Full Base64 remains in exported Markdown, and the same image keeps its marker number after Ctrl+Z/Ctrl+Y.
 - **Compare-style image links**: A Markdown image row and its corresponding rendered preview image are linked by a subtle green source highlight, a green image outline and a translucent funnel-shaped SVG bridge. The overlay updates on scrolling, image load and pane resizing. It is purely visual, ignores pointer events, and hides offscreen links and all links in reading or stacked mobile modes.
 - **Paste PowerPoint images**: When a clipboard item exposes PNG/JPEG/WebP/GIF/BMP pixels, press `Ctrl+V` in the editor to embed an image as Base64 Markdown. Ordinary text paste remains unchanged. Images above 2 MiB require confirmation; above 5 MiB are rejected. EMF/WMF/TIFF-only clipboards cannot be decoded through the browser's native paste event; export or copy the image as PNG/JPEG first. Large Base64 images may exceed browser localStorage limits.
@@ -75,8 +75,9 @@ Language preference is persisted to `localStorage`.
 
 ### 💾 Local Auto-Save
 
-- Auto-saves content to browser `localStorage` every 500ms. When the editor has keyboard focus, Ctrl/Cmd+S downloads the current Markdown; outside the editor this shortcut is not intercepted. Browser download settings decide how to handle a duplicate filename or Save As prompt; automatic overwriting is not guaranteed.
-- Content, filename, split ratio, collapsed states, theme, and language all survive page refresh.
+- The editor auto-backs up content every 500ms: small files use browser `localStorage`, while large Markdown files (or localStorage quota errors) fall back to built-in `IndexedDB` without dependencies. In supported Chrome/Edge versions, importing `.md` requests read/write permission and retains the file handle. **Ctrl/Cmd+S** overwrites that file while its title is unchanged. If the preview title is renamed, Ctrl/Cmd+S opens the new-file picker in the imported file's directory with the updated title as its suggested filename, then subsequent saves overwrite that new file. Drag-and-drop and legacy file inputs cannot reveal their parent folder, so their first save asks the user to choose a destination. Unsupported browsers retain the download fallback.
+- **Large documents**: `localStorage` is often limited to about 5 MiB, so Markdown containing large Base64 images uses IndexedDB for browser recovery. If IndexedDB is blocked or also out of space, a separate browser-backup warning is shown; a completed Ctrl+S disk write is **not** considered failed. The OS/browser can override the suggested Save As directory.
+- Content, full filename (including `.md`), split ratio, collapsed states, theme, and language survive refresh. The active overwrite-authorized file handle is session-only and is never restored as write authorization. Separately, the most recently used file handle is stored in IndexedDB as a directory anchor (with the anchor filename as auxiliary metadata in localStorage); importing Markdown, Ctrl/Cmd+S saves, and successful Word/HTML/PNG exports update it. On the next page session at the same origin, import and file-picker exports start in that directory when the browser permits it. Permissions may need to be requested again. PDF uses the browser/OS print dialog and its destination is controlled there. Renaming the preview title does not overwrite the imported original: the next Ctrl/Cmd+S creates a sibling file in the same directory.
 
 ### 📤 Multi-Format Export
 
@@ -92,7 +93,7 @@ Language preference is persisted to `localStorage`.
 
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl + S` / `Cmd + S` | Download the current Markdown file while focused in the editor (same filename; browser controls overwrite/renaming) |
+| `Ctrl + S` / `Cmd + S` | Save Markdown: choose a file once, then overwrite it; fallback to download if unsupported |
 | `Ctrl + Z` | Undo |
 | `Ctrl + Y` / `Ctrl + Shift + Z` | Redo |
 | `Ctrl + B` | Bold |
