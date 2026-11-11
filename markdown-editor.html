@@ -2896,6 +2896,7 @@
         updateFilenameWidth();
         syncDocumentTitle();
         saveToLocal();
+        showToast(t('toastDiskSaved'));
       } catch (error) {
         if (error && error.name === 'AbortError') return;
         showToast(t('toastDiskSaveFailed', error.message || String(error)));
@@ -2913,6 +2914,7 @@
       try {
         await writeMarkdownFile(currentMarkdownFileHandle);
         saveToLocal();
+        showToast(t('toastDiskSaved'));
       } catch (error) {
         showToast(t('toastDiskSaveFailed', error.message || String(error)));
       }
