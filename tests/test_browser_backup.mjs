@@ -218,5 +218,5 @@ test('startup only consults large IndexedDB backup when localStorage has no Mark
   assert.match(html,/if \(saved === null\) restoreLargeBrowserBackupIfNeeded\(\)/);
   assert.match(html,/function autoSave\(\) \{[^]*?persistBrowserBackup\(\)/);
   assert.match(html,/function saveToLocal\(\) \{[^]*?persistBrowserBackup\(\)/);
-  assert.doesNotMatch(html,/function saveMarkdown\(\) \{[^]*?await writeMarkdownFile[^]*?saveToLocal\(\)/);
+  assert.doesNotMatch(fn('saveMarkdown'),/saveToLocal\(\)/);
 });
