@@ -58,13 +58,14 @@ test('source measurement caches mirror geometry during scrolling and refreshes o
 function fixture(opts={}){
   const data='data:image/png;base64,'+'A'.repeat(180);
   const token='⟦Base64图片#1已折叠⟧';
+  const blobUrl='blob:performance-test/1';
   const shapes=[];
   const overlay={setAttribute(){},replaceChildren(){shapes.length=0;},
     appendChild(el){shapes.push(el);}};
   const editor={scrollTop:opts.offEditor?700:0,getBoundingClientRect(){
     return {left:0,right:480,top:42,bottom:542,width:480};}};
   let sourceReads=0;
-  const image={getAttribute(){sourceReads++;return opts.wrongSrc?'different':data;},
+  const image={getAttribute(){sourceReads++;return opts.wrongSrc?'blob:performance-test/wrong':blobUrl;},
     getBoundingClientRect(){return {left:540,right:820,top:opts.offImage?600:150,
       bottom:opts.offImage?800:300};}};
   const body={querySelectorAll(){return [image];}};
@@ -73,6 +74,7 @@ function fixture(opts={}){
   const rows=[{start:0,end:30,source:token,startY:140,endY:170}];
   const ctx={imageLinkOverlay:overlay,SVG_NS:'http://www.w3.org/2000/svg',
     imageLinkPairs:{body:null,rows:null,pairs:[]},
+    imageBlobUrlByData:new Map([[data,blobUrl]]),
     readingMode:!!opts.readingMode,editorCollapsed:!!opts.collapsed,
     imageDataCollapsed:true,editor,preview,window:{matchMedia:()=>({matches:!!opts.mobile})},
     document:{
@@ -130,4 +132,46 @@ test('connections update on scroll, image load, rendering and pane resizing',()=
   assert.match(src,/new ResizeObserver\(scheduleImageConnections\)/);
   assert.match(html,/renderOutline\(\);\s*updatePreviewProgress\(\);\s*observeImageBody\(\);\s*scheduleImageConnections\(\);/);
   assert.match(html,/function applySplit\(\) \{[^]*?updateFilenameLimit\(\);\s*scheduleImageConnections\(\);/);
+});
+
+
+test('Base64 source matches its rendered Blob URL through the existing cache',()=>{
+  const data='data:image/png;base64,'+'B'.repeat(1024);
+  const blob='blob:performance-test/cached';
+  const match=run(extract('imageSourcesMatch'),'imageSourcesMatch',{
+    imageBlobUrlByData:new Map([[data,blob]]),
+    document:{baseURI:'file:///markdown-editor.html'},
+    URL
+  });
+  assert.equal(match(data,blob),true);
+  assert.equal(match(data,'blob:performance-test/other'),false);
+  assert.equal(match(data,'https://example.com/image.png'),false);
+});
+
+test('remote image matching remains URL-based after adding Blob URL matching',()=>{
+  const match=run(extract('imageSourcesMatch'),'imageSourcesMatch',{
+    imageBlobUrlByData:new Map(),
+    document:{baseURI:'file:///markdown-editor.html'},
+    URL
+  });
+  assert.equal(match('./images/photo.png','file:///images/photo.png'),true);
+  assert.equal(match('./images/photo.png','https://example.com/photo.png'),false);
+});
+
+test('raw Base64 Markdown image rows also pair with their cached Blob URL',()=>{
+  const data='data:image/png;base64,'+'C'.repeat(180);
+  const blob='blob:performance-test/raw';
+  const match=run(extract('imageSourcesMatch'),'imageSourcesMatch',{
+    imageBlobUrlByData:new Map([[data,blob]]),
+    document:{baseURI:'file:///markdown-editor.html'},
+    URL
+  });
+  assert.equal(match(data,blob),true);
+});
+
+
+test('Blob URL connector lookup reuses the existing cache without decoding image bytes',()=>{
+  const helper=extract('imageSourcesMatch');
+  assert.match(helper,/imageBlobUrlByData\.get\(source\)/);
+  assert.doesNotMatch(helper,/atob|createImageBlobUrl|getImageBlobUrl/);
 });
