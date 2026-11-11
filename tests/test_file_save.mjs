@@ -207,7 +207,7 @@ test('metadata and UI wiring keep full filename in storage but remove extension 
   assert.match(html,/committedFilename = normalizeMarkdownFilename\(localStorage\.getItem\(FILENAME_KEY\)/);
   assert.match(html,/filenameInput\.value = displayMarkdownFilename\(committedFilename\)/);
   assert.match(html,/document\.title = \(committedFilename \|\| t\('filenameDefault'\)\)/);
-  assert.match(html,/localStorage\.setItem\(FILENAME_KEY, committedFilename\)/);
+  assert.match(html,/localStorage\.setItem\(FILENAME_KEY, snapshot\.filename\)/);
   assert.match(html,/currentMarkdownFileHandle = null;/);
   assert.match(html,/onclick="saveMarkdown\(\); closeExportMenu\(\);"/);
   assert.match(html,/onclick="saveMarkdownAs\(\); closeExportMenu\(\);"/);
