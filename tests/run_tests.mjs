@@ -31,6 +31,7 @@ try {
   check('Image source-to-preview SVG connector tests', ['--test', 'tests/test_image_links.mjs']);
   check('Native Markdown overwrite and filename display tests', ['--test', 'tests/test_file_save.mjs']);
   check('Large Markdown browser backup and quota fallback tests', ['--test', 'tests/test_browser_backup.mjs']);
+  check('Large Markdown input and IME responsiveness tests', ['--test', 'tests/test_large_markdown_performance.mjs']);
 } finally {
   rmSync(tmp, { recursive: true, force: true });
 }

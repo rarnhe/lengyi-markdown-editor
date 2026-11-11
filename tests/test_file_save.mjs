@@ -178,9 +178,12 @@ test('import-time permission is requested before getFile and original handle is 
 
 test('loadFile stores imported handle and its disk filename; handle-less imports clear association',()=>{
   const load=extract('loadFile');
+  const editor={value:''};
   const ctx={
     FileReader:class{readAsText(file){this.onload({target:{result:file.content}});}},
-    setMarkdown:()=>{},setDocumentImportTime:()=>{},filenameInput:{value:''},
+    editor,clearTimeout:()=>{},historyTimer:null,historyStack:[],historyIndex:-1,lastHistoryText:null,
+    createHistorySnapshot:()=>({type:'snapshot',text:editor.value,imageData:new Map()}),
+    setMarkdown:value=>{editor.value=value;},setDocumentImportTime:()=>{},filenameInput:{value:''},
     committedFilename:'old.md',currentMarkdownFileHandle:{name:'old.md'},
     currentMarkdownHandleFilename:'old.md',normalizeMarkdownFilename:name=>/\.md$/i.test(name)?name:name+'.md',
     displayMarkdownFilename:name=>name.replace(/\.(md|markdown)$/i,''),

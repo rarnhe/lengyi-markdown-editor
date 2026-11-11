@@ -1653,7 +1653,11 @@
     // The textarea is a DISPLAY only; persisted Markdown is always expanded.
     const IMAGE_DATA_RE = /data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+/gi;
     const IMAGE_MARKER_RE = /⟦Base64图片#\d+已折叠⟧/g;
+    const MARKDOWN_IMAGE_SOURCE_RE = /(!\[[^\]]*\]\()((?:data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+)|(?:⟦Base64图片#\d+已折叠⟧))(\))/gi;
     const imageDataMap = new Map();
+    // Keep image bytes out of preview Markdown. One Blob URL is shared by all
+    // occurrences of the same data URL and released when the document drops it.
+    const imageBlobUrlByData = new Map();
     // Remember the marker allocated to each image payload for this editing
     // session. Undo/redo restores full Markdown; re-folding must NOT allocate
     // a new #N for an unchanged image. Identical data URLs share an identity.
@@ -1709,6 +1713,61 @@
       return expandImageData(editor.value);
     }
 
+    // Decode each embedded image only once. Preview Markdown references a
+    // short-lived Blob URL; disk export and backup continue using getMarkdown().
+    function createImageBlobUrl(dataUrl) {
+      if (typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function' ||
+          typeof Blob === 'undefined' || typeof atob !== 'function') return dataUrl;
+      const comma = dataUrl.indexOf(',');
+      if (comma < 0) return dataUrl;
+      const metadata = dataUrl.slice(5, comma);
+      const mime = metadata.split(';')[0] || 'application/octet-stream';
+      const binary = atob(dataUrl.slice(comma + 1));
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return URL.createObjectURL(new Blob([bytes], { type: mime }));
+    }
+
+    function getImageBlobUrl(dataUrl) {
+      let url = imageBlobUrlByData.get(dataUrl);
+      if (!url) {
+        url = createImageBlobUrl(dataUrl);
+        if (url !== dataUrl) imageBlobUrlByData.set(dataUrl, url);
+      }
+      return url;
+    }
+
+    function getPreviewMarkdown() {
+      const activeDataUrls = new Set();
+      const codeSegmentRe = new RegExp('(\`\`\`[\\s\\S]*?\`\`\`|~~~[\\s\\S]*?~~~|\`+[^\\\`\\n]*\`+)', 'g');
+      const parts = editor.value.split(codeSegmentRe);
+      const text = parts.map(part => {
+        // Code is literal content, not an image source. Preserve its original
+        // Base64 text rather than replacing it with a Blob URL.
+        if (part.startsWith('~~~') || part.startsWith('\`\`\`') || part.startsWith('\`')) {
+          return expandImageData(part);
+        }
+        const rendered = part.replace(MARKDOWN_IMAGE_SOURCE_RE, (match, prefix, source, suffix) => {
+          const dataUrl = /^data:image\//i.test(source) ? source : imageDataMap.get(source);
+          if (!dataUrl) return match;
+          activeDataUrls.add(dataUrl);
+          return prefix + getImageBlobUrl(dataUrl) + suffix;
+        });
+        // Markers outside an image destination retain their literal Markdown
+        // meaning; only actual Markdown image references use Blob URLs.
+        return rendered.replace(IMAGE_MARKER_RE, marker => imageDataMap.get(marker) || marker);
+      }).join('');
+
+      for (const [dataUrl, url] of imageBlobUrlByData) {
+        if (activeDataUrls.has(dataUrl)) continue;
+        if (typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+          URL.revokeObjectURL(url);
+        }
+        imageBlobUrlByData.delete(dataUrl);
+      }
+      return text;
+    }
+
     function setMarkdown(markdown) {
       // Only clear the live marker-to-payload view. Retain imageMarkerByData,
       // so history restore reuses its previous visible #N identifier.
@@ -1727,8 +1786,11 @@
 
     // Detect a real embedded image data URI in the full Markdown, even when
     // its source text is currently represented by a folded Base64 marker.
+    // Check the lightweight editor representation; never expand every
+    // Base64 payload merely to update the status indicator.
     function hasEmbeddedBase64Image() {
-      return /data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+/i.test(getMarkdown());
+      return editor.value.includes('⟦Base64图片#') ||
+        /data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+/i.test(editor.value);
     }
 
     function updateBase64Status() {
@@ -2130,7 +2192,8 @@
     function renderOutline() {
       if (!outlineVisible && !readingMode) return;
       const list = document.getElementById('outline-list');
-      outlineHeadings = extractHeadings(getMarkdown());
+      // Headings never need expanded image payloads.
+      outlineHeadings = extractHeadings(editor.value);
       if (!outlineHeadings.length) {
         list.innerHTML = '<div class="outline-empty">' + t('outlineEmpty') + '</div>';
         return;
@@ -2493,9 +2556,9 @@
       renderOutline();
 
       // 初始化历史记录
-      historyStack = [getMarkdown()];
+      historyStack = [createHistorySnapshot()];
       historyIndex = 0;
-      lastHistoryText = getMarkdown();
+      lastHistoryText = editor.value;
 
       // Editor and outline each restore their saved fold state.
 
@@ -2728,7 +2791,7 @@
 
     // 渲染预览
     function updatePreview() {
-      let text = getMarkdown();
+      let text = getPreviewMarkdown();
       updateBase64Status();
       let placeholders = [];
 
@@ -3053,9 +3116,9 @@
         syncDocumentTitle();
         updatePreview();
         updateCount();
-        historyStack = [getMarkdown()];
+        historyStack = [createHistorySnapshot()];
         historyIndex = 0;
-        lastHistoryText = getMarkdown();
+        lastHistoryText = editor.value;
       }).catch(() => {
         // Optional storage can be unavailable in file:// or private contexts.
       });
@@ -3604,6 +3667,11 @@ ${'</scr' + 'ipt>'}
       const reader = new FileReader();
       reader.onload = (e) => {
         setMarkdown(e.target.result);
+        clearTimeout(historyTimer);
+        historyTimer = null;
+        historyStack = [createHistorySnapshot()];
+        historyIndex = 0;
+        lastHistoryText = editor.value;
         let name = file.name;
         if (!name.toLowerCase().endsWith('.md') && !name.toLowerCase().endsWith('.markdown')) {
           name += '.md';
@@ -3700,27 +3768,115 @@ ${'</scr' + 'ipt>'}
       updatePreview();
     }
 
-    // 历史记录
+    // 历史记录保存折叠文本的增量差异；图片 payload 只保留资源引用。
     function pushHistory() {
       clearTimeout(historyTimer);
+      historyTimer = null;
       recordHistory();
     }
 
+    function snapshotHistoryImageData() {
+      const images = new Map();
+      for (const match of editor.value.matchAll(IMAGE_MARKER_RE)) {
+        const dataUrl = imageDataMap.get(match[0]);
+        if (dataUrl) images.set(match[0], dataUrl);
+      }
+      return images;
+    }
+
+    function createHistorySnapshot() {
+      return {
+        type: 'snapshot',
+        text: editor.value,
+        imageData: snapshotHistoryImageData()
+      };
+    }
+
+    function createHistoryPatch(before, after) {
+      let start = 0;
+      const sharedLength = Math.min(before.length, after.length);
+      while (start < sharedLength &&
+             before.charCodeAt(start) === after.charCodeAt(start)) start++;
+
+      let beforeEnd = before.length;
+      let afterEnd = after.length;
+      while (beforeEnd > start && afterEnd > start &&
+             before.charCodeAt(beforeEnd - 1) === after.charCodeAt(afterEnd - 1)) {
+        beforeEnd--;
+        afterEnd--;
+      }
+
+      return {
+        type: 'patch',
+        start,
+        removed: before.slice(start, beforeEnd),
+        inserted: after.slice(start, afterEnd),
+        imageData: snapshotHistoryImageData()
+      };
+    }
+
+    function applyHistoryPatch(text, patch, forward) {
+      const removed = forward ? patch.removed : patch.inserted;
+      const inserted = forward ? patch.inserted : patch.removed;
+      return text.slice(0, patch.start) + inserted +
+        text.slice(patch.start + removed.length);
+    }
+
+    function restoreHistoryImageData(state) {
+      imageDataMap.clear();
+      if (!state || !state.imageData) return;
+      for (const [marker, dataUrl] of state.imageData) {
+        imageDataMap.set(marker, dataUrl);
+      }
+    }
+
     function recordHistory() {
-      const text = getMarkdown();
+      const text = editor.value;
       if (text === lastHistoryText) return;
+      if (typeof lastHistoryText !== 'string' || !historyStack.length || historyIndex < 0) {
+        historyStack = [createHistorySnapshot()];
+        historyIndex = 0;
+        lastHistoryText = text;
+        return;
+      }
+
       historyStack = historyStack.slice(0, historyIndex + 1);
-      historyStack.push(text);
-      if (historyStack.length > MAX_HISTORY) historyStack.shift();
+      historyStack.push(createHistoryPatch(lastHistoryText, text));
+
+      // Keep one base snapshot plus at most MAX_HISTORY small patches.
+      // Fold the oldest patch into the base when the history limit is reached.
+      if (historyStack.length > MAX_HISTORY + 1) {
+        const oldestPatch = historyStack[1];
+        const base = historyStack[0];
+        historyStack[0] = {
+          type: 'snapshot',
+          text: applyHistoryPatch(base.text, oldestPatch, true),
+          imageData: new Map(oldestPatch.imageData)
+        };
+        historyStack.splice(1, 1);
+      }
+
       historyIndex = historyStack.length - 1;
       lastHistoryText = text;
     }
 
+    function flushHistoryBeforeTraversal() {
+      if (historyTimer !== null) {
+        clearTimeout(historyTimer);
+        historyTimer = null;
+      }
+      recordHistory();
+    }
+
     function undo() {
+      flushHistoryBeforeTraversal();
       if (historyIndex <= 0) return;
+      const patch = historyStack[historyIndex];
+      if (!patch || patch.type !== 'patch') return;
+      editor.value = applyHistoryPatch(editor.value, patch, false);
       historyIndex--;
-      setMarkdown(historyStack[historyIndex]);
-      lastHistoryText = getMarkdown();
+      restoreHistoryImageData(historyStack[historyIndex]);
+      lastHistoryText = editor.value;
       updatePreview();
       updateCount();
       autoSave();
@@ -3729,10 +3885,14 @@ ${'</scr' + 'ipt>'}
     }
 
     function redo() {
+      flushHistoryBeforeTraversal();
       if (historyIndex >= historyStack.length - 1) return;
+      const patch = historyStack[historyIndex + 1];
+      if (!patch || patch.type !== 'patch') return;
+      editor.value = applyHistoryPatch(editor.value, patch, true);
       historyIndex++;
-      setMarkdown(historyStack[historyIndex]);
-      lastHistoryText = getMarkdown();
+      restoreHistoryImageData(historyStack[historyIndex]);
+      lastHistoryText = editor.value;
       updatePreview();
       updateCount();
       autoSave();
@@ -4655,14 +4815,58 @@ ${'</scr' + 'ipt>'}
     }
 
     // 事件监听
-    editor.addEventListener('input', () => {
-      collapseTextareaData(editor);
+    // Keep the main-thread input path small. Preview, history, and browser
+    // backup work are scheduled only after composition/input has settled.
+    let editorCompositionActive = false;
+    let editorPreviewTimer = null;
+
+    function scheduleEditorPreview() {
+      clearTimeout(editorPreviewTimer);
+      editorPreviewTimer = setTimeout(() => {
+        editorPreviewTimer = null;
+        if (editorCompositionActive) return;
+        updatePreview();
+        updateCount();
+      }, 300);
+    }
+
+    function commitEditorChange(event) {
+      if (editorCompositionActive) return;
+      // Folding a pasted data URL is useful, but scanning the entire document
+      // on every keystroke is not. Normal typing never enters this path.
+      if (event && /^(insertFromPaste|insertFromDrop)/.test(event.inputType || '')) {
+        collapseTextareaData(editor);
+      }
       clearTimeout(historyTimer);
-      historyTimer = setTimeout(recordHistory, 400);
-      updatePreview();
-      updateCount();
+      historyTimer = setTimeout(() => {
+        historyTimer = null;
+        recordHistory();
+      }, 400);
+      scheduleEditorPreview();
       autoSave();
-    });
+    }
+
+    function handleEditorInput(event) {
+      if (editorCompositionActive || (event && event.isComposing)) return;
+      commitEditorChange(event);
+    }
+
+    function handleEditorCompositionStart() {
+      editorCompositionActive = true;
+      clearTimeout(editorPreviewTimer);
+      editorPreviewTimer = null;
+      clearTimeout(historyTimer);
+      historyTimer = null;
+    }
+
+    function handleEditorCompositionEnd() {
+      editorCompositionActive = false;
+      commitEditorChange();
+    }
+
+    editor.addEventListener('compositionstart', handleEditorCompositionStart);
+    editor.addEventListener('compositionend', handleEditorCompositionEnd);
+    editor.addEventListener('input', handleEditorInput);
     editor.addEventListener('beforeinput', protectBase64Marker);
     editor.addEventListener('copy', copyExpandedBase64);
     editor.addEventListener('paste', handleEditorImagePaste);
