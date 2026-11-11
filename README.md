@@ -93,8 +93,7 @@ Language preference is persisted to `localStorage`.
 
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl + S` / `Cmd + S` | Save to authorized `.md` file, choosing a destination on first use; fallback to download if unsupported |
-| `Ctrl + Shift + S` / `Cmd + Shift + S` | Save As Markdown to a newly selected file |
+| `Ctrl + S` / `Cmd + S` | Save Markdown: choose a file once, then overwrite it; fallback to download if unsupported |
 | `Ctrl + Z` | Undo |
 | `Ctrl + Y` / `Ctrl + Shift + Z` | Redo |
 | `Ctrl + B` | Bold |
