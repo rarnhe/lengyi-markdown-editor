@@ -1207,9 +1207,6 @@
         <div class="dropdown" id="export-dropdown">
           <button onclick="toggleExportMenu()" data-i18n-title="exportBtn"><svg class="icon"><use href="#icon-download"></use></svg> <span data-i18n="exportBtn">导出</span></button>
           <div class="dropdown-menu" id="export-menu">
-            <div class="dropdown-item" onclick="saveMarkdown(); closeExportMenu();" data-i18n="saveMd">保存 Markdown (Ctrl+S)</div>
-            <div class="dropdown-item" onclick="saveMarkdownAs(); closeExportMenu();" data-i18n="saveMdAs">另存为 Markdown</div>
-            <div class="dropdown-item" onclick="exportFile(); closeExportMenu();" data-i18n="exportMd">导出 Markdown (.md)</div>
             <div class="dropdown-item" onclick="exportWord(); closeExportMenu();" data-i18n="exportWord">导出 Word (.doc)</div>
             <div class="dropdown-item" onclick="exportPDF(); closeExportMenu();" data-i18n="exportPdf">导出 PDF (.pdf)</div>
             <div class="dropdown-item" onclick="exportHTML(); closeExportMenu();" data-i18n="exportHtml">导出 HTML (.html)</div>
@@ -1549,10 +1546,6 @@
     // Only user-selected FileSystemFileHandle objects grant disk writes.
     // Do not persist file handles across editor sessions.
     let currentMarkdownFileHandle = null;
-    // A file handle can also serve as a directory hint for future Save As.
-    // Keep it after a rename, when the old writable association is cleared.
-    // This does NOT reveal the filesystem path to JavaScript.
-    let markdownSaveStartHandle = null;
     const htmlOpenedAt = new Date();
     let markdownImportedAt = null;
     function formatDocumentTime(date) {
@@ -1587,8 +1580,8 @@
       filenameInput.parentElement.parentElement.style.maxWidth = available + 'px';
     }
 
-    // Only the preview heading changes while editing a filename. Never
-    // silently overwrite the old disk file under a new display name.
+    // Renaming the preview title changes metadata only. Keep the authorized
+    // file handle so Ctrl+S continues overwriting the same file.
     function commitFilenameChange() {
       const entered = filenameInput.value.trim();
       if (!entered) {
@@ -1601,7 +1594,6 @@
       updateFilenameWidth();
       if (name === committedFilename) return;
       committedFilename = name;
-      currentMarkdownFileHandle = null;
       syncDocumentTitle();
       try { localStorage.setItem(FILENAME_KEY, name); } catch (_) {}
       autoSave();
@@ -2998,55 +2990,31 @@
       }
     }
 
-    // Save As asks for a new authorized destination. The picker is called
-    // synchronously before any await, preserving user activation.
-    async function saveMarkdownAs() {
-      if (!canSaveMarkdownToDisk()) {
-        exportFile();
-        return;
-      }
-      try {
-        const handle = await window.showSaveFilePicker({
-          suggestedName: committedFilename,
-          // Native pickers accept a previously opened FILE handle as startIn:
-          // its containing folder becomes the suggested save location.
-          startIn: markdownSaveStartHandle || 'documents',
-          types: [{ description: 'Markdown',
-            accept: { 'text/markdown': ['.md', '.markdown'] } }]
-        });
-        if (!handle) return;
-        await writeMarkdownFile(handle);
-        currentMarkdownFileHandle = handle;
-        markdownSaveStartHandle = handle;
-        committedFilename = normalizeMarkdownFilename(handle.name || committedFilename);
-        filenameInput.value = displayMarkdownFilename(committedFilename);
-        updateFilenameWidth();
-        syncDocumentTitle();
-        // Disk save succeeded regardless of browser cache availability.
-        ++documentEditRevision;
-        void persistBrowserBackup();
-        showToast(t('toastDiskSaved'));
-      } catch (error) {
-        if (error && error.name === 'AbortError') return;
-        showToast(t('toastDiskSaveFailed', error.message || String(error)));
-      }
-    }
-
-    // Ctrl+S overwrites only a file chosen through the native picker. The
-    // handle is in-memory only, so restarting the page asks again.
+    // Ctrl+S selects a destination only once. Imported Markdown already has
+    // an authorized handle, so it is overwritten immediately without a picker.
     async function saveMarkdown() {
       if (!canSaveMarkdownToDisk()) {
         exportFile();
         return;
       }
-      if (!currentMarkdownFileHandle) return saveMarkdownAs();
       try {
-        await writeMarkdownFile(currentMarkdownFileHandle);
-        // Disk save succeeded regardless of browser cache availability.
+        let handle = currentMarkdownFileHandle;
+        if (!handle) {
+          // Call the picker directly from the Ctrl+S gesture to retain user activation.
+          handle = await window.showSaveFilePicker({
+            suggestedName: committedFilename,
+            types: [{ description: 'Markdown',
+              accept: { 'text/markdown': ['.md', '.markdown'] } }]
+          });
+          if (!handle) return;
+        }
+        await writeMarkdownFile(handle);
+        currentMarkdownFileHandle = handle;
         ++documentEditRevision;
         void persistBrowserBackup();
         showToast(t('toastDiskSaved'));
       } catch (error) {
+        if (error && error.name === 'AbortError') return;
         showToast(t('toastDiskSaveFailed', error.message || String(error)));
       }
     }
@@ -3465,9 +3433,6 @@ ${'</scr' + 'ipt>'}
         committedFilename = name;
         filenameInput.value = displayMarkdownFilename(name);
         currentMarkdownFileHandle = /\.(md|markdown)$/i.test(file.name) ? handle : null;
-        // The original folder hint survives filename edits, but a legacy
-        // input/drag-drop supplies no handle and resets the old folder hint.
-        markdownSaveStartHandle = handle;
         syncDocumentTitle();
         updateFilenameWidth();
         updatePreview();
@@ -4601,11 +4566,10 @@ ${'</scr' + 'ipt>'}
     // Listen at document level so editor Ctrl/Cmd+S works reliably after mouse focus.
     // Do not intercept shortcuts used outside the editor.
     document.addEventListener('keydown', e => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' &&
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 's' &&
           (e.target === editor || document.activeElement === editor)) {
         e.preventDefault();
-        if (e.shiftKey) void saveMarkdownAs();
-        else void saveMarkdown();
+        void saveMarkdown();
       }
     });
 
