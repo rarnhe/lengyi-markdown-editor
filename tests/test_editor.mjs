@@ -1226,7 +1226,7 @@ test('centered filename and word count remain inside both rendered-text edges', 
   assert.match(html,/function applySplit\(\) \{[\s\S]*?updateFilenameLimit\(\);/);
 });
 
-test('Enter/blur rename changes metadata without download and preserves the authorized disk handle',()=>{
+test('Enter/blur rename changes metadata without download and preserves the source handle for sibling save',()=>{
   const fn=html.match(/function commitFilenameChange\(\) \{[^]*?\n    \}/);
   const normalize=html.match(/function normalizeMarkdownFilename\([^]*?\n    \}/);
   const display=html.match(/function displayMarkdownFilename\([^]*?\n    \}/);
