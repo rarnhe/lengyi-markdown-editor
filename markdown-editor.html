@@ -3300,8 +3300,13 @@ ${bodyHtml}
 
       const blob = new Blob([fullHtml], { type: 'application/msword;charset=utf-8' });
       if (outputHandle) {
-        await writeBlobToFileHandle(outputHandle, blob);
-        void rememberLastMarkdownLocation(outputHandle);
+        try {
+          await writeBlobToFileHandle(outputHandle, blob);
+          void rememberLastMarkdownLocation(outputHandle);
+        } catch (error) {
+          showToast(t('toastDiskSaveFailed', error.message || String(error)));
+          return;
+        }
       } else {
         downloadBlob(blob, name);
       }
@@ -3385,8 +3390,13 @@ ${'</scr' + 'ipt>'}
 
       const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
       if (outputHandle) {
-        await writeBlobToFileHandle(outputHandle, blob);
-        void rememberLastMarkdownLocation(outputHandle);
+        try {
+          await writeBlobToFileHandle(outputHandle, blob);
+          void rememberLastMarkdownLocation(outputHandle);
+        } catch (error) {
+          showToast(t('toastDiskSaveFailed', error.message || String(error)));
+          return;
+        }
       } else {
         downloadBlob(blob, name);
       }
@@ -3576,8 +3586,13 @@ ${'</scr' + 'ipt>'}
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
       const blob = new Blob([bytes], { type: 'image/png' });
       if (outputHandle) {
-        await writeBlobToFileHandle(outputHandle, blob);
-        void rememberLastMarkdownLocation(outputHandle);
+        try {
+          await writeBlobToFileHandle(outputHandle, blob);
+          void rememberLastMarkdownLocation(outputHandle);
+        } catch (error) {
+          showToast(t('toastDiskSaveFailed', error.message || String(error)));
+          return;
+        }
       } else {
         downloadBlob(blob, name);
       }
