@@ -192,7 +192,7 @@ test('an earlier queued IndexedDB write cannot delete a newer localStorage backu
 
 test('an already-successful disk write is never misreported as a disk failure if browser backup fails',async()=>{
   const fragment=['normalizeMarkdownFilename','displayMarkdownFilename',
-    'canSaveMarkdownToDisk','writeMarkdownFile','saveMarkdown']
+    'canSaveMarkdownToDisk','writeMarkdownFile','ensureMarkdownWritePermission','saveMarkdown']
     .map(fn).join('\n');
   let closed=0;
   const handle={name:'large.md',createWritable:async()=>({
@@ -200,7 +200,7 @@ test('an already-successful disk write is never misreported as a disk failure if
   const toasts=[];
   const ctx={
     window:{showSaveFilePicker:async()=>handle},
-    currentMarkdownFileHandle:handle,
+    currentMarkdownFileHandle:handle,currentMarkdownHandleFilename:'large.md',
     committedFilename:'large.md',filenameInput:{value:'large'},
     documentEditRevision:0,
     getMarkdown:()=> 'A'.repeat(5000000),
