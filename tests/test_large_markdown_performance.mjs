@@ -116,9 +116,12 @@ test('editor input event is composition-aware and preview work is not synchronou
 });
 
 
+
 function createPreviewHarness({ expanded = false } = {}) {
-  const folding = html.match(/\\/\\/ Base64 folding BEGIN([\\s\\S]*?)\\/\\/ Base64 folding END/);
-  assert.ok(folding, 'Base64 folding helpers must exist');
+  const foldStart = html.indexOf('    // Base64 folding BEGIN');
+  const foldEnd = html.indexOf('    // Base64 folding END', foldStart);
+  assert.ok(foldStart >= 0 && foldEnd > foldStart, 'Base64 folding helpers must exist');
+  const folding = html.slice(html.indexOf('\n', foldStart) + 1, foldEnd);
   const created = [], revoked = [];
   let nextUrl = 1;
   const context = vm.createContext({
@@ -134,13 +137,11 @@ function createPreviewHarness({ expanded = false } = {}) {
         return url;
       },
       revokeObjectURL(url) { revoked.push(url); }
-    },
-    document: { getElementById: () => ({ hidden: true, textContent: '' }) },
-    t: key => key
+    }
   });
   vm.runInContext(
-    folding[1] + '\\nthis.api={setMarkdown,getMarkdown,getPreviewMarkdown};' +
-    '\\nthis.setExpanded=value=>{imageDataCollapsed=value;};',
+    folding + '\nthis.api={setMarkdown,getMarkdown,getPreviewMarkdown};' +
+    '\nthis.setExpanded=value=>{imageDataCollapsed=value;};',
     context
   );
   if (expanded) context.setExpanded(false);
@@ -150,11 +151,11 @@ function createPreviewHarness({ expanded = false } = {}) {
 test('preview substitutes cached Blob URLs without expanding Base64 into parser input', () => {
   const h = createPreviewHarness();
   const dataUrl = 'data:image/png;base64,' + 'A'.repeat(256);
-  const markdown = '# Photo\\n\\n![photo](' + dataUrl + ')\\n';
+  const markdown = '# Photo\n\n![photo](' + dataUrl + ')\n';
   h.api.setMarkdown(markdown);
   const preview = h.api.getPreviewMarkdown();
-  assert.match(preview, /blob:performance-test\\/1/);
-  assert.doesNotMatch(preview, /data:image\\/png;base64/);
+  assert.match(preview, /blob:performance-test\/1/);
+  assert.doesNotMatch(preview, /data:image\/png;base64/);
   assert.doesNotMatch(preview, /⟦Base64图片#/);
   assert.equal(h.api.getMarkdown(), markdown, 'export/source Markdown remains byte-for-byte intact');
   assert.equal(h.created.length, 1);
@@ -169,8 +170,8 @@ test('preview supports expanded Base64 display without passing data URLs to Mark
   const markdown = '![photo](' + dataUrl + ')';
   h.api.setMarkdown(markdown);
   const preview = h.api.getPreviewMarkdown();
-  assert.match(preview, /blob:performance-test\\/1/);
-  assert.doesNotMatch(preview, /data:image\\/jpeg;base64/);
+  assert.match(preview, /blob:performance-test\/1/);
+  assert.doesNotMatch(preview, /data:image\/jpeg;base64/);
   assert.equal(h.api.getMarkdown(), markdown);
   assert.equal(h.created[0].blob.type, 'image/jpeg');
 });
@@ -181,23 +182,27 @@ test('unused image Blob URLs are revoked and recreated only if undo restores the
   const markdown = '![photo](' + dataUrl + ')';
   h.api.setMarkdown(markdown);
   const first = h.api.getPreviewMarkdown();
-  const firstUrl = first.match(/blob:performance-test\\/\\d+/)[0];
+  const firstUrl = first.match(/blob:performance-test\/\d+/)[0];
   h.editor.value = 'image removed';
   assert.equal(h.api.getPreviewMarkdown(), 'image removed');
   assert.deepEqual(h.revoked, [firstUrl]);
   h.api.setMarkdown(markdown);
   const restored = h.api.getPreviewMarkdown();
-  assert.notEqual(restored.match(/blob:performance-test\\/\\d+/)[0], firstUrl);
+  assert.notEqual(restored.match(/blob:performance-test\/\d+/)[0], firstUrl);
   assert.equal(h.created.length, 2);
 });
 
 test('Base64 status check and outline extraction avoid getMarkdown expansion', () => {
-  const has = html.match(/function hasEmbeddedBase64Image\\(\\) \\{[^]*?\\n    \\}/);
-  const outline = html.match(/function renderOutline\\(\\) \\{[^]*?\\n    \\}/);
-  const preview = html.match(/function updatePreview\\(\\) \\{[^]*?\\n    \\}/);
-  assert.ok(has && outline && preview);
-  assert.doesNotMatch(has[0], /getMarkdown\\(/);
-  assert.doesNotMatch(outline[0], /getMarkdown\\(/);
-  assert.match(preview[0], /getPreviewMarkdown\\(/);
-  assert.doesNotMatch(preview[0], /getMarkdown\\(/);
+  const extract = name => {
+    const match = html.match(new RegExp('function ' + name + '\\(\\) \\{[^]*?\\n    \\}'));
+    assert.ok(match, name + ' must exist');
+    return match[0];
+  };
+  const has = extract('hasEmbeddedBase64Image');
+  const outline = extract('renderOutline');
+  const preview = extract('updatePreview');
+  assert.doesNotMatch(has, /getMarkdown\(/);
+  assert.doesNotMatch(outline, /getMarkdown\(/);
+  assert.match(preview, /getPreviewMarkdown\(/);
+  assert.doesNotMatch(preview, /getMarkdown\(/);
 });
