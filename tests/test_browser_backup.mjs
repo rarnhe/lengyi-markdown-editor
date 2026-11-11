@@ -201,6 +201,7 @@ test('an already-successful disk write is never misreported as a disk failure if
   const ctx={
     window:{showSaveFilePicker:async()=>handle},
     currentMarkdownFileHandle:handle,currentMarkdownHandleFilename:'large.md',
+    rememberLastMarkdownLocation:async()=>true,
     committedFilename:'large.md',filenameInput:{value:'large'},
     documentEditRevision:0,
     getMarkdown:()=> 'A'.repeat(5000000),
