@@ -2856,7 +2856,69 @@
       showToast(t('toastSaved'));
     }
 
-    // 导出文件
+    // File System Access is optional. Without it, save falls back to
+    // downloading a copy; it cannot impersonate permission to overwrite.
+    function canSaveMarkdownToDisk() {
+      return typeof window.showSaveFilePicker === 'function';
+    }
+
+    async function writeMarkdownFile(handle) {
+      const writable = await handle.createWritable();
+      try {
+        await writable.write(getMarkdown());
+        await writable.close();
+      } catch (error) {
+        if (typeof writable.abort === 'function') {
+          try { await writable.abort(); } catch (_) {}
+        }
+        throw error;
+      }
+    }
+
+    // Save As asks for a new authorized destination. The picker is called
+    // synchronously before any await, preserving user activation.
+    async function saveMarkdownAs() {
+      if (!canSaveMarkdownToDisk()) {
+        exportFile();
+        return;
+      }
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: committedFilename,
+          types: [{ description: 'Markdown',
+            accept: { 'text/markdown': ['.md', '.markdown'] } }]
+        });
+        if (!handle) return;
+        await writeMarkdownFile(handle);
+        currentMarkdownFileHandle = handle;
+        committedFilename = normalizeMarkdownFilename(handle.name || committedFilename);
+        filenameInput.value = displayMarkdownFilename(committedFilename);
+        updateFilenameWidth();
+        syncDocumentTitle();
+        saveToLocal();
+      } catch (error) {
+        if (error && error.name === 'AbortError') return;
+        showToast(t('toastDiskSaveFailed', error.message || String(error)));
+      }
+    }
+
+    // Ctrl+S overwrites only a file chosen through the native picker. The
+    // handle is in-memory only, so restarting the page asks again.
+    async function saveMarkdown() {
+      if (!canSaveMarkdownToDisk()) {
+        exportFile();
+        return;
+      }
+      if (!currentMarkdownFileHandle) return saveMarkdownAs();
+      try {
+        await writeMarkdownFile(currentMarkdownFileHandle);
+        saveToLocal();
+      } catch (error) {
+        showToast(t('toastDiskSaveFailed', error.message || String(error)));
+      }
+    }
+
+    // 显式导出副本仍使用下载，和默认覆盖保存分开。
     function exportFile() {
       const blob = new Blob([getMarkdown()], { type: 'text/markdown;charset=utf-8' });
       const url = URL.createObjectURL(blob);
@@ -3280,7 +3342,32 @@ ${'</scr' + 'ipt>'}
       reader.readAsText(file);
     }
 
-    // 导入文件
+    async function openMarkdownFile() {
+      try {
+        const handles = await window.showOpenFilePicker({
+          multiple: false,
+          types: [{ description: 'Markdown / Text',
+            accept: { 'text/markdown': ['.md', '.markdown'],
+                      'text/plain': ['.txt'] } }]
+        });
+        if (!handles || !handles[0]) return;
+        const file = await handles[0].getFile();
+        loadFile(file, handles[0]);
+      } catch (error) {
+        if (error && error.name === 'AbortError') return;
+        showToast(t('toastDiskOpenFailed', error.message || String(error)));
+      }
+    }
+
+    function handleImportClick(event) {
+      if (typeof window.showOpenFilePicker !== 'function') return;
+      event.preventDefault();
+      // Start the picker during the user click, not from a delayed callback.
+      void openMarkdownFile();
+    }
+
+    // Older browsers and drag-and-drop still import content without write
+    // permission; the first Ctrl+S will ask for a destination.
     function importFile(input) {
       const file = input.files[0];
       if (file) loadFile(file);
@@ -4381,7 +4468,8 @@ ${'</scr' + 'ipt>'}
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' &&
           (e.target === editor || document.activeElement === editor)) {
         e.preventDefault();
-        exportFile();
+        if (e.shiftKey) void saveMarkdownAs();
+        else void saveMarkdown();
       }
     });
 
