@@ -172,6 +172,6 @@ test('raw Base64 Markdown image rows also pair with their cached Blob URL',()=>{
 
 test('Blob URL connector lookup reuses the existing cache without decoding image bytes',()=>{
   const helper=extract('imageSourcesMatch');
-  assert.match(helper,/imageBlobUrlByData\\.get\\(source\\)/);
+  assert.match(helper,/imageBlobUrlByData\.get\(source\)/);
   assert.doesNotMatch(helper,/atob|createImageBlobUrl|getImageBlobUrl/);
 });
