@@ -181,7 +181,7 @@ test('preview title hides Markdown suffix but the browser tab retains full filen
   assert.match(html,/filenameInput\.addEventListener\('input', updateFilenameWidth\)/);
   assert.match(html,/filenameInput\.addEventListener\('keydown'/);
   assert.match(html,/filenameInput\.addEventListener\('blur', commitFilenameChange\)/);
-  assert.match(html,/localStorage\.setItem\(FILENAME_KEY, committedFilename\)/);
+  assert.match(html,/localStorage\.setItem\(FILENAME_KEY, snapshot\.filename\)/);
 });
 
 test('Base64 status is read-only, appears after Edit, and preview uses complete Markdown', () => {
