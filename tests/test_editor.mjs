@@ -570,7 +570,7 @@ test('responsive overflow moves one control at a time using actual available wid
   assert.match(html,/applyLanguage\(\);\s*applyToolbarOverflow\(\);/);
   assert.match(html,/function saveToLocal\(\)/);
   assert.match(html,/function openFindModal\(/);
-  assert.match(html,/e\.key\.toLowerCase\(\) === 's'[\s\S]*?exportFile\(\)/);
+  assert.match(html,/e\.key\.toLowerCase\(\) === 's'[\s\S]*?saveMarkdown\(\)/);
   assert.match(html,/e\.key === 'f'[\s\S]*?openFindModal\(\)/);
 });
 
