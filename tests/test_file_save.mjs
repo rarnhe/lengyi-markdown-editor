@@ -162,17 +162,18 @@ test('import-time permission is requested before getFile and original handle is 
   handle.requestPermission=async options=>{events.push('permission:'+options.mode);return 'granted';};
   handle.getFile=async()=>{events.push('getFile');return {name:'source.md',content:'# source'};};
   const pickerOptions=[];
+  const recentFolder={kind:'file',name:'previous.md'};
   const ctx={window:{showOpenFilePicker:async options=>{events.push('picker');pickerOptions.push(options);return [handle];}},
     loadFile:(file,received)=>{events.push('load:'+file.name);assert.equal(received,handle);},
     MARKDOWN_PICKER_ID:'lengyi-markdown-workspace',
-    getLastMarkdownLocationStartIn:()=> 'documents',
+    getLastMarkdownLocationStartIn:()=> recentFolder,
     rememberLastMarkdownLocation:async value=>{events.push('remember:'+value.name);},
     showToast:()=>{},t:key=>key};
   vm.runInNewContext(extract('openMarkdownFile')+'\nthis.open=openMarkdownFile;',ctx);
   await ctx.open();
   assert.deepEqual(events,['picker','permission:readwrite','getFile','load:source.md','remember:source.md']);
   assert.equal(pickerOptions[0].id,'lengyi-markdown-workspace');
-  assert.equal(pickerOptions[0].startIn,'documents');
+  assert.equal(pickerOptions[0].startIn,recentFolder);
 });
 
 test('loadFile stores imported handle and its disk filename; handle-less imports clear association',()=>{
