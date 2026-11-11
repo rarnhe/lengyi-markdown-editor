@@ -13,6 +13,7 @@ const fn=name=>{
 };
 const all=['openMarkdownBackupDatabase','writeMarkdownBackupToIndexedDB',
   'readMarkdownBackupFromIndexedDB','browserBackupFailed','persistBrowserBackup',
+  'snapshotHistoryImageData','createHistorySnapshot',
   'restoreLargeBrowserBackupIfNeeded'].map(fn).join('\n');
 
 function database({failOpen=false,failWrite=false}={}){
@@ -75,8 +76,10 @@ function localCache({quota=250}={}){
 function fixture({db=database(),local=localCache(),limit=180,markdown='# A'}={}){
   const state={hints:0,toasts:[],markdown,filename:'test.md',loaded:null,
     historyChanged:0,rendered:0,counted:0,updatedTitle:0,updatedWidth:0};
+  const editor={value:markdown};
   const ctx={
-    indexedDB:db.api,localStorage:local.api,Promise,
+    indexedDB:db.api,localStorage:local.api,Promise,Map,
+    editor,imageDataMap:new Map(),
     BACKUP_DB_NAME:'lengyi-markdown-backup',
     BACKUP_STORE:'documents',BACKUP_KEY:'current',
     MAX_LOCAL_BACKUP_CHARS:limit,STORAGE_KEY:'md_editor_content',
@@ -86,7 +89,7 @@ function fixture({db=database(),local=localCache(),limit=180,markdown='# A'}={})
     committedFilename:state.filename,currentMarkdownFileHandle:null,
     filenameInput:{value:'test'},
     getMarkdown(){return state.markdown;},
-    setMarkdown(value){state.markdown=value;state.loaded=value;},
+    setMarkdown(value){state.markdown=value;state.loaded=value;editor.value=value;},
     normalizeMarkdownFilename:name=>/\.(md|markdown)$/i.test(name)?name:name+'.md',
     displayMarkdownFilename:name=>name.replace(/\.(md|markdown)$/i,''),
     updateFilenameWidth(){state.updatedWidth++;},
@@ -159,6 +162,8 @@ test('large backups restore full Markdown, filename and undo history',async()=>{
   assert.equal(page.ctx.filenameInput.value,'report');
   assert.equal(page.ctx.historyStack.length,1);
   assert.equal(page.ctx.historyIndex,0);
+  assert.equal(page.ctx.historyStack[0].type,'snapshot');
+  assert.equal(page.ctx.historyStack[0].text,data);
   assert.equal(page.ctx.lastHistoryText,data);
   assert.equal(page.state.rendered,1);
   assert.equal(page.state.counted,1);

@@ -2548,9 +2548,9 @@
       renderOutline();
 
       // 初始化历史记录
-      historyStack = [getMarkdown()];
+      historyStack = [createHistorySnapshot()];
       historyIndex = 0;
-      lastHistoryText = getMarkdown();
+      lastHistoryText = editor.value;
 
       // Editor and outline each restore their saved fold state.
 
@@ -3108,9 +3108,9 @@
         syncDocumentTitle();
         updatePreview();
         updateCount();
-        historyStack = [getMarkdown()];
+        historyStack = [createHistorySnapshot()];
         historyIndex = 0;
-        lastHistoryText = getMarkdown();
+        lastHistoryText = editor.value;
       }).catch(() => {
         // Optional storage can be unavailable in file:// or private contexts.
       });
@@ -3659,6 +3659,11 @@ ${'</scr' + 'ipt>'}
       const reader = new FileReader();
       reader.onload = (e) => {
         setMarkdown(e.target.result);
+        clearTimeout(historyTimer);
+        historyTimer = null;
+        historyStack = [createHistorySnapshot()];
+        historyIndex = 0;
+        lastHistoryText = editor.value;
         let name = file.name;
         if (!name.toLowerCase().endsWith('.md') && !name.toLowerCase().endsWith('.markdown')) {
           name += '.md';
@@ -3755,27 +3760,105 @@ ${'</scr' + 'ipt>'}
       updatePreview();
     }
 
-    // 历史记录
+    // 历史记录保存折叠文本的增量差异；图片 payload 只保留资源引用。
     function pushHistory() {
       clearTimeout(historyTimer);
       recordHistory();
     }
 
+    function snapshotHistoryImageData() {
+      const images = new Map();
+      for (const match of editor.value.matchAll(IMAGE_MARKER_RE)) {
+        const dataUrl = imageDataMap.get(match[0]);
+        if (dataUrl) images.set(match[0], dataUrl);
+      }
+      return images;
+    }
+
+    function createHistorySnapshot() {
+      return {
+        type: 'snapshot',
+        text: editor.value,
+        imageData: snapshotHistoryImageData()
+      };
+    }
+
+    function createHistoryPatch(before, after) {
+      let start = 0;
+      const sharedLength = Math.min(before.length, after.length);
+      while (start < sharedLength &&
+             before.charCodeAt(start) === after.charCodeAt(start)) start++;
+
+      let beforeEnd = before.length;
+      let afterEnd = after.length;
+      while (beforeEnd > start && afterEnd > start &&
+             before.charCodeAt(beforeEnd - 1) === after.charCodeAt(afterEnd - 1)) {
+        beforeEnd--;
+        afterEnd--;
+      }
+
+      return {
+        type: 'patch',
+        start,
+        removed: before.slice(start, beforeEnd),
+        inserted: after.slice(start, afterEnd),
+        imageData: snapshotHistoryImageData()
+      };
+    }
+
+    function applyHistoryPatch(text, patch, forward) {
+      const removed = forward ? patch.removed : patch.inserted;
+      const inserted = forward ? patch.inserted : patch.removed;
+      return text.slice(0, patch.start) + inserted +
+        text.slice(patch.start + removed.length);
+    }
+
+    function restoreHistoryImageData(state) {
+      imageDataMap.clear();
+      if (!state || !state.imageData) return;
+      for (const [marker, dataUrl] of state.imageData) {
+        imageDataMap.set(marker, dataUrl);
+      }
+    }
+
     function recordHistory() {
-      const text = getMarkdown();
+      const text = editor.value;
       if (text === lastHistoryText) return;
+      if (typeof lastHistoryText !== 'string' || !historyStack.length || historyIndex < 0) {
+        historyStack = [createHistorySnapshot()];
+        historyIndex = 0;
+        lastHistoryText = text;
+        return;
+      }
+
       historyStack = historyStack.slice(0, historyIndex + 1);
-      historyStack.push(text);
-      if (historyStack.length > MAX_HISTORY) historyStack.shift();
+      historyStack.push(createHistoryPatch(lastHistoryText, text));
+
+      // Keep one base snapshot plus at most MAX_HISTORY small patches.
+      // Fold the oldest patch into the base when the history limit is reached.
+      if (historyStack.length > MAX_HISTORY + 1) {
+        const oldestPatch = historyStack[1];
+        const base = historyStack[0];
+        historyStack[0] = {
+          type: 'snapshot',
+          text: applyHistoryPatch(base.text, oldestPatch, true),
+          imageData: new Map(oldestPatch.imageData)
+        };
+        historyStack.splice(1, 1);
+      }
+
       historyIndex = historyStack.length - 1;
       lastHistoryText = text;
     }
 
     function undo() {
       if (historyIndex <= 0) return;
+      const patch = historyStack[historyIndex];
+      if (!patch || patch.type !== 'patch') return;
+      editor.value = applyHistoryPatch(editor.value, patch, false);
       historyIndex--;
-      setMarkdown(historyStack[historyIndex]);
-      lastHistoryText = getMarkdown();
+      restoreHistoryImageData(historyStack[historyIndex]);
+      lastHistoryText = editor.value;
       updatePreview();
       updateCount();
       autoSave();
@@ -3785,9 +3868,12 @@ ${'</scr' + 'ipt>'}
 
     function redo() {
       if (historyIndex >= historyStack.length - 1) return;
+      const patch = historyStack[historyIndex + 1];
+      if (!patch || patch.type !== 'patch') return;
+      editor.value = applyHistoryPatch(editor.value, patch, true);
       historyIndex++;
-      setMarkdown(historyStack[historyIndex]);
-      lastHistoryText = getMarkdown();
+      restoreHistoryImageData(historyStack[historyIndex]);
+      lastHistoryText = editor.value;
       updatePreview();
       updateCount();
       autoSave();

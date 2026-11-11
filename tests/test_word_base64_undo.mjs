@@ -28,8 +28,9 @@ function createUndoHarness(){
   const h=history[0].slice(0,history[0].lastIndexOf('    function formatBold() {'));
   const prelude='let historyStack=[], historyIndex=-1, lastHistoryText=null, historyTimer=null; const MAX_HISTORY=100;\n';
   vm.runInContext(folding[1]+'\n'+prelude+h+'\n'+keydown[0]+
-    '\nthis.api={setMarkdown,getMarkdown,collapseImageData,toggleBase64,recordHistory,undo,redo,handleEditorKeydown};'+
-    '\nthis.initHistory=()=>{historyStack=[getMarkdown()];historyIndex=0;lastHistoryText=getMarkdown();};',ctx);
+    '\nthis.api={setMarkdown,getMarkdown,collapseImageData,toggleBase64,recordHistory,undo,redo,handleEditorKeydown,'+
+    'getHistory:()=>historyStack,getImageDataMap:()=>imageDataMap};'+
+    '\nthis.initHistory=()=>{historyStack=[createHistorySnapshot()];historyIndex=0;lastHistoryText=editor.value;};',ctx);
   return {api:ctx.api,editor,initHistory:ctx.initHistory};
 }
 
@@ -211,4 +212,76 @@ test('Word HTML emits physical width and proportional height in attributes and C
   assert.equal(created[1].css.height,'79.6000cm');
   assert.equal(created[1].attrs.height,
     String(Math.round(79.6/2.54*96)));
+});
+
+
+test('history snapshots and edits store folded text patches, never duplicate Base64 payloads',()=>{
+  const {api,editor,initHistory}=createUndoHarness();
+  const payload='A'.repeat(1024*1024);
+  const dataUrl='data:image/png;base64,'+payload;
+  const doc='# Large document\n\n![image]('+dataUrl+')\n\nText';
+  api.setMarkdown(doc);
+  initHistory();
+  const base=api.getHistory()[0];
+  const imageMarker=marker(editor.value)[0];
+  assert.equal(base.type,'snapshot');
+  assert.equal(base.text,editor.value);
+  assert.ok(base.text.length<doc.length/100);
+  assert.equal(base.text.includes('data:image/'),false);
+  assert.equal(base.imageData.get(imageMarker),api.getImageDataMap().get(imageMarker));
+
+  editor.value+='\nsmall edit';
+  api.recordHistory();
+  const patch=api.getHistory()[1];
+  assert.equal(patch.type,'patch');
+  assert.equal(patch.removed,'');
+  assert.equal(patch.inserted,'\nsmall edit');
+  assert.equal(patch.inserted.includes('data:image/'),false);
+  assert.equal(patch.removed.includes('data:image/'),false);
+  assert.equal(patch.imageData.get(imageMarker),api.getImageDataMap().get(imageMarker));
+  assert.equal(api.getHistory().length,2);
+});
+
+test('incremental history can undo and redo text and image-resource references',()=>{
+  const {api,editor,initHistory}=createUndoHarness();
+  const doc='# Album\n'+image(1)+'\n'+image(2);
+  api.setMarkdown(doc);
+  initHistory();
+  const initial=editor.value;
+  const ids=marker(initial);
+
+  editor.value=initial.replace(ids[0],'');
+  api.recordHistory();
+  const withoutFirst=editor.value;
+  assert.equal(api.getImageDataMap().has(ids[0]),true);
+  shortcut(api,'z');
+  assert.equal(editor.value,initial);
+  assert.equal(api.getMarkdown(),doc);
+  shortcut(api,'y');
+  assert.equal(editor.value,withoutFirst);
+  assert.equal(api.getMarkdown(),doc.replace(image(1)+'\n',''));
+  shortcut(api,'z');
+  assert.equal(editor.value,initial);
+  assert.deepEqual(marker(editor.value),ids);
+});
+
+test('history limit folds the oldest patch into its base snapshot without losing undo/redo',()=>{
+  const {api,editor,initHistory}=createUndoHarness();
+  api.setMarkdown('');
+  initHistory();
+  let expected='';
+  for(let i=0;i<105;i++){
+    const char=String(i%10);
+    editor.value+=char;
+    expected+=char;
+    api.recordHistory();
+  }
+  const history=api.getHistory();
+  assert.equal(history.length,101,'one base snapshot plus 100 patches');
+  assert.equal(history[0].type,'snapshot');
+  assert.equal(history[0].text,expected.slice(0,5));
+  for(let i=0;i<100;i++)shortcut(api,'z');
+  assert.equal(editor.value,expected.slice(0,5));
+  for(let i=0;i<100;i++)shortcut(api,'y');
+  assert.equal(editor.value,expected);
 });
