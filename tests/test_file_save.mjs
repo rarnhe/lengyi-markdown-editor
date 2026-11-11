@@ -68,6 +68,7 @@ test('Ctrl+S first chooses file then writes; second save overwrites SAME file',a
   assert.equal(handle.closed,2);
   assert.equal(state.downloads,0,'no numbered browser downloads');
   assert.equal(state.localSaves,2);
+  assert.deepEqual(state.toasts,['toastDiskSaved:undefined','toastDiskSaved:undefined']);
 });
 
 test('Save As chooses a new file and later Ctrl+S overwrites that new file',async()=>{
@@ -94,6 +95,7 @@ test('Save As chooses a new file and later Ctrl+S overwrites that new file',asyn
 test('cancelled Save As keeps the previously authorized file and does not download',async()=>{
   const {ctx,api,state,handle}=harness();
   await api.saveMarkdown();
+  const previousToasts=state.toasts.slice();
   ctx.window.showSaveFilePicker=async()=>{
     const err=new Error('User cancelled');err.name='AbortError';throw err;
   };
@@ -101,7 +103,7 @@ test('cancelled Save As keeps the previously authorized file and does not downlo
   assert.equal(ctx.currentMarkdownFileHandle,handle);
   assert.equal(ctx.committedFilename,'paper.md');
   assert.equal(state.downloads,0);
-  assert.deepEqual(state.toasts,[]);
+  assert.deepEqual(state.toasts,previousToasts);
 });
 
 test('unsupported File System Access API falls back to explicit download',async()=>{
@@ -187,7 +189,7 @@ test('metadata and UI wiring keep full filename in storage but remove extension 
   assert.match(html,/onclick="saveMarkdown\(\); closeExportMenu\(\);"/);
   assert.match(html,/onclick="saveMarkdownAs\(\); closeExportMenu\(\);"/);
   assert.match(html,/onclick="exportFile\(\); closeExportMenu\(\);"/);
-  for(const key of ['saveMd','saveMdAs','toastDiskSaveFailed','toastDiskOpenFailed'])
+  for(const key of ['saveMd','saveMdAs','toastDiskSaved','toastDiskSaveFailed','toastDiskOpenFailed'])
     assert.equal((i18n.match(new RegExp('^    '+key+':','gm'))||[]).length,10);
   assert.equal(existsSync('package.json'),false,'must not introduce npm');
 });
