@@ -1226,7 +1226,7 @@ test('centered filename and word count remain inside both rendered-text edges', 
   assert.match(html,/function applySplit\(\) \{[\s\S]*?updateFilenameLimit\(\);/);
 });
 
-test('Enter/blur rename changes metadata without download and detaches old disk handle',()=>{
+test('Enter/blur rename changes metadata without download and preserves the authorized disk handle',()=>{
   const fn=html.match(/function commitFilenameChange\(\) \{[^]*?\n    \}/);
   const normalize=html.match(/function normalizeMarkdownFilename\([^]*?\n    \}/);
   const display=html.match(/function displayMarkdownFilename\([^]*?\n    \}/);
@@ -1248,7 +1248,7 @@ test('Enter/blur rename changes metadata without download and detaches old disk 
   ctx.filenameInput.value='new-name';ctx.commit();
   assert.equal(ctx.filenameInput.value,'new-name');
   assert.equal(ctx.committedFilename,'new-name.md');
-  assert.equal(ctx.currentMarkdownFileHandle,null);
+  assert.equal(ctx.currentMarkdownFileHandle,oldHandle);
   assert.deepEqual(ctx.localStorage.written,[['filename','new-name.md']]);
   ctx.commit();assert.equal(ctx.titles,1);
   ctx.filenameInput.value='another.markdown';ctx.commit();
