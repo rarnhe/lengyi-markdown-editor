@@ -2664,7 +2664,15 @@
 
     function imageSourcesMatch(source, rendered) {
       if (source === rendered) return true;
-      if (source.startsWith('data:') || rendered.startsWith('data:')) return false;
+
+      // Preview Markdown replaces embedded Base64 destinations with Blob URLs.
+      // Match through the existing one-way cache instead of comparing (or
+      // recreating) megabyte-sized data URLs on every connector refresh.
+      if (source.startsWith('data:')) {
+        return imageBlobUrlByData.get(source) === rendered;
+      }
+      if (rendered.startsWith('data:') || rendered.startsWith('blob:')) return false;
+
       try {
         return new URL(source, document.baseURI).href ===
           new URL(rendered, document.baseURI).href;
