@@ -1549,6 +1549,10 @@
     // Only user-selected FileSystemFileHandle objects grant disk writes.
     // Do not persist file handles across editor sessions.
     let currentMarkdownFileHandle = null;
+    // A file handle can also serve as a directory hint for future Save As.
+    // Keep it after a rename, when the old writable association is cleared.
+    // This does NOT reveal the filesystem path to JavaScript.
+    let markdownSaveStartHandle = null;
     const htmlOpenedAt = new Date();
     let markdownImportedAt = null;
     function formatDocumentTime(date) {
@@ -2885,12 +2889,16 @@
       try {
         const handle = await window.showSaveFilePicker({
           suggestedName: committedFilename,
+          // Native pickers accept a previously opened FILE handle as startIn:
+          // its containing folder becomes the suggested save location.
+          startIn: markdownSaveStartHandle || 'documents',
           types: [{ description: 'Markdown',
             accept: { 'text/markdown': ['.md', '.markdown'] } }]
         });
         if (!handle) return;
         await writeMarkdownFile(handle);
         currentMarkdownFileHandle = handle;
+        markdownSaveStartHandle = handle;
         committedFilename = normalizeMarkdownFilename(handle.name || committedFilename);
         filenameInput.value = displayMarkdownFilename(committedFilename);
         updateFilenameWidth();
@@ -3334,6 +3342,9 @@ ${'</scr' + 'ipt>'}
         committedFilename = name;
         filenameInput.value = displayMarkdownFilename(name);
         currentMarkdownFileHandle = /\.(md|markdown)$/i.test(file.name) ? handle : null;
+        // The original folder hint survives filename edits, but a legacy
+        // input/drag-drop supplies no handle and resets the old folder hint.
+        markdownSaveStartHandle = handle;
         syncDocumentTitle();
         updateFilenameWidth();
         updatePreview();
