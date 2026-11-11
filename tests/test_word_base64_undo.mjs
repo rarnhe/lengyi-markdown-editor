@@ -250,7 +250,7 @@ test('incremental history can undo and redo text and image-resource references',
   const initial=editor.value;
   const ids=marker(initial);
 
-  editor.value=initial.replace('![图1]('+ids[0]+')\\n','');
+  editor.value=initial.replace('![图1]('+ids[0]+')\n','');
   api.recordHistory();
   const withoutFirst=editor.value;
   assert.equal(api.getImageDataMap().has(ids[0]),true);

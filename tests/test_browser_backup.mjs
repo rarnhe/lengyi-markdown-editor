@@ -80,7 +80,7 @@ function fixture({db=database(),local=localCache(),limit=180,markdown='# A'}={})
   const ctx={
     indexedDB:db.api,localStorage:local.api,Promise,Map,
     editor,imageDataMap:new Map(),
-    IMAGE_MARKER_RE:/⟦Base64图片#\\d+已折叠⟧/g,
+    IMAGE_MARKER_RE:/⟦Base64图片#\d+已折叠⟧/g,
     BACKUP_DB_NAME:'lengyi-markdown-backup',
     BACKUP_STORE:'documents',BACKUP_KEY:'current',
     MAX_LOCAL_BACKUP_CHARS:limit,STORAGE_KEY:'md_editor_content',
