@@ -1440,6 +1440,7 @@ test('editor Ctrl/Cmd+S calls direct overwrite; Shift+S uses Save As; unrelated 
   assert.doesNotMatch(original[0],/e\.key === 's'|exportFile\(/);
   assert.match(html,/editor\.addEventListener\('keydown', handleEditorKeydown\)/);
   assert.match(html,/function exportFile\(\) \{\s*const blob = new Blob\(\[getMarkdown\(\)\]/);
-  assert.match(html,/function autoSave\(\) \{[^]*?localStorage\.setItem\(STORAGE_KEY, getMarkdown\(\)\)/);
+  assert.match(html,/function autoSave\(\) \{[^]*?persistBrowserBackup\(\)/);
+  assert.match(html,/function persistBrowserBackup\(\) \{[^]*?localStorage\.setItem\(STORAGE_KEY, snapshot\.markdown\)/);
 });
 
