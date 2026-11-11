@@ -206,3 +206,19 @@ test('Base64 status check and outline extraction avoid getMarkdown expansion', (
   assert.match(preview, /getPreviewMarkdown\(/);
   assert.doesNotMatch(preview, /getMarkdown\(/);
 });
+
+
+test('preview keeps Base64 examples in code blocks literal while converting real image links', () => {
+  const h = createPreviewHarness();
+  const fence = String.fromCharCode(96).repeat(3);
+  const codeData = 'data:image/png;base64,' + 'D'.repeat(256);
+  const imageData = 'data:image/jpeg;base64,' + 'E'.repeat(256);
+  const markdown = fence + 'markdown\n![example](' + codeData + ')\n' + fence + '\n' +
+    '![actual](' + imageData + ')';
+  h.api.setMarkdown(markdown);
+  const preview = h.api.getPreviewMarkdown();
+  assert.ok(preview.includes(codeData), 'code block keeps original Base64 example');
+  assert.match(preview, /blob:performance-test\/1/);
+  assert.doesNotMatch(preview, /data:image\/jpeg;base64/);
+  assert.equal(h.created.length, 1, 'only the actual Markdown image is decoded');
+});

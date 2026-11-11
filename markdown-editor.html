@@ -1653,6 +1653,7 @@
     // The textarea is a DISPLAY only; persisted Markdown is always expanded.
     const IMAGE_DATA_RE = /data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+/gi;
     const IMAGE_MARKER_RE = /⟦Base64图片#\d+已折叠⟧/g;
+    const MARKDOWN_IMAGE_SOURCE_RE = /(!\[[^\]]*\]\()((?:data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=]+)|(?:⟦Base64图片#\d+已折叠⟧))(\))/gi;
     const imageDataMap = new Map();
     // Keep image bytes out of preview Markdown. One Blob URL is shared by all
     // occurrences of the same data URL and released when the document drops it.
@@ -1738,17 +1739,24 @@
 
     function getPreviewMarkdown() {
       const activeDataUrls = new Set();
-      let text = editor.value;
-      text = text.replace(IMAGE_DATA_RE, dataUrl => {
-        activeDataUrls.add(dataUrl);
-        return getImageBlobUrl(dataUrl);
-      });
-      text = text.replace(IMAGE_MARKER_RE, marker => {
-        const dataUrl = imageDataMap.get(marker);
-        if (!dataUrl) return marker;
-        activeDataUrls.add(dataUrl);
-        return getImageBlobUrl(dataUrl);
-      });
+      const codeSegmentRe = new RegExp('(\`\`\`[\\s\\S]*?\`\`\`|~~~[\\s\\S]*?~~~|\`+[^\\\`\\n]*\`+)', 'g');
+      const parts = editor.value.split(codeSegmentRe);
+      const text = parts.map(part => {
+        // Code is literal content, not an image source. Preserve its original
+        // Base64 text rather than replacing it with a Blob URL.
+        if (part.startsWith('~~~') || part.startsWith('\`\`\`') || part.startsWith('\`')) {
+          return expandImageData(part);
+        }
+        const rendered = part.replace(MARKDOWN_IMAGE_SOURCE_RE, (match, prefix, source, suffix) => {
+          const dataUrl = /^data:image\//i.test(source) ? source : imageDataMap.get(source);
+          if (!dataUrl) return match;
+          activeDataUrls.add(dataUrl);
+          return prefix + getImageBlobUrl(dataUrl) + suffix;
+        });
+        // Markers outside an image destination retain their literal Markdown
+        // meaning; only actual Markdown image references use Blob URLs.
+        return rendered.replace(IMAGE_MARKER_RE, marker => imageDataMap.get(marker) || marker);
+      }).join('');
 
       for (const [dataUrl, url] of imageBlobUrlByData) {
         if (activeDataUrls.has(dataUrl)) continue;
